@@ -477,6 +477,7 @@ dependencies = [
  "mec-mrbc-sys",
  "nom",
  "rand",
+ "syn",
 ]
 
 [[package]]
