@@ -33,7 +33,15 @@ jobs:
       - name: Install C compiler
         run: sudo apt-get update && sudo apt-get install -y build-essential
       - name: Run tests for "${{ matrix.BUILD_TARGET }}" profile
-        run: cargo test --workspace --exclude mec --profile ${{ matrix.BUILD_TARGET }}
+        run: |
+          set +e
+          cargo test --workspace --exclude mec --profile ${{ matrix.BUILD_TARGET }}
+          TEST_RESULT=$?
+          if [ $TEST_RESULT != 0 ]; then
+            echo "Some tests failed. Debug:"
+            git diff
+            exit $TEST_RESULT
+          fi
         working-directory: mrubyedge
       - name: Build binaries for "${{ matrix.BUILD_TARGET }}" profile
         run: cargo build --workspace --exclude mec --profile ${{ matrix.BUILD_TARGET }}
