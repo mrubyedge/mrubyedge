@@ -9,11 +9,11 @@ mruby/edge is yet another mruby-compatible VM implementation, specialized for We
 
 ## crates
 
-### mrubyedge
+### [mrubyedge](https://crates.io/crates/mrubyedge)
 
 * mruby/edge core VM implementation
 
-### mrubyedge-cli
+### [mrubyedge-cli](https://crates.io/crates/mrubyedge-cli)
 
 * CLI endpoint for mruby/edge - run, compile to wasm, etc.
 
