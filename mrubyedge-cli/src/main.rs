@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-mod subcommands;
+use mrubyedge_cli::subcommands;
 
 #[derive(Parser)]
 #[command(name = "mrbedge")]
@@ -21,7 +21,7 @@ enum Commands {
     /// Run is invoked when rb/mrb file is directly passed to the command
     Run(subcommands::run::RunArgs),
     /// Generate WebAssembly binary from Ruby code
-    Wasm,
+    Wasm(subcommands::wasm::WasmArgs),
     /// Compile Ruby script to mrb
     CompileMrb(subcommands::compile_mrb::CompileMrbArgs),
     /// Scaffold the package project with a wasm binary
@@ -44,8 +44,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>>  {
         Some(Commands::Run(args)) => {
             subcommands::run::execute(args)?;
         }
-        Some(Commands::Wasm) => {
-            subcommands::wasm::execute();
+        Some(Commands::Wasm(args)) => {
+            subcommands::wasm::execute(args)?;
         }
         Some(Commands::CompileMrb(args)) => {
             subcommands::compile_mrb::execute(args)?;
