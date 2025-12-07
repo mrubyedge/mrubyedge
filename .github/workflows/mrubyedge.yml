@@ -6,11 +6,13 @@ on:
       - master
     paths:
       - 'mrubyedge/**'
+      - 'mrubyedge-cli/**'
   pull_request:
     branches:
       - master
     paths:
       - 'mrubyedge/**'
+      - 'mrubyedge-cli/**'
 
 jobs:
   build:
