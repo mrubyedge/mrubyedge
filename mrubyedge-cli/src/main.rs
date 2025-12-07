@@ -2,10 +2,19 @@ use clap::{Parser, Subcommand};
 
 use mrubyedge_cli::subcommands;
 
+const LONG_VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    ", using mruby/edge ",
+    env!("CARGO_PKG_VERSION"),
+    // FIXME: update version macro usage
+    // mrubyedge::version!(),
+);
+
 #[derive(Parser)]
 #[command(name = "mrbedge")]
 #[command(about = "mruby/edge command line interface", long_about = None)]
 #[command(version)]
+#[command(long_version = LONG_VERSION)]
 #[command(args_conflicts_with_subcommands = true)]
 struct Cli {
     #[command(subcommand)]

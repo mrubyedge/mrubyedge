@@ -33,8 +33,8 @@ jobs:
       - name: Install C compiler
         run: sudo apt-get update && sudo apt-get install -y build-essential
       - name: Run tests for "${{ matrix.BUILD_TARGET }}" profile
-        run: cargo test --profile ${{ matrix.BUILD_TARGET }}
+        run: cargo test --workspace --exclude mec --profile ${{ matrix.BUILD_TARGET }}
         working-directory: mrubyedge
       - name: Build binaries for "${{ matrix.BUILD_TARGET }}" profile
-        run: cargo build --profile ${{ matrix.BUILD_TARGET }}
+        run: cargo build --workspace --exclude mec --profile ${{ matrix.BUILD_TARGET }}
         working-directory: mrubyedge
