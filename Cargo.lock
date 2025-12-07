@@ -559,9 +559,9 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "mruby-compiler2-sys"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af58b161e8e8422f33ec82de978e21b0267e56c2387674dfd21a4785944597a1"
+checksum = "2b1e90e55600aa830bc7381ce7de6a8fbfd7dc91727dd5116dbb92487e5b47c2"
 dependencies = [
  "bindgen 0.72.1",
  "cc",
