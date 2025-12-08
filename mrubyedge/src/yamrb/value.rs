@@ -513,6 +513,7 @@ pub struct RModule {
     pub sym_id: RSym,
     pub procs: RefCell<HashMap<String, RProc>>,
     pub consts: RefCell<HashMap<String, Rc<RObject>>>,
+    pub mixed_in_modules: RefCell<Vec<Rc<RModule>>>,
 }
 
 impl RModule {
@@ -522,6 +523,7 @@ impl RModule {
             sym_id: RSym::new(name),
             procs: RefCell::new(HashMap::new()),
             consts: RefCell::new(HashMap::new()),
+            mixed_in_modules: RefCell::new(Vec::new()),
         }
     }
 
@@ -531,8 +533,22 @@ impl RModule {
     }
 
     pub fn find_method(&self, name: &str) -> Option<RProc> {
+        // First check this module's methods
         let procs = self.procs.borrow();
-        procs.get(name).map(|p| p.clone())
+        if let Some(p) = procs.get(name) {
+            return Some(p.clone());
+        }
+        drop(procs);
+
+        // Then check mixed-in modules
+        let mixed_in = self.mixed_in_modules.borrow();
+        for module in mixed_in.iter() {
+            if let Some(p) = module.find_method(name) {
+                return Some(p);
+            }
+        }
+
+        None
     }
 }
 
