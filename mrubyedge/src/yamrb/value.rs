@@ -14,6 +14,7 @@ pub enum RType {
     Integer,
     Float,
     Class,
+    Module,
     Instance,
     Proc,
     Array,
@@ -33,6 +34,7 @@ pub enum RValue {
     Integer(i64),
     Float(f64),
     Class(Rc<RClass>),
+    Module(Rc<RModule>),
     Instance(RInstance),
     Proc(RProc),
     Array(RefCell<Vec<Rc<RObject>>>),
@@ -191,6 +193,14 @@ impl RObject {
         }
     }
 
+    pub fn module(m: Rc<RModule>) -> Self {
+        RObject {
+            tt: RType::Module,
+            value: RValue::Module(m),
+            object_id: (u64::MAX).into(),
+        }
+    }
+
     pub fn instance(c: Rc<RClass>) -> Self {
         RObject {
             tt: RType::Instance,
@@ -294,6 +304,7 @@ impl RObject {
     pub fn get_class(&self, vm: &VM) -> Rc<RClass> {
         match &self.value {
             RValue::Class(_) => vm.get_class_by_name("Class"),
+            RValue::Module(_) => vm.get_class_by_name("Module"),
             RValue::Instance(i) => i.class.clone(),
             RValue::Bool(b) => {
                 if *b {
@@ -498,34 +509,62 @@ impl TryFrom<&RObject> for *mut u8 {
 }
 
 #[derive(Debug, Clone)]
-pub struct RClass {
+pub struct RModule {
     pub sym_id: RSym,
-    pub super_class: Option<Rc<RClass>>,
     pub procs: RefCell<HashMap<String, RProc>>,
     pub consts: RefCell<HashMap<String, Rc<RObject>>>,
 }
 
-impl RClass {
-    pub fn new(name: &str, super_class: Option<Rc<RClass>>) ->Self {
+impl RModule {
+    pub fn new(name: &str) -> Self {
         let name = name.to_string();
-        RClass {
+        RModule {
             sym_id: RSym::new(name),
-            super_class,
             procs: RefCell::new(HashMap::new()),
             consts: RefCell::new(HashMap::new()),
         }
     }
 
     pub fn getmcnst(&self, name: &str) -> Option<Rc<RObject>> {
-        let consts   = self.consts.borrow();
+        let consts = self.consts.borrow();
         consts.get(name).map(|v| v.clone())
+    }
+
+    pub fn find_method(&self, name: &str) -> Option<RProc> {
+        let procs = self.procs.borrow();
+        procs.get(name).map(|p| p.clone())
+    }
+}
+
+impl From<Rc<RModule>> for RObject {
+    fn from(value: Rc<RModule>) -> Self {
+        RObject::module(value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RClass {
+    pub module: Rc<RModule>,
+    pub super_class: Option<Rc<RClass>>,
+}
+
+impl RClass {
+    pub fn new(name: &str, super_class: Option<Rc<RClass>>) -> Self {
+        let module = Rc::new(RModule::new(name));
+        RClass {
+            module,
+            super_class,
+        }
+    }
+
+    pub fn getmcnst(&self, name: &str) -> Option<Rc<RObject>> {
+        self.module.getmcnst(name)
     }
 
     // find_method will search method from self to superclass
     pub fn find_method(&self, name: &str) -> Option<RProc> {
-        let procs = self.procs.borrow();
-        match procs.get(name) {
-            Some(p) => Some(p.clone()),
+        match self.module.find_method(name) {
+            Some(p) => Some(p),
             None => {
                 match &self.super_class {
                     Some(sc) => sc.find_method(name),
@@ -533,6 +572,14 @@ impl RClass {
                 }
             }
         }
+    }
+}
+
+// Provide convenient accessors to module fields
+impl std::ops::Deref for RClass {
+    type Target = RModule;
+    fn deref(&self) -> &Self::Target {
+        &self.module
     }
 }
 
