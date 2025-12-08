@@ -918,6 +918,7 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         RValue::Instance(ins) => ins.class.as_ref(),
         _ => unreachable!("super must be called on instance"),
     };
+    dbg!(&klass);
     let superclass = klass.super_class.as_ref().ok_or_else(|| Error::internal("superclass not found"))?;
     let sc_procs = superclass.procs.borrow();
     let method = sc_procs.get(&sym_id)
@@ -1464,7 +1465,13 @@ pub(crate) fn op_exec(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let irep = vm.irep.reps[b as usize].clone();
     vm.current_irep = irep;
     vm.current_regs_offset += a as usize;
-    vm.target_class = recv.get_class(vm);
+
+    // If recv is a Class, set target_class to that class itself
+    // Otherwise, set target_class to the class of recv
+    vm.target_class = match &recv.value {
+        RValue::Class(klass) => klass.clone(),
+        _ => recv.get_class(vm),
+    };
     Ok(())
 }
 
@@ -1490,7 +1497,7 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_tclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let klass = vm.object_class.clone();
+    let klass = vm.target_class.clone();
     let val: RObject = klass.into();
     vm.current_regs()[a].replace(val.to_refcount_assigned());
     Ok(())
