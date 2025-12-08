@@ -848,6 +848,8 @@ pub(crate) fn do_op_send(vm: &mut VM, recv_index: usize, blk_index: Option<usize
     if let Some(blk_index) = blk_index {
         args.push(vm.get_current_regs_cloned(blk_index)?);
     } else {
+        // When no block is provided, set nil in the block register
+        vm.current_regs()[block_index].replace(Rc::new(RObject::nil()));
         args.push(Rc::new(RObject::nil()));
     }
 
@@ -918,7 +920,6 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         RValue::Instance(ins) => ins.class.as_ref(),
         _ => unreachable!("super must be called on instance"),
     };
-    dbg!(&klass);
     let superclass = klass.super_class.as_ref().ok_or_else(|| Error::internal("superclass not found"))?;
     let sc_procs = superclass.procs.borrow();
     let method = sc_procs.get(&sym_id)
