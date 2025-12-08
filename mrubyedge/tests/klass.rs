@@ -81,3 +81,72 @@ fn attr_accessor_test() {
         .unwrap().as_ref().try_into().unwrap();
     assert_eq!(&result, "Hola, attr");
 }
+
+#[test]
+fn class_definition_isolation_test() {
+    let code = "
+    class Test1
+      def hello
+        123
+      end
+    end
+
+    class Test2
+      def hello
+        456
+      end
+    end
+
+    def test_main1
+      Test1.new.hello
+    end
+
+    def test_main2
+      Test2.new.hello
+    end
+    ";
+    let binary = mrbc_compile("class_definition_isolation", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    // Assert
+    let args = vec![];
+    let val1: i32 = mrb_funcall(&mut vm, None, "test_main1", &args)
+        .unwrap().as_ref().try_into().unwrap();
+    let val2: i32 = mrb_funcall(&mut vm, None, "test_main2", &args)
+        .unwrap().as_ref().try_into().unwrap();
+    assert_eq!(val1, 123);
+    assert_eq!(val2, 456);
+}
+
+#[test]
+fn class_inheritance_super_test() {
+    let code = "
+    class Test1
+      def hello
+        123
+      end
+    end
+
+    class Test3 < Test1
+      def hello
+        super + 1
+      end
+    end
+
+    def test_main
+      Test3.new.hello
+    end
+    ";
+    let binary = mrbc_compile("class_inheritance_super", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    // Assert
+    let args = vec![];
+    let result: i32 = mrb_funcall(&mut vm, None, "test_main", &args)
+        .unwrap().as_ref().try_into().unwrap();
+    assert_eq!(result, 124);
+}

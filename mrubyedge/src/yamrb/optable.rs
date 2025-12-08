@@ -848,6 +848,8 @@ pub(crate) fn do_op_send(vm: &mut VM, recv_index: usize, blk_index: Option<usize
     if let Some(blk_index) = blk_index {
         args.push(vm.get_current_regs_cloned(blk_index)?);
     } else {
+        // When no block is provided, set nil in the block register
+        vm.current_regs()[block_index].replace(Rc::new(RObject::nil()));
         args.push(Rc::new(RObject::nil()));
     }
 
@@ -1464,7 +1466,13 @@ pub(crate) fn op_exec(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let irep = vm.irep.reps[b as usize].clone();
     vm.current_irep = irep;
     vm.current_regs_offset += a as usize;
-    vm.target_class = recv.get_class(vm);
+
+    // If recv is a Class, set target_class to that class itself
+    // Otherwise, set target_class to the class of recv
+    vm.target_class = match &recv.value {
+        RValue::Class(klass) => klass.clone(),
+        _ => recv.get_class(vm),
+    };
     Ok(())
 }
 
@@ -1490,7 +1498,7 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_tclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let klass = vm.object_class.clone();
+    let klass = vm.target_class.clone();
     let val: RObject = klass.into();
     vm.current_regs()[a].replace(val.to_refcount_assigned());
     Ok(())
