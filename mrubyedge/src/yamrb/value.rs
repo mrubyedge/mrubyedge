@@ -514,6 +514,7 @@ pub struct RModule {
     pub procs: RefCell<HashMap<String, RProc>>,
     pub consts: RefCell<HashMap<String, Rc<RObject>>>,
     pub mixed_in_modules: RefCell<Vec<Rc<RModule>>>,
+    pub parent: RefCell<Option<Rc<RModule>>>,
 }
 
 impl RModule {
@@ -524,6 +525,7 @@ impl RModule {
             procs: RefCell::new(HashMap::new()),
             consts: RefCell::new(HashMap::new()),
             mixed_in_modules: RefCell::new(Vec::new()),
+            parent: RefCell::new(None),
         }
     }
 
@@ -578,8 +580,11 @@ pub struct RClass {
 }
 
 impl RClass {
-    pub fn new(name: &str, super_class: Option<Rc<RClass>>) -> Self {
+    pub fn new(name: &str, super_class: Option<Rc<RClass>>, parent_module: Option<Rc<RModule>>) -> Self {
         let module = Rc::new(RModule::new(name));
+        if let Some(parent) = parent_module {
+            module.parent.replace(Some(parent));
+        }
         RClass {
             module,
             super_class,

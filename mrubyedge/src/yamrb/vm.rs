@@ -22,6 +22,15 @@ pub enum TargetContext {
     Module(Rc<RModule>),
 }
 
+impl TargetContext {
+    pub fn name(&self) -> String {
+        match self {
+            TargetContext::Class(c) => c.sym_id.name.clone(),
+            TargetContext::Module(m) => m.sym_id.name.clone(),
+        }
+    }
+}
+
 pub struct VM {
     pub irep: Rc<IREP>,
     
@@ -82,7 +91,7 @@ impl VM {
         let consts = HashMap::new();
         let builtin_class_table = HashMap::new();
 
-        let object_class = Rc::new(RClass::new("Object", None));
+        let object_class = Rc::new(RClass::new("Object", None, None));
 
         let id = 1; // TODO generator
         let bytecode = Vec::new();
@@ -256,34 +265,37 @@ impl VM {
         self.builtin_class_table.get(name).cloned().expect(format!("Class {} not found", name).as_str())
     }
 
-    pub(crate) fn define_class(&mut self, name: &str, superclass: Option<Rc<RClass>>) -> Rc<RClass> {
+    pub(crate) fn define_class(&mut self, name: &str, superclass: Option<Rc<RClass>>, parent_module: Option<Rc<RModule>>) -> Rc<RClass> {
         let superclass = match superclass {
             Some(c) => c,
             None => self.object_class.clone(),
         };
         let class = Rc::new(
-            RClass::new(name, Some(superclass)),
+            RClass::new(name, Some(superclass), parent_module),
         );
         let object = RObject::class(class.clone()).to_refcount_assigned();
         self.consts.insert(name.to_string(), object);
         class
     }
 
-    pub(crate) fn define_module(&mut self, name: &str) -> Rc<RModule> {
+    pub(crate) fn define_module(&mut self, name: &str, parent_module: Option<Rc<RModule>>) -> Rc<RModule> {
         let module = Rc::new(RModule::new(name));
+        if let Some(parent) = parent_module {
+            module.parent.replace(Some(parent));
+        }
         let object = RObject::module(module.clone()).to_refcount_assigned();
         self.consts.insert(name.to_string(), object);
         module
     }
 
     pub(crate) fn define_standard_class(&mut self, name: &'static str) -> Rc<RClass> {
-        let class = self.define_class(name, None);
+        let class = self.define_class(name, None, None);
         self.builtin_class_table.insert(name, class.clone());
         class
     }
 
     pub(crate) fn define_standard_class_under(&mut self, name: &'static str, sklass: Rc<RClass>) -> Rc<RClass> {
-        let class = self.define_class(name, Some(sklass));
+        let class = self.define_class(name, Some(sklass.clone()), Some(sklass.module.clone()));
         self.builtin_class_table.insert(name, class.clone());
         class
     }

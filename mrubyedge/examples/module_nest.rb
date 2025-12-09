@@ -11,4 +11,5 @@ module TestModule
 end
 
 obj = TestModule::MyClass.new
+# puts obj
 puts obj.module_method # Output: 42
