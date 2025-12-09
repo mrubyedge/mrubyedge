@@ -421,9 +421,9 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         CLASS => {
             op_class(vm, &operand)?;
         }
-        // MODULE => {
-        //     // op_module(vm, &operand)?;
-        // }
+        MODULE => {
+            op_module(vm, &operand)?;
+        }
         EXEC => {
             op_exec(vm, &operand)?;
         }
@@ -465,7 +465,7 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
     Ok(())
 }
 
-pub(crate) fn push_callinfo(vm: &mut VM, method_id: RSym, n_args: usize) {
+pub(crate) fn push_callinfo(vm: &mut VM, method_id: RSym, n_args: usize, method_owner: Option<Rc<RModule>>) {
     let callinfo = CALLINFO {
         prev: vm.current_callinfo.clone(),
         method_id,
@@ -474,6 +474,7 @@ pub(crate) fn push_callinfo(vm: &mut VM, method_id: RSym, n_args: usize) {
         current_regs_offset: vm.current_regs_offset,
         n_args,
         target_class: vm.target_class.clone(),
+        method_owner,
     };
     vm.current_callinfo = Some(Rc::new(callinfo));
 }
@@ -855,7 +856,7 @@ pub(crate) fn do_op_send(vm: &mut VM, recv_index: usize, blk_index: Option<usize
 
     let method_id = vm.current_irep.syms[b as usize].clone();
     let klass = recv.get_class(vm);
-    let method = klass.find_method(&method_id.name).ok_or_else(|| {
+    let (owner_module, method) = resolve_method(&klass, &method_id.name).ok_or_else(|| {
         Error::NoMethodError(method_id.name.clone())
     })?;
 
@@ -884,7 +885,7 @@ pub(crate) fn do_op_send(vm: &mut VM, recv_index: usize, blk_index: Option<usize
         return Ok(());
     }
 
-    push_callinfo(vm, method_id, c as usize);
+    push_callinfo(vm, method_id, c as usize, Some(owner_module));
 
     vm.pc.set(0);
     vm.current_irep = method.irep.ok_or_else(|| Error::internal("empry irep"))?;
@@ -893,7 +894,7 @@ pub(crate) fn do_op_send(vm: &mut VM, recv_index: usize, blk_index: Option<usize
 }
 
 pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
-    push_callinfo(vm, "<tailcall>".into(), 0);
+    push_callinfo(vm, "<tailcall>".into(), 0, None);
 
     vm.pc.set(0);
     let proc = vm.current_regs()[0].as_ref().cloned().ok_or_else(|| Error::internal("proc not found"))?;
@@ -908,21 +909,21 @@ pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let sym_id = vm.current_callinfo.as_ref()
-        .ok_or_else(|| Error::internal("no current callinfo"))?
-        .method_id.name.clone();
+    let callinfo = vm.current_callinfo.as_ref()
+        .ok_or_else(|| Error::internal("no current callinfo"))?;
+    let sym_id = callinfo.method_id.name.clone();
+    let owner_module = callinfo.method_owner.clone()
+        .ok_or_else(|| Error::RuntimeError("super called outside of method".to_string()))?;
     let recv = vm.getself()?;
     let args = (0..b)
         .map(|i| vm.get_current_regs_cloned((a + i + 1) as usize).expect("args too short for super"))
         .collect::<Vec<_>>();
 
     let klass = match &recv.value {
-        RValue::Instance(ins) => ins.class.as_ref(),
+        RValue::Instance(ins) => ins.class.clone(),
         _ => unreachable!("super must be called on instance"),
     };
-    let superclass = klass.super_class.as_ref().ok_or_else(|| Error::internal("superclass not found"))?;
-    let sc_procs = superclass.procs.borrow();
-    let method = sc_procs.get(&sym_id)
+    let (next_owner, method) = resolve_next_method(&klass, &sym_id, &owner_module)
         .ok_or_else(|| Error::NoMethodError(sym_id.clone()))?;
     if !method.is_rb_func {
         let func = vm.get_fn(method.func.unwrap())
@@ -945,7 +946,7 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     }
 
     vm.current_regs()[a as usize].replace(recv.clone());
-    push_callinfo(vm, method.sym_id.clone().unwrap(), b as usize);
+    push_callinfo(vm, method.sym_id.clone().unwrap(), b as usize, Some(next_owner));
 
     vm.pc.set(0);
     vm.current_irep = method.irep.as_ref().ok_or_else(|| Error::internal("empty irep"))?.clone();
@@ -1455,42 +1456,62 @@ pub(crate) fn op_class(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     Ok(())
 }
 
+pub(crate) fn op_module(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bb()?;
+    let name = vm.current_irep.syms[b as usize].clone();
+    let name = name.name;
+    let module = vm.define_module(&name);
+
+    vm.current_regs()[a as usize].replace(Rc::new(module.into()));
+    Ok(())
+}
+
 pub(crate) fn op_exec(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let recv = vm.get_current_regs_cloned(a as usize)?;
 
     vm.current_regs()[a as usize].replace(recv.clone());
-    push_callinfo(vm, "<exec>".into(), 0);
+    push_callinfo(vm, "<exec>".into(), 0, None);
 
     vm.pc.set(0);
     let irep = vm.irep.reps[b as usize].clone();
     vm.current_irep = irep;
     vm.current_regs_offset += a as usize;
 
-    // If recv is a Class, set target_class to that class itself
-    // Otherwise, set target_class to the class of recv
+    // If recv is a Class or Module, set target_class accordingly
     vm.target_class = match &recv.value {
-        RValue::Class(klass) => klass.clone(),
-        _ => recv.get_class(vm),
+        RValue::Class(klass) => TargetContext::Class(klass.clone()),
+        RValue::Module(module) => TargetContext::Module(module.clone()),
+        _ => TargetContext::Class(recv.get_class(vm)),
     };
     Ok(())
 }
 
 pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let klass = vm.get_current_regs_cloned(a as usize)?;
+    let target = vm.get_current_regs_cloned(a as usize)?;
     let method = vm.get_current_regs_cloned(a as usize + 1)?;
     let sym = vm.current_irep.syms[b as usize].clone();
 
-    let klass = klass.as_ref();
-    let method = method.as_ref();
-    if let (RValue::Class(klass), RValue::Proc(method)) = (&klass.value, &method.value) {
-        let mut procs = klass.procs.borrow_mut();
-        let mut method = method.clone();
-        method.sym_id = Some(sym.clone());
-        procs.insert(sym.name.clone(), method);
-    } else {
-        unreachable!("DEF must be called on class");
+    let target_ref = target.as_ref();
+    let method_ref = method.as_ref();
+    
+    match (&target_ref.value, &method_ref.value) {
+        (RValue::Class(klass), RValue::Proc(method)) => {
+            let mut procs = klass.procs.borrow_mut();
+            let mut method = method.clone();
+            method.sym_id = Some(sym.clone());
+            procs.insert(sym.name.clone(), method);
+        }
+        (RValue::Module(module), RValue::Proc(method)) => {
+            let mut procs = module.procs.borrow_mut();
+            let mut method = method.clone();
+            method.sym_id = Some(sym.clone());
+            procs.insert(sym.name.clone(), method);
+        }
+        _ => {
+            unreachable!("DEF must be called on class or module");
+        }
     }
     vm.current_regs()[a as usize].replace(RObject::symbol(sym).to_refcount_assigned());
     Ok(())
@@ -1498,8 +1519,10 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_tclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let klass = vm.target_class.clone();
-    let val: RObject = klass.into();
+    let val: RObject = match &vm.target_class {
+        TargetContext::Class(klass) => klass.clone().into(),
+        TargetContext::Module(module) => module.clone().into(),
+    };
     vm.current_regs()[a].replace(val.to_refcount_assigned());
     Ok(())
 } 

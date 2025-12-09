@@ -16,6 +16,12 @@ pub const ENGINE: &'static str = "mruby/edge";
 
 const MAX_REGS_SIZE: usize = 256;
 
+#[derive(Debug, Clone)]
+pub enum TargetContext {
+    Class(Rc<RClass>),
+    Module(Rc<RModule>),
+}
+
 pub struct VM {
     pub irep: Rc<IREP>,
     
@@ -26,7 +32,7 @@ pub struct VM {
     pub regs: [Option<Rc<RObject>>; MAX_REGS_SIZE],
     pub current_regs_offset: usize,
     pub current_callinfo: Option<Rc<CALLINFO>>,
-    pub target_class: Rc<RClass>,
+    pub target_class: TargetContext,
     pub exception: Option<Rc<RException>>,
 
     pub flag_preemption: Cell<bool>,
@@ -76,14 +82,7 @@ impl VM {
         let consts = HashMap::new();
         let builtin_class_table = HashMap::new();
 
-        let object_class = Rc::new(
-            RClass {
-                sym_id: "Object".into(),
-                super_class: None,
-                procs: RefCell::new(HashMap::new()),
-                consts: RefCell::new(HashMap::new()),
-            }
-        );
+        let object_class = Rc::new(RClass::new("Object", None));
 
         let id = 1; // TODO generator
         let bytecode = Vec::new();
@@ -92,7 +91,7 @@ impl VM {
         let regs: [Option<Rc<RObject>>; MAX_REGS_SIZE] = [const { None }; MAX_REGS_SIZE];
         let current_regs_offset = 0;
         let current_callinfo = None;
-        let target_class = object_class.clone();
+        let target_class = TargetContext::Class(object_class.clone());
         let exception = None;
         let flag_preemption = Cell::new(false);
         let fn_table = Vec::new();
@@ -270,6 +269,13 @@ impl VM {
         class
     }
 
+    pub(crate) fn define_module(&mut self, name: &str) -> Rc<RModule> {
+        let module = Rc::new(RModule::new(name));
+        let object = RObject::module(module.clone()).to_refcount_assigned();
+        self.consts.insert(name.to_string(), object);
+        module
+    }
+
     pub(crate) fn define_standard_class(&mut self, name: &'static str) -> Rc<RClass> {
         let class = self.define_class(name, None);
         self.builtin_class_table.insert(name, class.clone());
@@ -365,8 +371,9 @@ pub struct CALLINFO {
     pub pc_irep: Rc<IREP>,
     pub pc: usize,
     pub current_regs_offset: usize,
-    pub target_class: Rc<RClass>,
+    pub target_class: TargetContext,
     pub n_args: usize,
+    pub method_owner: Option<Rc<RModule>>,
 }
 
 #[derive(Debug, Clone)]
