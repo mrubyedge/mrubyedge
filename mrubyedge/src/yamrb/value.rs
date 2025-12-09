@@ -552,6 +552,19 @@ impl RModule {
     }
 }
 
+fn collect_module_chain(module: &Rc<RModule>, chain: &mut Vec<Rc<RModule>>, visited: &mut HashSet<usize>) {
+    let key = Rc::as_ptr(module) as usize;
+    if !visited.insert(key) {
+        return;
+    }
+
+    chain.push(module.clone());
+    let mixed_in = module.mixed_in_modules.borrow();
+    for mixin in mixed_in.iter() {
+        collect_module_chain(mixin, chain, visited);
+    }
+}
+
 impl From<Rc<RModule>> for RObject {
     fn from(value: Rc<RModule>) -> Self {
         RObject::module(value)
@@ -589,6 +602,49 @@ impl RClass {
             }
         }
     }
+}
+
+fn collect_class_chain(class: &Rc<RClass>, chain: &mut Vec<Rc<RModule>>, visited: &mut HashSet<usize>) {
+    collect_module_chain(&class.module, chain, visited);
+    if let Some(super_class) = &class.super_class {
+        collect_class_chain(super_class, chain, visited);
+    }
+}
+
+fn build_lookup_chain(class: &Rc<RClass>) -> Vec<Rc<RModule>> {
+    let mut chain = Vec::new();
+    let mut visited = HashSet::new();
+    collect_class_chain(class, &mut chain, &mut visited);
+    chain
+}
+
+pub(crate) fn resolve_method(self_class: &Rc<RClass>, name: &str) -> Option<(Rc<RModule>, RProc)> {
+    for module in build_lookup_chain(self_class) {
+        if let Some(proc) = module.procs.borrow().get(name) {
+            return Some((module.clone(), proc.clone()));
+        }
+    }
+    None
+}
+
+pub(crate) fn resolve_next_method(
+    self_class: &Rc<RClass>,
+    name: &str,
+    current_owner: &Rc<RModule>,
+) -> Option<(Rc<RModule>, RProc)> {
+    let mut passed = false;
+    for module in build_lookup_chain(self_class) {
+        if !passed {
+            if Rc::ptr_eq(&module, current_owner) {
+                passed = true;
+            }
+            continue;
+        }
+        if let Some(proc) = module.procs.borrow().get(name) {
+            return Some((module.clone(), proc.clone()));
+        }
+    }
+    None
 }
 
 // Provide convenient accessors to module fields

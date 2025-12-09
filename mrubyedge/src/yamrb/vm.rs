@@ -373,6 +373,7 @@ pub struct CALLINFO {
     pub current_regs_offset: usize,
     pub target_class: TargetContext,
     pub n_args: usize,
+    pub method_owner: Option<Rc<RModule>>,
 }
 
 #[derive(Debug, Clone)]

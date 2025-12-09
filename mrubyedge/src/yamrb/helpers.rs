@@ -2,10 +2,20 @@ use std::rc::Rc;
 
 use crate::Error;
 
-use super::{optable::push_callinfo, value::{RClass, RFn, RModule, RObject, RProc, RSym, RValue}, vm::VM};
+use super::{optable::push_callinfo, value::{resolve_method, RClass, RFn, RModule, RObject, RProc, RSym, RValue}, vm::VM};
 
-fn call_block(vm: &mut VM, block: RProc, recv: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    push_callinfo(vm, RSym::new("<block>".to_string()), args.len());
+fn call_block(
+    vm: &mut VM,
+    block: RProc,
+    recv: Rc<RObject>,
+    args: &[Rc<RObject>],
+    method_info: Option<(RSym, Rc<RModule>)>,
+) -> Result<Rc<RObject>, Error> {
+    let (method_id, method_owner) = match method_info {
+        Some((id, owner)) => (id, Some(owner)),
+        None => (RSym::new("<block>".to_string()), None),
+    };
+    push_callinfo(vm, method_id, args.len(), method_owner);
 
     let old_callinfo = vm.current_callinfo.take();
 
@@ -79,7 +89,7 @@ pub fn mrb_call_block(vm: &mut VM, block: Rc<RObject>, recv: Option<Rc<RObject>>
         Some(r) => r,
         None => block.block_self.clone().ok_or_else(|| Error::RuntimeError("No block self assigned".to_string()))?,
     };
-    call_block(vm, block, recv, args)
+    call_block(vm, block, recv, args, None)
 }
 
 pub fn mrb_funcall(vm: &mut VM, top_self: Option<Rc<RObject>>, name: &str, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -88,10 +98,11 @@ pub fn mrb_funcall(vm: &mut VM, top_self: Option<Rc<RObject>>, name: &str, args:
         None => vm.getself()?,
     };
     let binding = recv.as_ref().get_class(vm);
-    let method = binding.as_ref().find_method(name).ok_or_else(|| Error::NoMethodError(name.to_string()))?;
+    let (owner_module, method) = resolve_method(&binding, name).ok_or_else(|| Error::NoMethodError(name.to_string()))?;
     
     if method.is_rb_func {
-        call_block(vm, method, recv.clone(), args)
+        let method_id = method.sym_id.clone().unwrap_or_else(|| RSym::new(name.to_string()));
+        call_block(vm, method, recv.clone(), args, Some((method_id, owner_module)))
     } else {
         vm.current_regs_offset += 2; // FIXME: magick number?
         vm.current_regs()[0].replace(recv.clone());
