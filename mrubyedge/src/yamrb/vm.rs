@@ -25,8 +25,8 @@ pub enum TargetContext {
 impl TargetContext {
     pub fn name(&self) -> String {
         match self {
-            TargetContext::Class(c) => c.sym_id.name.clone(),
-            TargetContext::Module(m) => m.sym_id.name.clone(),
+            TargetContext::Class(c) => c.full_name(),
+            TargetContext::Module(m) => m.full_name(),
         }
     }
 }
@@ -254,7 +254,7 @@ impl VM {
 
     pub(crate) fn register_fn(&mut self, f: RFn) -> usize {
         self.fn_table.push(Rc::new(f));
-        return self.fn_table.len() - 1;
+        self.fn_table.len() - 1
     }
     
     pub(crate) fn get_fn(&self, i: usize) -> Option<Rc<RFn>> {
@@ -265,7 +265,7 @@ impl VM {
         self.builtin_class_table.get(name).cloned().expect(format!("Class {} not found", name).as_str())
     }
 
-    pub(crate) fn define_class(&mut self, name: &str, superclass: Option<Rc<RClass>>, parent_module: Option<Rc<RModule>>) -> Rc<RClass> {
+    pub fn define_class(&mut self, name: &str, superclass: Option<Rc<RClass>>, parent_module: Option<Rc<RModule>>) -> Rc<RClass> {
         let superclass = match superclass {
             Some(c) => c,
             None => self.object_class.clone(),
@@ -278,7 +278,7 @@ impl VM {
         class
     }
 
-    pub(crate) fn define_module(&mut self, name: &str, parent_module: Option<Rc<RModule>>) -> Rc<RModule> {
+    pub fn define_module(&mut self, name: &str, parent_module: Option<Rc<RModule>>) -> Rc<RModule> {
         let module = Rc::new(RModule::new(name));
         if let Some(parent) = parent_module {
             module.parent.replace(Some(parent));
@@ -397,25 +397,27 @@ pub struct ENV {
 }
 
 impl ENV {
-    pub fn has_captured(&self) -> bool {
+    #[allow(unused)]
+    pub(crate) fn has_captured(&self) -> bool {
         self.captured.borrow().is_some()
     }
 
-    pub fn capture(&self, regs: &[Option<Rc<RObject>>]) {
+    #[allow(unused)]
+    pub(crate) fn capture(&self, regs: &[Option<Rc<RObject>>]) {
         let mut captured = self.captured.borrow_mut();
         captured.replace(regs.iter().map(|r| r.clone()).collect());
     }
 
-    pub fn capture_no_clone(&self, regs: Vec<Option<Rc<RObject>>>) {
+    pub(crate) fn capture_no_clone(&self, regs: Vec<Option<Rc<RObject>>>) {
         let mut captured = self.captured.borrow_mut();
         captured.replace(regs);
     }
 
-    pub fn expire(&self) {
+    pub(crate) fn expire(&self) {
         self.is_expired.set(true);
     }
 
-    pub fn expired(&self) -> bool {
+    pub(crate) fn expired(&self) -> bool {
         self.is_expired.get()
     }
 }
