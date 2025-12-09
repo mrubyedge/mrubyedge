@@ -51,6 +51,33 @@ User.new.greet
 }
 
 #[test]
+fn modules_can_be_used_as_namespace() {
+    let script = r#"
+module Outer
+  module Printable
+    def greet
+      "hello"
+    end
+  end
+
+  class User
+    include Printable
+  end
+end
+
+Outer::User.new.greet
+"#;
+
+    let binary = mrbc_compile("module_include_ns", script);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+
+    let value: String = result.as_ref().try_into().expect("greet should return string");
+    assert_eq!(value, "hello");
+}
+
+#[test]
 fn module_can_include_module_method() {
     let script = r#"
 module Core

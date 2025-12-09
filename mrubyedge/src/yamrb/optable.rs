@@ -625,17 +625,28 @@ pub(crate) fn op_setiv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_getconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let name = &vm.current_irep.syms[b as usize].name;
-    let cval = vm.consts.get(name).cloned();
-    match cval {
-        Some(val) => {
-            vm.current_regs()[a as usize].replace(val);
-        },
-        None => {
-            return Err(Error::NameError(name.clone()));
+    let name = vm.current_irep.syms[b as usize].name.clone();
+    let mut current = current_namespace(vm);
+
+    // Walk namespace chain upwards until found or reach top-level
+    loop {
+        if let Some(ns) = current.clone() {
+            if let Some(val) = ns.consts.borrow().get(&name).cloned() {
+                vm.current_regs()[a as usize].replace(val);
+                return Ok(());
+            }
+            current = ns.parent.borrow().clone();
+        } else {
+            break;
         }
     }
-    Ok(())
+
+    if let Some(val) = vm.consts.get(&name).cloned() {
+        vm.current_regs()[a as usize].replace(val);
+        return Ok(());
+    }
+
+    Err(Error::NameError(name))
 }
 
 pub(crate) fn op_setconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
@@ -650,19 +661,21 @@ pub(crate) fn op_getmcnst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let recv = vm.get_current_regs_cloned(a as usize)?;
     let name = vm.current_irep.syms[b as usize].name.clone();
-    let cval = match &recv.value {
-        RValue::Class(klass) => klass.getmcnst(&name).clone(),
-        _ => unreachable!("getmcnst must be called on class or module")
+    let mut module = match &recv.value {
+        RValue::Class(klass) => Some(klass.module.clone()),
+        RValue::Module(module) => Some(module.clone()),
+        _ => None,
     };
-    match cval {
-        Some(val) => {
+
+    while let Some(current) = module.clone() {
+        if let Some(val) = current.consts.borrow().get(&name).cloned() {
             vm.current_regs()[a as usize].replace(val);
-        },
-        None => {
-            return Err(Error::NameError(name.clone()));
+            return Ok(());
         }
+        module = current.parent.borrow().clone();
     }
-    Ok(())
+
+    Err(Error::NameError(name.clone()))
 }
 
 pub(crate) fn op_getupvar(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
@@ -1433,6 +1446,17 @@ pub(crate) fn op_oclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     Ok(())
 }
 
+fn current_namespace(vm: &mut VM) -> Option<Rc<RModule>> {
+    match vm.current_regs()[0].as_ref() {
+        Some(obj) => match &obj.value {
+            RValue::Class(klass) => Some(klass.module.clone()),
+            RValue::Module(module) => Some(module.clone()),
+            _ => None,
+        },
+        None => None,
+    }
+}
+
 pub(crate) fn op_class(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let superclass = vm.current_regs()[a as usize + 1].as_ref().cloned();
@@ -1449,8 +1473,17 @@ pub(crate) fn op_class(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             vm.object_class.clone()
         }
     };
+    let parent_module = current_namespace(vm);
     let name = name.name;
-    let klass = vm.define_class(&name, Some(superclass));
+    let klass = vm.define_class(&name, Some(superclass), parent_module.clone());
+
+    // register constant under parent namespace (if any) or top-level
+    let class_value = RObject::class(klass.clone()).to_refcount_assigned();
+    if let Some(parent) = parent_module {
+        parent.consts.borrow_mut().insert(name.clone(), class_value);
+    } else {
+        vm.consts.insert(name.clone(), class_value);
+    }
 
     vm.current_regs()[a as usize].replace(Rc::new(klass.into()));
     Ok(())
@@ -1460,7 +1493,15 @@ pub(crate) fn op_module(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let name = vm.current_irep.syms[b as usize].clone();
     let name = name.name;
-    let module = vm.define_module(&name);
+    let parent_module = current_namespace(vm);
+    let module = vm.define_module(&name, parent_module.clone());
+
+    let module_value = RObject::module(module.clone()).to_refcount_assigned();
+    if let Some(parent) = parent_module {
+        parent.consts.borrow_mut().insert(name.clone(), module_value);
+    } else {
+        vm.consts.insert(name.clone(), module_value);
+    }
 
     vm.current_regs()[a as usize].replace(Rc::new(module.into()));
     Ok(())
@@ -1474,7 +1515,7 @@ pub(crate) fn op_exec(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     push_callinfo(vm, "<exec>".into(), 0, None);
 
     vm.pc.set(0);
-    let irep = vm.irep.reps[b as usize].clone();
+    let irep = vm.current_irep.reps[b as usize].clone();
     vm.current_irep = irep;
     vm.current_regs_offset += a as usize;
 

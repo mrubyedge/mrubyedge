@@ -139,7 +139,7 @@ fn test_class_attr_accessor() {
     use crate::yamrb::helpers::*;
 
     let mut vm = VM::empty();
-    let class = vm.define_class("Test", None);
+    let class = vm.define_class("Test", None, None);
     let args = vec![RObject::symbol("foo".into()).to_refcount_assigned()];
     vm.current_regs()[0].replace(RObject::class(class.clone()).to_refcount_assigned());
     mrb_class_attr_acceccor(&mut vm, &args).expect("mrb_class_attr_acceccor failed");
