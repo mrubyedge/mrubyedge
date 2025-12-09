@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::Error;
 
-use super::{optable::push_callinfo, value::{RClass, RFn, RObject, RProc, RSym, RValue}, vm::VM};
+use super::{optable::push_callinfo, value::{RClass, RFn, RModule, RObject, RProc, RSym, RValue}, vm::VM};
 
 fn call_block(vm: &mut VM, block: RProc, recv: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     push_callinfo(vm, RSym::new("<block>".to_string()), args.len());
@@ -121,5 +121,25 @@ pub fn mrb_define_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: R
 
 pub fn mrb_define_method(_vm: &mut VM, klass: Rc<RClass>, name: &str, method: RProc) {
     let mut procs = klass.procs.borrow_mut();
+    procs.insert(name.to_string(), method);
+}
+
+pub fn mrb_define_module_cmethod(vm: &mut VM, module: Rc<RModule>, name: &str, cmethod: RFn) {
+    let index = vm.register_fn(cmethod);
+    let method = RProc {
+        is_rb_func: false,
+        sym_id: Some(RSym::new(name.to_string())),
+        next: None,
+        irep: None,
+        func: Some(index),
+        environ: None,
+        block_self: None,
+    };
+    let mut procs = module.procs.borrow_mut();
+    procs.insert(name.to_string(), method);
+}
+
+pub fn mrb_define_module_method(_vm: &mut VM, module: Rc<RModule>, name: &str, method: RProc) {
+    let mut procs = module.procs.borrow_mut();
     procs.insert(name.to_string(), method);
 }

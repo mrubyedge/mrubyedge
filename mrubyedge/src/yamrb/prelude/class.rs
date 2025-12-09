@@ -5,7 +5,8 @@ use crate::{yamrb::{helpers::{mrb_define_cmethod, mrb_funcall}, value::*, vm::VM
 use super::shared_memory::mrb_shared_memory_new;
 
 pub(crate) fn initialize_class(vm: &mut VM) {
-    let class_class = vm.define_standard_class("Class");
+    let module_class = vm.get_class_by_name("Module");
+    let class_class = vm.define_standard_class_under("Class", module_class);
 
     mrb_define_cmethod(vm, class_class.clone(), "new", Box::new(mrb_class_new));
     mrb_define_cmethod(vm, class_class.clone(), "attr_reader", Box::new(mrb_class_attr_reader));

@@ -4,4 +4,9 @@ module TestModule
   end
 end
 
-p TestModule
+class MyClass
+  include TestModule
+end
+
+obj = MyClass.new
+puts obj.module_method # Output: 42
