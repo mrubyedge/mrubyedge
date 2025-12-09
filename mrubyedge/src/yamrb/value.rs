@@ -607,6 +607,17 @@ impl RClass {
             }
         }
     }
+
+    pub fn full_name(&self) -> String {
+        let mut names = Vec::new();
+        let mut current: Option<Rc<RModule>> = Some(self.module.clone());
+        while let Some(module) = current {
+            names.push(module.sym_id.name.clone());
+            current = module.parent.borrow().clone();
+        }
+        names.reverse();
+        names.join("::")
+    }
 }
 
 fn collect_class_chain(class: &Rc<RClass>, chain: &mut Vec<Rc<RModule>>, visited: &mut HashSet<usize>) {
