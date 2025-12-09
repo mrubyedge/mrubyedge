@@ -79,6 +79,18 @@ fn call_block(
     }   
 }
 
+/// Calls a Ruby block (Proc) with the given receiver and arguments.
+///
+/// # Arguments
+///
+/// * `vm` - The virtual machine instance
+/// * `block` - The block object to call (must be a Proc)
+/// * `recv` - Optional receiver object. If None, uses the block's self
+/// * `args` - Array of arguments to pass to the block
+///
+/// # Returns
+///
+/// Returns the result of the block execution or an error if the call fails.
 pub fn mrb_call_block(vm: &mut VM, block: Rc<RObject>, recv: Option<Rc<RObject>>, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let block = match &block.value {
         RValue::Proc(p) => p.clone(),
@@ -92,6 +104,20 @@ pub fn mrb_call_block(vm: &mut VM, block: Rc<RObject>, recv: Option<Rc<RObject>>
     call_block(vm, block, recv, args, None)
 }
 
+/// Calls a method on an object by name with the given arguments.
+///
+/// This is the main function call interface for invoking Ruby methods from Rust code.
+///
+/// # Arguments
+///
+/// * `vm` - The virtual machine instance
+/// * `top_self` - Optional receiver object. If None, uses the "top self"
+/// * `name` - The name of the method to call
+/// * `args` - Array of arguments to pass to the method
+///
+/// # Returns
+///
+/// Returns the result of the method call or an error if the method is not found or execution fails.
 pub fn mrb_funcall(vm: &mut VM, top_self: Option<Rc<RObject>>, name: &str, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let recv: Rc<RObject> = match top_self {
         Some(obj) => obj,
@@ -115,6 +141,14 @@ pub fn mrb_funcall(vm: &mut VM, top_self: Option<Rc<RObject>>, name: &str, args:
     }
 }
 
+/// Defines a C method (native Rust function) on a Ruby class.
+///
+/// # Arguments
+///
+/// * `vm` - The virtual machine instance
+/// * `klass` - The class to define the method on
+/// * `name` - The name of the method
+/// * `cmethod` - The native Rust function to bind as a method
 pub fn mrb_define_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: RFn) {
     let index = vm.register_fn(cmethod);
     let method = RProc {
@@ -130,11 +164,27 @@ pub fn mrb_define_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: R
     procs.insert(name.to_string(), method);
 }
 
+/// Defines a Ruby method (RProc) on a Ruby class.
+///
+/// # Arguments
+///
+/// * `_vm` - The virtual machine instance (unused)
+/// * `klass` - The class to define the method on
+/// * `name` - The name of the method
+/// * `method` - The Ruby proc to bind as a method
 pub fn mrb_define_method(_vm: &mut VM, klass: Rc<RClass>, name: &str, method: RProc) {
     let mut procs = klass.procs.borrow_mut();
     procs.insert(name.to_string(), method);
 }
 
+/// Defines a C method (native Rust function) on a Ruby module.
+///
+/// # Arguments
+///
+/// * `vm` - The virtual machine instance
+/// * `module` - The module to define the method on
+/// * `name` - The name of the method
+/// * `cmethod` - The native Rust function to bind as a method
 pub fn mrb_define_module_cmethod(vm: &mut VM, module: Rc<RModule>, name: &str, cmethod: RFn) {
     let index = vm.register_fn(cmethod);
     let method = RProc {
@@ -150,6 +200,14 @@ pub fn mrb_define_module_cmethod(vm: &mut VM, module: Rc<RModule>, name: &str, c
     procs.insert(name.to_string(), method);
 }
 
+/// Defines a Ruby method (RProc) on a Ruby module.
+///
+/// # Arguments
+///
+/// * `_vm` - The virtual machine instance (unused)
+/// * `module` - The module to define the method on
+/// * `name` - The name of the method
+/// * `method` - The Ruby proc to bind as a method
 pub fn mrb_define_module_method(_vm: &mut VM, module: Rc<RModule>, name: &str, method: RProc) {
     let mut procs = module.procs.borrow_mut();
     procs.insert(name.to_string(), method);
