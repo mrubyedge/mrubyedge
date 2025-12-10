@@ -42,16 +42,12 @@ pub fn mrb_range_is_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
                         Ok(Rc::new(RObject::boolean(*start <= obj && obj <= *end)))
                     }
                 }
-                _ => {
-                    Ok(Rc::new(RObject::boolean(false)))
-                }
+                _ => Ok(Rc::new(RObject::boolean(false))),
             }
         }
-        _ => {
-            Err(Error::RuntimeError(
-                "Range#include? must be called on a Range".to_string(),
-            ))
-        }
+        _ => Err(Error::RuntimeError(
+            "Range#include? must be called on a Range".to_string(),
+        )),
     }
 }
 

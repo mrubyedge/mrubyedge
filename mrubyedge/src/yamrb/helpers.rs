@@ -66,9 +66,10 @@ fn call_block(
         vm.target_class = ci.target_class.clone();
     }
     if let Some(upper) = vm.upper.take()
-        && let Some(upper) = &upper.as_ref().upper {
-            vm.upper.replace(upper.clone());
-        }
+        && let Some(upper) = &upper.as_ref().upper
+    {
+        vm.upper.replace(upper.clone());
+    }
 
     match &res {
         Ok(res) => Ok(res.clone()),

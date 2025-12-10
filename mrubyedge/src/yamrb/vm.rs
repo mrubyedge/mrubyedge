@@ -67,7 +67,7 @@ impl VM {
     /// preparing the VM so it can be executed via [`VM::run`].
     pub fn open(rite: &mut Rite) -> VM {
         let irep = rite_to_irep(rite);
-        
+
         VM::new_by_raw_irep(irep)
     }
 
@@ -172,28 +172,27 @@ impl VM {
         let mut rescued = false;
 
         loop {
-            if !rescued
-                && let Some(_e) = self.exception.clone() {
-                    let operand = insn::Fetched::B(0);
-                    if let Some(pos) = self.find_next_handler_pos() {
-                        self.pc.set(pos);
-                        rescued = true;
-                        continue;
-                    }
+            if !rescued && let Some(_e) = self.exception.clone() {
+                let operand = insn::Fetched::B(0);
+                if let Some(pos) = self.find_next_handler_pos() {
+                    self.pc.set(pos);
+                    rescued = true;
+                    continue;
+                }
 
-                    match op_return(self, &operand) {
-                        Ok(_) => {}
-                        Err(_) => {
-                            // use assigned expection through
-                            break;
-                        }
-                    }
-                    if self.flag_preemption.get() {
+                match op_return(self, &operand) {
+                    Ok(_) => {}
+                    Err(_) => {
+                        // use assigned expection through
                         break;
-                    } else {
-                        continue;
                     }
                 }
+                if self.flag_preemption.get() {
+                    break;
+                } else {
+                    continue;
+                }
+            }
             rescued = false;
 
             let pc = self.pc.get();
