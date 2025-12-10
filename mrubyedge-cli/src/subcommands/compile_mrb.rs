@@ -40,6 +40,6 @@ pub fn execute(args: CompileMrbArgs) -> Result<(), Box<dyn std::error::Error>> {
             ctx.compile_to_file(&buf, &output)?;
         }
     }
-    
+
     Ok(())
 }

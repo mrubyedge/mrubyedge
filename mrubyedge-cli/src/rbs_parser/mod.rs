@@ -238,11 +238,11 @@ use nom::branch::permutation;
 use nom::bytes::complete::tag;
 use nom::character::complete::*;
 // use nom::combinator::opt;
-use nom::error::context;
+use nom::IResult;
 use nom::error::VerboseError;
+use nom::error::context;
 use nom::multi::*;
 use nom::sequence::tuple;
-use nom::IResult;
 
 type Res<T, U> = IResult<T, U, VerboseError<T>>;
 
