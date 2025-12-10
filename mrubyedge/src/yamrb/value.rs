@@ -3,9 +3,10 @@ use std::collections::HashSet;
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
 
 use crate::Error;
+use crate::yamrb::helpers::mrb_funcall;
 
-use super::vm::{ENV, IREP, VM};
 use super::shared_memory::SharedMemory;
+use super::vm::{ENV, IREP, VM};
 
 /// Tag that identifies each runtime object variant handled by the VM.
 #[derive(Debug, Clone, Copy)]
@@ -101,6 +102,8 @@ pub struct RObject {
     pub tt: RType,
     pub value: RValue,
     pub object_id: Cell<u64>,
+
+    pub singleton_class: RefCell<Option<Rc<RClass>>>,
 }
 
 impl RObject {
@@ -109,6 +112,7 @@ impl RObject {
             tt: RType::Nil,
             value: RValue::Nil,
             object_id: 4.into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -117,6 +121,7 @@ impl RObject {
             tt: RType::Bool,
             value: RValue::Bool(b),
             object_id: (if b { 20 } else { 0 }).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -125,6 +130,7 @@ impl RObject {
             tt: RType::Symbol,
             value: RValue::Symbol(sym),
             object_id: 2.into(), // TODO: calc the same id for the same symbol
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -141,6 +147,7 @@ impl RObject {
             tt: RType::Integer,
             value: RValue::Integer(n),
             object_id: object_id.into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -149,6 +156,7 @@ impl RObject {
             tt: RType::Float,
             value: RValue::Float(f),
             object_id: (f.to_bits() as u64).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -157,6 +165,7 @@ impl RObject {
             tt: RType::String,
             value: RValue::String(RefCell::new(s.into_bytes())),
             object_id: (u64::MAX).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -165,6 +174,7 @@ impl RObject {
             tt: RType::String,
             value: RValue::String(RefCell::new(v)),
             object_id: (u64::MAX).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -173,6 +183,7 @@ impl RObject {
             tt: RType::Array,
             value: RValue::Array(RefCell::new(v)),
             object_id: (u64::MAX).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -181,6 +192,7 @@ impl RObject {
             tt: RType::Hash,
             value: RValue::Hash(RefCell::new(h)),
             object_id: (u64::MAX).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -189,15 +201,29 @@ impl RObject {
             tt: RType::Range,
             value: RValue::Range(start, end, exclusive),
             object_id: (u64::MAX).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
-    pub fn class(c: Rc<RClass>) -> Self {
+    pub fn class(c: Rc<RClass>, vm: &mut VM) -> Rc<Self> {
+        match vm.class_object_table.get(&c.full_name()) {
+            Some(robj) => robj.clone(),
+            None => {
+                let robj = Self::newclass(c.clone());
+                vm.class_object_table
+                    .insert(c.full_name(), robj.clone());
+                robj
+            }
+        }
+    }
+
+    fn newclass(c: Rc<RClass>) -> Rc<Self> {
         RObject {
             tt: RType::Class,
             value: RValue::Class(c),
             object_id: (u64::MAX).into(),
-        }
+            singleton_class: RefCell::new(None),
+        }.to_refcount_assigned()
     }
 
     pub fn module(m: Rc<RModule>) -> Self {
@@ -205,6 +231,7 @@ impl RObject {
             tt: RType::Module,
             value: RValue::Module(m),
             object_id: (u64::MAX).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -218,6 +245,7 @@ impl RObject {
                 ref_count: 1,
             }),
             object_id: (u64::MAX).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -226,6 +254,7 @@ impl RObject {
             tt: RType::Exception,
             value: RValue::Exception(e),
             object_id: (u64::MAX).into(),
+            singleton_class: RefCell::new(None),
         }
     }
 
@@ -269,9 +298,7 @@ impl RObject {
             RValue::Symbol(s) => Ok(ValueHasher::Symbol(s.name.clone())),
             RValue::String(s) => Ok(ValueHasher::String(s.borrow().clone())),
             RValue::Class(c) => Ok(ValueHasher::Class(c.sym_id.name.clone())),
-            _ => {
-                Err(Error::TypeMismatch)
-            }
+            _ => Err(Error::TypeMismatch),
         }
     }
 
@@ -284,28 +311,34 @@ impl RObject {
             RValue::String(s) => ValueEquality::String(s.borrow().clone()),
             RValue::Class(c) => ValueEquality::Class(c.sym_id.name.clone()),
             RValue::Range(s, e, ex) => {
-                ValueEquality::Range(
-                    Box::new(s.as_eq_value()),
-                    Box::new(e.as_eq_value()),
-                    *ex
-                )
-            },
+                ValueEquality::Range(Box::new(s.as_eq_value()), Box::new(e.as_eq_value()), *ex)
+            }
             RValue::Array(a) => {
                 let arr = a.borrow().iter().map(|v| v.as_eq_value()).collect();
                 ValueEquality::Array(arr)
-            },
+            }
             RValue::Hash(ha) => {
                 let keys: HashSet<_> = ha.borrow().keys().map(|k| k.clone()).collect();
                 ValueEquality::KeyValue(ValueEqualityForKeyValue(
                     keys,
-                    ha.borrow().iter().map(|(k, (_, v))| (k.clone(), v.as_ref().as_eq_value())).collect(),
+                    ha.borrow()
+                        .iter()
+                        .map(|(k, (_, v))| (k.clone(), v.as_ref().as_eq_value()))
+                        .collect(),
                 ))
-            },
-            RValue::Nil => ValueEquality::Nil,
-            _ => {
-                ValueEquality::ObjectID(self.object_id.get())
             }
+            RValue::Nil => ValueEquality::Nil,
+            _ => ValueEquality::ObjectID(self.object_id.get()),
         }
+    }
+
+    pub fn get_singleton_class_or_class(&self, vm: &VM) -> Rc<RClass> {
+        self.singleton_class
+            .borrow()
+            .as_ref()
+            .map(|s| s.clone())
+            .or_else(|| Some(self.get_class(vm)))
+            .expect("should have singleton class or class")
     }
 
     pub fn get_class(&self, vm: &VM) -> Rc<RClass> {
@@ -319,7 +352,7 @@ impl RObject {
                 } else {
                     vm.get_class_by_name("FalseClass")
                 }
-            },
+            }
             RValue::Symbol(_) => vm.get_class_by_name("Symbol"),
             RValue::Integer(_) => vm.get_class_by_name("Integer"),
             RValue::Float(_) => vm.get_class_by_name("Float"),
@@ -333,6 +366,30 @@ impl RObject {
             RValue::Exception(e) => e.class.clone(),
             RValue::Nil => vm.get_class_by_name("NilClass"),
         }
+    }
+
+    pub(crate) fn initialize_or_get_singleton_class(self: &Rc<Self>, vm: &mut VM) -> Rc<RClass> {
+        if let Some(sclass) = self.singleton_class.borrow().as_ref() {
+            return sclass.clone();
+        }
+
+        let inspect = mrb_funcall(vm, Some(self.clone()), "inspect", &[]);
+        let class_name: String = match inspect {
+            Ok(inspect) => inspect
+                .as_ref()
+                .try_into()
+                .unwrap_or_else(|_| "<Singleton Class - unknown inspect type>".to_string()),
+            Err(e) => format!("<Singleton Class - inspect error: {:?}>", e),
+        };
+
+        let sclass = Rc::new(RClass::new(
+            &class_name,
+            Some(self.get_class(vm).clone()),
+            self.get_class(vm).parent.borrow().clone(),
+        ));
+
+        self.singleton_class.replace(Some(sclass.clone()));
+        sclass
     }
 }
 
@@ -573,7 +630,11 @@ impl RModule {
     }
 }
 
-fn collect_module_chain(module: &Rc<RModule>, chain: &mut Vec<Rc<RModule>>, visited: &mut HashSet<usize>) {
+fn collect_module_chain(
+    module: &Rc<RModule>,
+    chain: &mut Vec<Rc<RModule>>,
+    visited: &mut HashSet<usize>,
+) {
     let key = Rc::as_ptr(module) as usize;
     if !visited.insert(key) {
         return;
@@ -601,7 +662,11 @@ pub struct RClass {
 }
 
 impl RClass {
-    pub fn new(name: &str, super_class: Option<Rc<RClass>>, parent_module: Option<Rc<RModule>>) -> Self {
+    pub fn new(
+        name: &str,
+        super_class: Option<Rc<RClass>>,
+        parent_module: Option<Rc<RModule>>,
+    ) -> Self {
         let module = Rc::new(RModule::new(name));
         if let Some(parent) = parent_module {
             module.parent.replace(Some(parent));
@@ -620,12 +685,10 @@ impl RClass {
     pub fn find_method(&self, name: &str) -> Option<RProc> {
         match self.module.find_method(name) {
             Some(p) => Some(p),
-            None => {
-                match &self.super_class {
-                    Some(sc) => sc.find_method(name),
-                    None => None,
-                }
-            }
+            None => match &self.super_class {
+                Some(sc) => sc.find_method(name),
+                None => None,
+            },
         }
     }
 
@@ -634,7 +697,11 @@ impl RClass {
     }
 }
 
-fn collect_class_chain(class: &Rc<RClass>, chain: &mut Vec<Rc<RModule>>, visited: &mut HashSet<usize>) {
+fn collect_class_chain(
+    class: &Rc<RClass>,
+    chain: &mut Vec<Rc<RModule>>,
+    visited: &mut HashSet<usize>,
+) {
     collect_module_chain(&class.module, chain, visited);
     if let Some(super_class) = &class.super_class {
         collect_class_chain(super_class, chain, visited);
@@ -685,12 +752,6 @@ impl std::ops::Deref for RClass {
     }
 }
 
-impl From<Rc<RClass>> for RObject {
-    fn from(value: Rc<RClass>) -> Self {
-        RObject::class(value)
-    }
-}
-
 /// Backing storage for Ruby object instances (instance variables and data).
 #[derive(Debug, Clone)]
 pub struct RInstance {
@@ -718,14 +779,12 @@ pub type RFn = Box<dyn Fn(&mut VM, &[Rc<RObject>]) -> Result<Rc<RObject>, Error>
 /// Interned symbol name used across the VM to identify methods and constants.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RSym {
-    pub name: String
+    pub name: String,
 }
 
 impl RSym {
     pub fn new(name: String) -> Self {
-        Self {
-            name
-        }
+        Self { name }
     }
 }
 

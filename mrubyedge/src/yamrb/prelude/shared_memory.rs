@@ -1,12 +1,15 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::yamrb::helpers::mrb_define_class_cmethod;
 use crate::yamrb::shared_memory::SharedMemory;
 use crate::yamrb::vm::VM;
 use crate::{yamrb::{helpers::mrb_define_cmethod, value::{RObject, RValue, RType}}, Error};
 
 pub(crate) fn initialize_shared_memory(vm: &mut VM) {
     let shared_memory_class = vm.define_standard_class("SharedMemory");
+
+    mrb_define_class_cmethod(vm, shared_memory_class.clone(), "new", Box::new(mrb_shared_memory_new));
 
     mrb_define_cmethod(vm, shared_memory_class.clone(), "to_s", Box::new(mrb_shared_memory_to_string));
     mrb_define_cmethod(vm, shared_memory_class.clone(), "offset_in_memory", Box::new(mrb_shared_memory_offset_in_memory));
@@ -23,7 +26,8 @@ pub fn mrb_shared_memory_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RO
         value: RValue::SharedMemory(Rc::new(RefCell::new(
             SharedMemory::new(size as usize),
         ))),
-        object_id: u64::MAX.into()
+        object_id: u64::MAX.into(),
+        singleton_class: RefCell::new(None),
     };
     Ok(obj.to_refcount_assigned())
 }

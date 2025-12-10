@@ -4,8 +4,8 @@ use crate::{yamrb::{helpers::{mrb_define_cmethod, mrb_funcall}, value::*, vm::VM
 
 pub(crate) fn initialize_object(vm: &mut VM) {
     let object_class = vm.object_class.clone();
-    let klass: RObject = object_class.clone().into();
-    vm.consts.insert("Object".to_string(), klass.to_refcount_assigned());
+    let klass = RObject::class(object_class.clone(), vm);
+    vm.consts.insert("Object".to_string(), klass);
     vm.builtin_class_table.insert("Object", object_class.clone());
 
     #[cfg(feature = "wasi")]
@@ -23,6 +23,7 @@ pub(crate) fn initialize_object(vm: &mut VM) {
     mrb_define_cmethod(vm, object_class.clone(), "to_s", Box::new(mrb_object_to_s));
     mrb_define_cmethod(vm, object_class.clone(), "inspect", Box::new(mrb_object_to_s));
     mrb_define_cmethod(vm, object_class.clone(), "raise", Box::new(mrb_object_raise));
+    mrb_define_cmethod(vm, object_class.clone(), "nil?", Box::new(mrb_object_nil_p));
 
     // define global consts:
     vm.consts.insert("RUBY_VERSION".to_string(), Rc::new(RObject::string(crate::yamrb::vm::VERSION.to_string())));
@@ -140,6 +141,10 @@ pub fn mrb_object_raise(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
     let msg = args[0].as_ref().try_into()?;
     let err = Error::RuntimeError(msg);
     Err(err)
+}
+
+fn mrb_object_nil_p(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    Ok(Rc::new(RObject::boolean(false)))
 }
 
 pub fn mrb_object_initialize(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -354,17 +359,17 @@ fn test_mrb_object_is_equal_hash() {
 fn test_mrb_object_is_equal_klass() {
     let mut vm = VM::empty();
 
-    let lhs: RObject = vm.get_class_by_name("String").into();
-    let rhs: RObject = RObject::string("String".into()).get_class(&mut vm).into();
-    let lhs = lhs.to_refcount_assigned();
-    let rhs = rhs.to_refcount_assigned();
+    let lhs: Rc<RClass> = vm.get_class_by_name("String");
+    let rhs: Rc<RClass>  = RObject::string("String".into()).get_class(&mut vm);
+    let lhs = RObject::class(lhs.clone(), &mut vm);
+    let rhs = RObject::class(rhs.clone(), &mut vm);
     let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
     assert!(ret);
 
-    let lhs: RObject = RObject::integer(5471).get_class(&mut vm).into();
-    let rhs: RObject = RObject::string("String".into()).get_class(&mut vm).into();
-    let lhs = lhs.to_refcount_assigned();
-    let rhs = rhs.to_refcount_assigned();
+    let lhs: Rc<RClass> = RObject::integer(5471).get_class(&mut vm);
+    let rhs: Rc<RClass>  = RObject::string("String".into()).get_class(&mut vm);
+    let lhs = RObject::class(lhs.clone(), &mut vm);
+    let rhs = RObject::class(rhs.clone(), &mut vm);
     let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
     assert!(!ret);
 }

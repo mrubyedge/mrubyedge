@@ -1,15 +1,21 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
-use crate::{yamrb::{helpers::{mrb_call_block, mrb_define_cmethod}, value::{RObject, RValue}, vm::VM}, Error};
+use crate::{Error, yamrb::{helpers::{mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod}, value::{RObject, RValue}, vm::VM}};
 
 pub(crate) fn initialize_hash(vm: &mut VM) {
     let hash_class = vm.define_standard_class("Hash");
+
+    mrb_define_class_cmethod(vm, hash_class.clone(), "new", Box::new(mrb_hash_new));
 
     mrb_define_cmethod(vm, hash_class.clone(), "[]", Box::new(mrb_hash_get_index_self));
     mrb_define_cmethod(vm, hash_class.clone(), "[]=", Box::new(mrb_hash_set_index_self));
     mrb_define_cmethod(vm, hash_class.clone(), "each", Box::new(mrb_hash_each));
     mrb_define_cmethod(vm, hash_class.clone(), "size", Box::new(mrb_hash_size));
     mrb_define_cmethod(vm, hash_class.clone(), "length", Box::new(mrb_hash_size));
+}
+
+pub fn mrb_hash_new(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    Ok(Rc::new(RObject::hash(HashMap::new())))
 }
 
 fn mrb_hash_get_index_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

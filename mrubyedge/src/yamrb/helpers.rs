@@ -123,7 +123,7 @@ pub fn mrb_funcall(vm: &mut VM, top_self: Option<Rc<RObject>>, name: &str, args:
         Some(obj) => obj,
         None => vm.getself()?,
     };
-    let binding = recv.as_ref().get_class(vm);
+    let binding = recv.as_ref().get_singleton_class_or_class(vm);
     let (owner_module, method) = resolve_method(&binding, name).ok_or_else(|| Error::NoMethodError(name.to_string()))?;
     
     if method.is_rb_func {
@@ -173,6 +173,65 @@ pub fn mrb_define_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: R
 /// * `name` - The name of the method
 /// * `method` - The Ruby proc to bind as a method
 pub fn mrb_define_method(_vm: &mut VM, klass: Rc<RClass>, name: &str, method: RProc) {
+    let mut procs = klass.procs.borrow_mut();
+    procs.insert(name.to_string(), method);
+}
+
+pub fn mrb_define_class_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: RFn) {
+    let index = vm.register_fn(cmethod);
+    let method = RProc {
+        is_rb_func: false,
+        sym_id: Some(RSym::new(name.to_string())),
+        next: None,
+        irep: None,
+        func: Some(index),
+        environ: None,
+        block_self: None,
+    };
+    let class_obj = RObject::class(klass.clone(), vm);
+    let klass_singleton = class_obj.initialize_or_get_singleton_class(vm);
+    let mut procs = klass_singleton.procs.borrow_mut();
+    procs.insert(name.to_string(), method);
+}
+
+/// Defines a singleton C method (native Rust function) on a specific Ruby object.
+///
+/// Singleton methods are methods defined on individual objects rather than classes.
+///
+/// # Arguments
+///
+/// * `vm` - The virtual machine instance
+/// * `dest` - The object to define the singleton method on
+/// * `name` - The name of the method
+/// * `cmethod` - The native Rust function to bind as a singleton method
+pub fn mrb_define_singleton_cmethod(vm: &mut VM, dest: Rc<RObject>, name: &str, cmethod: RFn) {
+    let index = vm.register_fn(cmethod);
+    let method = RProc {
+        is_rb_func: false,
+        sym_id: Some(RSym::new(name.to_string())),
+        next: None,
+        irep: None,
+        func: Some(index),
+        environ: None,
+        block_self: None,
+    };
+    let klass = dest.initialize_or_get_singleton_class(vm);
+    let mut procs = klass.procs.borrow_mut();
+    procs.insert(name.to_string(), method);
+}
+
+/// Defines a singleton Ruby method (RProc) on a specific Ruby object.
+///
+/// Singleton methods are methods defined on individual objects rather than classes.
+///
+/// # Arguments
+///
+/// * `vm` - The virtual machine instance
+/// * `dest` - The object to define the singleton method on
+/// * `name` - The name of the method
+/// * `method` - The Ruby proc to bind as a singleton method
+pub fn mrb_define_singleton_method(vm: &mut VM, dest: Rc<RObject>, name: &str, method: RProc) {
+    let klass = dest.initialize_or_get_singleton_class(vm);
     let mut procs = klass.procs.borrow_mut();
     procs.insert(name.to_string(), method);
 }

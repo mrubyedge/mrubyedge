@@ -1,9 +1,11 @@
 use std::rc::Rc;
 
-use crate::{yamrb::{helpers::{mrb_call_block, mrb_define_cmethod}, value::{RObject, RValue}, vm::VM}, Error};
+use crate::{Error, yamrb::{helpers::{mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod}, value::{RObject, RValue}, vm::VM}};
 
 pub(crate) fn initialize_array(vm: &mut VM) {
     let array_class = vm.define_standard_class("Array");
+
+    mrb_define_class_cmethod(vm, array_class.clone(), "new", Box::new(mrb_array_new));
 
     mrb_define_cmethod(vm, array_class.clone(), "push", Box::new(mrb_array_push_self));
     mrb_define_cmethod(vm, array_class.clone(), "[]", Box::new(mrb_array_get_index_self));
@@ -12,6 +14,16 @@ pub(crate) fn initialize_array(vm: &mut VM) {
     mrb_define_cmethod(vm, array_class.clone(), "size", Box::new(mrb_array_size));
     mrb_define_cmethod(vm, array_class.clone(), "length", Box::new(mrb_array_size));
     mrb_define_cmethod(vm, array_class.clone(), "pack", Box::new(mrb_array_pack));
+}
+
+pub fn mrb_array_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let array = if args.is_empty() {
+        vec![]
+    } else {
+        let size: usize = args[0].as_ref().try_into()?;
+        vec![Rc::new(RObject::nil()); size]
+    };
+    Ok(Rc::new(RObject::array(array)))
 }
 
 fn mrb_array_push_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
