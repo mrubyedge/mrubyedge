@@ -103,7 +103,7 @@ pub struct RObject {
     pub value: RValue,
     pub object_id: Cell<u64>,
 
-    pub singleton_class: RefCell<Option<Rc<RModule>>>,
+    pub singleton_class: RefCell<Option<Rc<RClass>>>,
 }
 
 impl RObject {
@@ -320,6 +320,15 @@ impl RObject {
         }
     }
 
+    pub fn get_singleton_class_or_class(&self, vm: &VM) -> Rc<RClass> {
+        self.singleton_class
+            .borrow()
+            .as_ref()
+            .map(|s| s.clone())
+            .or_else(|| Some(self.get_class(vm)))
+            .expect("should have singleton class or class")
+    }
+
     pub fn get_class(&self, vm: &VM) -> Rc<RClass> {
         match &self.value {
             RValue::Class(_) => vm.get_class_by_name("Class"),
@@ -347,7 +356,7 @@ impl RObject {
         }
     }
 
-    fn initialize_or_get_singleton_class(self: &Rc<Self>, vm: &mut VM) -> Rc<RModule> {
+    pub(crate) fn initialize_or_get_singleton_class(self: &Rc<Self>, vm: &mut VM) -> Rc<RClass> {
         if let Some(sclass) = self.singleton_class.borrow().as_ref() {
             return sclass.clone();
         }
@@ -361,7 +370,11 @@ impl RObject {
             Err(e) => format!("<Singleton Class - inspect error: {:?}>", e),
         };
 
-        let sclass = Rc::new(RModule::new(&class_name));
+        let sclass = Rc::new(RClass::new(
+            &class_name,
+            Some(self.get_class(vm).clone()),
+            self.get_class(vm).parent.borrow().clone(),
+        ));
 
         self.singleton_class.replace(Some(sclass.clone()));
         sclass

@@ -436,9 +436,9 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         // UNDEF => {
         //     // op_undef(vm, &operand)?;
         // }
-        // SCLASS => {
-        //     // op_sclass(vm, &operand)?;
-        // }
+        SCLASS => {
+            op_sclass(vm, &operand)?;
+        }
         TCLASS => {
             op_tclass(vm, &operand)?;
         }
@@ -868,7 +868,7 @@ pub(crate) fn do_op_send(vm: &mut VM, recv_index: usize, blk_index: Option<usize
     }
 
     let method_id = vm.current_irep.syms[b as usize].clone();
-    let klass = recv.get_class(vm);
+    let klass = recv.get_singleton_class_or_class(vm);
     let (owner_module, method) = resolve_method(&klass, &method_id.name).ok_or_else(|| {
         Error::NoMethodError(method_id.name.clone())
     })?;
@@ -1554,11 +1554,34 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             method.sym_id = Some(sym.clone());
             procs.insert(sym.name.clone(), method);
         }
+        (_, RValue::Proc(method)) => {
+            let robject = target.clone();
+            let sclass = robject.get_singleton_class_or_class(vm);
+            let mut procs = sclass.procs.borrow_mut();
+            let mut method = method.clone();
+            method.sym_id = Some(sym.clone());
+            procs.insert(sym.name.clone(), method);
+        }
         _ => {
-            unreachable!("DEF must be called on class or module");
+            unreachable!("DEF must be called with Proc");
         }
     }
     vm.current_regs()[a as usize].replace(RObject::symbol(sym).to_refcount_assigned());
+    Ok(())
+}
+
+pub(crate) fn op_sclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let a = operand.as_b()? as usize;
+    let val = vm.getself()?;
+    let singleton_class = val.singleton_class.borrow().clone();
+    match singleton_class {
+        Some(ref sc) => {
+            let robj = sc.clone().into();
+            vm.current_regs()[a].replace(Rc::new(robj));
+            return Ok(());
+        }
+        None => {}
+    }
     Ok(())
 }
 
