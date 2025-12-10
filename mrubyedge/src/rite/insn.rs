@@ -85,6 +85,10 @@ impl Fetched {
             Fetched::W(_) => 3,
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Fetched::Z)
+    }
 }
 
 // from mruby 3.2.0 op.h
@@ -447,7 +451,7 @@ impl Debug for OpCode {
 }
 
 fn fetch_z(bin: &mut &[u8]) -> Result<Fetched, Error> {
-    if bin.len() < 1 {
+    if bin.is_empty() {
         return Err(Error::internal("byte code too short"));
     }
     *bin = &bin[1..];
@@ -539,7 +543,9 @@ const BSS: fn(&mut &[u8]) -> Result<Fetched, Error> = fetch_bss;
 const S: fn(&mut &[u8]) -> Result<Fetched, Error> = fetch_s;
 const W: fn(&mut &[u8]) -> Result<Fetched, Error> = fetch_w;
 
-pub const FETCH_TABLE: [fn(&mut &[u8]) -> Result<Fetched, Error>; OpCode::NumberOfOpcode as usize] = [
+type FetchFn = fn(&mut &[u8]) -> Result<Fetched, Error>;
+
+pub const FETCH_TABLE: [FetchFn; OpCode::NumberOfOpcode as usize] = [
     Z, BB, BB, BB, BB, B, B, B, B, B, B, B, B, B, BS, BSS, BB, B, B, B, B, BB, BB, BB, BB, BB, BB,
     BB, BB, BB, BB, BB, BB, BBB, BBB, B, B, S, BS, BS, BS, S, B, BB, B, BBB, BBB, BBB, BBB, Z, BB,
     BS, W, BB, Z, BB, B, B, B, BS, B, BB, B, BB, B, B, B, B, B, B, B, BB, BBB, B, BB, B, BBB, BBB,

@@ -20,7 +20,7 @@ TestModule
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     let result = vm.run().unwrap();
-    
+
     // Result should be the module itself
     assert!(matches!(result.tt, mrubyedge::yamrb::value::RType::Module));
 }
@@ -46,7 +46,10 @@ User.new.greet
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     let result = vm.run().unwrap();
 
-    let value: String = result.as_ref().try_into().expect("greet should return string");
+    let value: String = result
+        .as_ref()
+        .try_into()
+        .expect("greet should return string");
     assert_eq!(value, "hello");
 }
 
@@ -73,7 +76,10 @@ Outer::User.new.greet
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     let result = vm.run().unwrap();
 
-    let value: String = result.as_ref().try_into().expect("greet should return string");
+    let value: String = result
+        .as_ref()
+        .try_into()
+        .expect("greet should return string");
     assert_eq!(value, "hello");
 }
 
@@ -102,7 +108,10 @@ Wrapper.new.core_value
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     let result = vm.run().unwrap();
 
-    let value: i64 = result.as_ref().try_into().expect("core_value should return integer");
+    let value: i64 = result
+        .as_ref()
+        .try_into()
+        .expect("core_value should return integer");
     assert_eq!(value, 123);
 }
 
@@ -135,7 +144,9 @@ Wrapper.new.core_value
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     let result = vm.run().unwrap();
 
-    let value: i64 = result.as_ref().try_into().expect("core_value should return integer");
+    let value: i64 = result
+        .as_ref()
+        .try_into()
+        .expect("core_value should return integer");
     assert_eq!(value, 124);
 }
-

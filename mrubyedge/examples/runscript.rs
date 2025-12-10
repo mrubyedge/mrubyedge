@@ -1,5 +1,5 @@
 use std::env;
-use std::fs::{remove_file, File};
+use std::fs::{File, remove_file};
 use std::io::Read;
 use std::process::Command;
 
@@ -14,7 +14,8 @@ fn main() -> Result<(), std::io::Error> {
     if is_verbose {
         mrbc.arg("-v");
     }
-    let result = mrbc.arg("-o")
+    let result = mrbc
+        .arg("-o")
         .arg("/tmp/__tmp__.mrb")
         .arg(path)
         .output()

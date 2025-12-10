@@ -23,7 +23,10 @@ fn times_test_c() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "test_times", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 6);
 }
 
@@ -46,7 +49,10 @@ fn range_each_test_c() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "test_each", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 110);
 }
 
@@ -69,7 +75,10 @@ fn array_each_test_c() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "test_each", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 22222);
 }
 
@@ -95,7 +104,10 @@ fn array_each_nested_test_c() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "do_times_nest", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 2000);
 }
 
@@ -122,6 +134,9 @@ fn expired_closure_test() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "do_times", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 3);
 }

@@ -1,16 +1,43 @@
 use std::rc::Rc;
 
-use crate::{yamrb::{helpers::{mrb_define_cmethod, mrb_funcall}, value::*, vm::VM}, Error};
+use crate::{
+    Error,
+    yamrb::{
+        helpers::{mrb_define_cmethod, mrb_funcall},
+        value::*,
+        vm::VM,
+    },
+};
 
 pub(crate) fn initialize_class(vm: &mut VM) {
     let module_class = vm.get_class_by_name("Module");
     let class_class = vm.define_standard_class_under("Class", module_class);
 
     mrb_define_cmethod(vm, class_class.clone(), "new", Box::new(mrb_class_new));
-    mrb_define_cmethod(vm, class_class.clone(), "attr_reader", Box::new(mrb_class_attr_reader));
-    mrb_define_cmethod(vm, class_class.clone(), "attr_writer", Box::new(mrb_class_attr_writer));
-    mrb_define_cmethod(vm, class_class.clone(), "attr_accessor", Box::new(mrb_class_attr_acceccor));
-    mrb_define_cmethod(vm, class_class.clone(), "attr", Box::new(mrb_class_attr_acceccor));
+    mrb_define_cmethod(
+        vm,
+        class_class.clone(),
+        "attr_reader",
+        Box::new(mrb_class_attr_reader),
+    );
+    mrb_define_cmethod(
+        vm,
+        class_class.clone(),
+        "attr_writer",
+        Box::new(mrb_class_attr_writer),
+    );
+    mrb_define_cmethod(
+        vm,
+        class_class.clone(),
+        "attr_accessor",
+        Box::new(mrb_class_attr_acceccor),
+    );
+    mrb_define_cmethod(
+        vm,
+        class_class.clone(),
+        "attr",
+        Box::new(mrb_class_attr_acceccor),
+    );
 }
 
 fn mrb_class_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -18,7 +45,9 @@ fn mrb_class_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
     let class = match &class.value {
         RValue::Class(c) => c.clone(),
         _ => {
-            return Err(Error::RuntimeError("Class#new must be called from class".to_string()));
+            return Err(Error::RuntimeError(
+                "Class#new must be called from class".to_string(),
+            ));
         }
     };
 
@@ -34,7 +63,9 @@ fn mrb_class_attr_reader(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
     let class = match &class_.value {
         RValue::Class(c) => c.clone(),
         _ => {
-            return Err(Error::RuntimeError("Class#attr_reader must be called from class".to_string()));
+            return Err(Error::RuntimeError(
+                "Class#attr_reader must be called from class".to_string(),
+            ));
         }
     };
     for arg in args.iter() {
@@ -45,25 +76,28 @@ fn mrb_class_attr_reader(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
                     let this = vm.getself()?;
                     let key = format!("@{}", sym_id);
                     let value = match &this.value {
-                        RValue::Instance(i) => {
-                            match i.ivar.borrow().get(&key) {
-                                Some(v) => v.clone(),
-                                None => Rc::new(RObject::nil())
-                            }
+                        RValue::Instance(i) => match i.ivar.borrow().get(&key) {
+                            Some(v) => v.clone(),
+                            None => Rc::new(RObject::nil()),
                         },
                         _ => {
-                            return Err(Error::RuntimeError("attr_reader defined method must be called from instance".to_string()));
+                            return Err(Error::RuntimeError(
+                                "attr_reader defined method must be called from instance"
+                                    .to_string(),
+                            ));
                         }
                     };
                     Ok(value)
                 };
-                mrb_define_cmethod(vm, class.clone(), &sym_id, Box::new(method));
+                mrb_define_cmethod(vm, class.clone(), sym_id, Box::new(method));
             }
             RValue::Nil => {
                 // skip
             }
             _ => {
-                return Err(Error::RuntimeError("Class#attr_reader must be called with symbols".to_string()));
+                return Err(Error::RuntimeError(
+                    "Class#attr_reader must be called with symbols".to_string(),
+                ));
             }
         }
     }
@@ -75,7 +109,9 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
     let class = match &class_.value {
         RValue::Class(c) => c.clone(),
         _ => {
-            return Err(Error::RuntimeError("Class#attr_reader must be called from class".to_string()));
+            return Err(Error::RuntimeError(
+                "Class#attr_reader must be called from class".to_string(),
+            ));
         }
     };
     for arg in args.iter() {
@@ -89,9 +125,12 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
                     match &this.value {
                         RValue::Instance(i) => {
                             i.ivar.borrow_mut().insert(key, value.clone());
-                        },
+                        }
                         _ => {
-                            return Err(Error::RuntimeError("attr_reader defined method must be called from instance".to_string()));
+                            return Err(Error::RuntimeError(
+                                "attr_reader defined method must be called from instance"
+                                    .to_string(),
+                            ));
                         }
                     };
                     Ok(value)
@@ -103,7 +142,9 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
                 // skip
             }
             _ => {
-                return Err(Error::RuntimeError("Class#attr_reader must be called with symbols".to_string()));
+                return Err(Error::RuntimeError(
+                    "Class#attr_reader must be called with symbols".to_string(),
+                ));
             }
         }
     }
@@ -131,7 +172,8 @@ fn test_class_attr_accessor() {
     let args = vec![RObject::integer(557188).to_refcount_assigned()];
     mrb_funcall(&mut vm, Some(instance.clone()), "foo=", &args).expect("call obj.foo = failed");
 
-    let ret = mrb_funcall(&mut vm, Some(instance.clone()), "foo", &[]).expect("call obj.foo failed");
+    let ret =
+        mrb_funcall(&mut vm, Some(instance.clone()), "foo", &[]).expect("call obj.foo failed");
     let ret: i64 = ret.as_ref().try_into().expect("obj.foo must be integer");
     assert_eq!(ret, 557188);
 }

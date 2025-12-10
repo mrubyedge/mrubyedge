@@ -1,7 +1,7 @@
 extern crate simple_endian;
 
-use super::binfmt::*;
 use super::Error;
+use super::binfmt::*;
 
 use core::ffi::CStr;
 use core::mem;
@@ -84,36 +84,31 @@ pub fn load<'a>(src: &'a [u8]) -> Result<Rite<'a>, Error> {
         return Err(Error::TooShort);
     }
 
-    loop {
-        match peek4(head) {
-            Some(chrs) => match chrs {
-                IREP => {
-                    let (cur, irep_header, irep) = section_irep_1(head)?;
-                    rite.irep_header = irep_header;
-                    rite.irep = irep;
-                    head = &head[cur..];
-                }
-                LVAR => {
-                    let (cur, lvar) = section_lvar(head)?;
-                    rite.lvar = Some(lvar);
-                    head = &head[cur..];
-                }
-                DBG => {
-                    let cur = section_skip(head)?;
-                    head = &head[cur..];
-                }
-                END => {
-                    let cur = section_end(head)?;
-                    head = &head[cur..];
-                }
-                _ => {
-                    dbg!(chrs);
-                    dbg!(head);
-                    return Err(Error::InvalidFormat);
-                }
-            },
-            None => {
-                break;
+    while let Some(chrs) = peek4(head) {
+        match chrs {
+            IREP => {
+                let (cur, irep_header, irep) = section_irep_1(head)?;
+                rite.irep_header = irep_header;
+                rite.irep = irep;
+                head = &head[cur..];
+            }
+            LVAR => {
+                let (cur, lvar) = section_lvar(head)?;
+                rite.lvar = Some(lvar);
+                head = &head[cur..];
+            }
+            DBG => {
+                let cur = section_skip(head)?;
+                head = &head[cur..];
+            }
+            END => {
+                let cur = section_end(head)?;
+                head = &head[cur..];
+            }
+            _ => {
+                eprintln!("{:?}", chrs);
+                eprint!("{:?}", head);
+                return Err(Error::InvalidFormat);
             }
         }
     }
@@ -122,7 +117,7 @@ pub fn load<'a>(src: &'a [u8]) -> Result<Rite<'a>, Error> {
 }
 
 pub fn section_irep_1(head: &[u8]) -> Result<(usize, SectionIrepHeader, Vec<Irep<'_>>), Error> {
-let mut cur = 0;
+    let mut cur = 0;
 
     let irep_header_size = mem::size_of::<SectionIrepHeader>();
     let irep_header = SectionIrepHeader::from_bytes(&head[cur..irep_header_size])?;
@@ -161,8 +156,12 @@ let mut cur = 0;
                         as usize,
                     end: be32_to_u32([head[cur + 5], head[cur + 6], head[cur + 7], head[cur + 8]])
                         as usize,
-                    target: be32_to_u32([head[cur + 9], head[cur + 10], head[cur + 11], head[cur + 12]])
-                        as usize,
+                    target: be32_to_u32([
+                        head[cur + 9],
+                        head[cur + 10],
+                        head[cur + 11],
+                        head[cur + 12],
+                    ]) as usize,
                 };
                 catch_handlers.push(value);
                 cur += mem::size_of::<IrepCatchHandler>();
@@ -242,19 +241,19 @@ pub fn section_skip(head: &[u8]) -> Result<usize, Error> {
     Ok(be32_to_u32(header.size) as usize)
 }
 
-pub fn peek4<'a>(src: &'a [u8]) -> Option<[char; 4]> {
+pub fn peek4(src: &[u8]) -> Option<[char; 4]> {
     if src.len() < 4 {
         // EoD
         return None;
     }
     if let [a, b, c, d] = src[0..4] {
-	let a = char::from_u32(a as u32).unwrap();
-	let b = char::from_u32(b as u32).unwrap();
-	let c = char::from_u32(c as u32).unwrap();
-	let d = char::from_u32(d as u32).unwrap();
-	Some([a, b, c, d])
+        let a = char::from_u32(a as u32).unwrap();
+        let b = char::from_u32(b as u32).unwrap();
+        let c = char::from_u32(c as u32).unwrap();
+        let d = char::from_u32(d as u32).unwrap();
+        Some([a, b, c, d])
     } else {
-	None
+        None
     }
 }
 

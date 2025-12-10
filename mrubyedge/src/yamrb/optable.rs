@@ -4,8 +4,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::rite::insn::{Fetched, OpCode};
 use crate::Error;
+use crate::rite::insn::{Fetched, OpCode};
 
 use super::prelude::object::mrb_object_is_equal;
 use super::{helpers::mrb_funcall, value::*, vm::*};
@@ -139,77 +139,83 @@ const ENTER_K_MASK: u32 = 0b11111 << 2;
 const ENTER_D_MASK: u32 = 0b1 << 1;
 const ENTER_B_MASK: u32 = 0b1 << 0;
 
-pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: usize, len: usize) -> Result<(), Error> {
+pub(crate) fn consume_expr(
+    vm: &mut VM,
+    code: OpCode,
+    operand: &Fetched,
+    pos: usize,
+    len: usize,
+) -> Result<(), Error> {
     use crate::rite::insn::OpCode::*;
     match code {
         NOP => {
-            op_nop(vm, &operand)?;
+            op_nop(vm, operand)?;
         }
         MOVE => {
-            op_move(vm, &operand)?;
+            op_move(vm, operand)?;
         }
         LOADL => {
-            op_loadl(vm, &operand)?;
+            op_loadl(vm, operand)?;
         }
         LOADI => {
-            op_loadi(vm, &operand)?;
+            op_loadi(vm, operand)?;
         }
         LOADINEG => {
-            op_loadineg(vm, &operand)?;
+            op_loadineg(vm, operand)?;
         }
         LOADI__1 => {
-            op_loadi_n(vm, -1, &operand)?;
+            op_loadi_n(vm, -1, operand)?;
         }
         LOADI_0 => {
-            op_loadi_n(vm, 0, &operand)?;
+            op_loadi_n(vm, 0, operand)?;
         }
         LOADI_1 => {
-            op_loadi_n(vm, 1, &operand)?;
+            op_loadi_n(vm, 1, operand)?;
         }
         LOADI_2 => {
-            op_loadi_n(vm, 2, &operand)?;
+            op_loadi_n(vm, 2, operand)?;
         }
         LOADI_3 => {
-            op_loadi_n(vm, 3, &operand)?;
+            op_loadi_n(vm, 3, operand)?;
         }
         LOADI_4 => {
-            op_loadi_n(vm, 4, &operand)?;
+            op_loadi_n(vm, 4, operand)?;
         }
         LOADI_5 => {
-            op_loadi_n(vm, 5, &operand)?;
+            op_loadi_n(vm, 5, operand)?;
         }
         LOADI_6 => {
-            op_loadi_n(vm, 6, &operand)?;
+            op_loadi_n(vm, 6, operand)?;
         }
         LOADI_7 => {
-            op_loadi_n(vm, 7, &operand)?;
+            op_loadi_n(vm, 7, operand)?;
         }
         LOADI16 => {
-            op_loadi16(vm, &operand)?;
+            op_loadi16(vm, operand)?;
         }
         LOADI32 => {
-            op_loadi32(vm, &operand)?;
+            op_loadi32(vm, operand)?;
         }
         LOADSYM => {
-            op_loadsym(vm, &operand)?;
+            op_loadsym(vm, operand)?;
         }
         LOADNIL => {
-            op_loadnil(vm, &operand)?;
+            op_loadnil(vm, operand)?;
         }
         LOADSELF => {
-            op_loadself(vm, &operand)?;
+            op_loadself(vm, operand)?;
         }
         LOADT => {
-            op_loadt(vm, &operand)?;
+            op_loadt(vm, operand)?;
         }
         LOADF => {
-            op_loadf(vm, &operand)?;
+            op_loadf(vm, operand)?;
         }
         GETGV => {
-            op_getgv(vm, &operand)?;
+            op_getgv(vm, operand)?;
         }
         SETGV => {
-            op_setgv(vm, &operand)?;
+            op_setgv(vm, operand)?;
         }
         // GETSV => {
         //     // op_getsv(vm, &operand)?;
@@ -218,10 +224,10 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         //     // op_setsv(vm, &operand)?;
         // }
         GETIV => {
-            op_getiv(vm, &operand)?;
+            op_getiv(vm, operand)?;
         }
         SETIV => {
-            op_setiv(vm, &operand)?;
+            op_setiv(vm, operand)?;
         }
         // GETCV => {
         //     // op_getcv(vm, &operand)?;
@@ -230,76 +236,76 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         //     // op_setcv(vm, &operand)?;
         // }
         GETCONST => {
-            op_getconst(vm, &operand)?;
+            op_getconst(vm, operand)?;
         }
         SETCONST => {
-            op_setconst(vm, &operand)?;
+            op_setconst(vm, operand)?;
         }
         GETMCNST => {
-            op_getmcnst(vm, &operand)?;
+            op_getmcnst(vm, operand)?;
         }
         // SETMCNST => {
         //     // op_setmcnst(vm, &operand)?;
         // }
         GETUPVAR => {
-            op_getupvar(vm, &operand)?;
+            op_getupvar(vm, operand)?;
         }
         SETUPVAR => {
-            op_setupvar(vm, &operand)?;
+            op_setupvar(vm, operand)?;
         }
         GETIDX => {
-            op_getidx(vm, &operand)?;
+            op_getidx(vm, operand)?;
         }
         SETIDX => {
-            op_setidx(vm, &operand)?;
+            op_setidx(vm, operand)?;
         }
         JMP => {
-            op_jmp(vm, &operand, pos + len)?;
+            op_jmp(vm, operand, pos + len)?;
         }
         JMPIF => {
-            op_jmpif(vm, &operand, pos + len)?;
+            op_jmpif(vm, operand, pos + len)?;
         }
         JMPNOT => {
-            op_jmpnot(vm, &operand, pos + len)?;
+            op_jmpnot(vm, operand, pos + len)?;
         }
         JMPNIL => {
-            op_jmpnil(vm, &operand, pos + len)?;
+            op_jmpnil(vm, operand, pos + len)?;
         }
         // JMPUW => {
         //     // op_jmpuw(vm, &operand)?;
         // }
         EXCEPT => {
-            op_except(vm, &operand)?;
+            op_except(vm, operand)?;
         }
         RESCUE => {
-            op_rescue(vm, &operand)?;
+            op_rescue(vm, operand)?;
         }
         RAISEIF => {
-            op_raiseif(vm, &operand)?;
+            op_raiseif(vm, operand)?;
         }
         SSEND => {
-            op_ssend(vm, &operand)?;
+            op_ssend(vm, operand)?;
         }
         SSENDB => {
-            op_ssendb(vm, &operand)?;
+            op_ssendb(vm, operand)?;
         }
         SEND => {
-            op_send(vm, &operand)?;
+            op_send(vm, operand)?;
         }
         SENDB => {
-            op_sendb(vm, &operand)?;
+            op_sendb(vm, operand)?;
         }
         CALL => {
-            op_call(vm, &operand)?;
+            op_call(vm, operand)?;
         }
         SUPER => {
-            op_super(vm, &operand)?;
+            op_super(vm, operand)?;
         }
         // ARGARY => {
         //     // op_argary(vm, &operand)?;
         // }
         ENTER => {
-            op_enter(vm, &operand)?;
+            op_enter(vm, operand)?;
         }
         // KEY_P => {
         //     // op_key_p(vm, &operand)?;
@@ -311,7 +317,7 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         //     // op_karg(vm, &operand)?;
         // }
         RETURN => {
-            op_return(vm, &operand)?;
+            op_return(vm, operand)?;
         }
         // RETURN_BLK => {
         //     // op_return_blk(vm, &operand)?;
@@ -323,43 +329,43 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         //     // op_blkpush(vm, &operand)?;
         // }
         ADD => {
-            op_add(vm, &operand)?;
+            op_add(vm, operand)?;
         }
         ADDI => {
-            op_addi(vm, &operand)?;
+            op_addi(vm, operand)?;
         }
         SUB => {
-            op_sub(vm, &operand)?;
+            op_sub(vm, operand)?;
         }
         SUBI => {
-            op_subi(vm, &operand)?;
+            op_subi(vm, operand)?;
         }
         MUL => {
-            op_mul(vm, &operand)?;
+            op_mul(vm, operand)?;
         }
         DIV => {
-            op_div(vm, &operand)?;
+            op_div(vm, operand)?;
         }
         EQ => {
-            op_eq(vm, &operand)?;
+            op_eq(vm, operand)?;
         }
         LT => {
-            op_lt(vm, &operand)?;
+            op_lt(vm, operand)?;
         }
         LE => {
-            op_le(vm, &operand)?;
+            op_le(vm, operand)?;
         }
         GT => {
-            op_gt(vm, &operand)?;
+            op_gt(vm, operand)?;
         }
         GE => {
-            op_ge(vm, &operand)?;
+            op_ge(vm, operand)?;
         }
         ARRAY => {
-            op_array(vm, &operand)?;
+            op_array(vm, operand)?;
         }
         ARRAY2 => {
-            op_array2(vm, &operand)?;
+            op_array2(vm, operand)?;
         }
         // ARYCAT => {
         //     // op_arycat(vm, &operand)?;
@@ -383,16 +389,16 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         //     // op_intern(vm, &operand)?;
         // }
         SYMBOL => {
-            op_symbol(vm, &operand)?;
+            op_symbol(vm, operand)?;
         }
         STRING => {
-            op_string(vm, &operand)?;
+            op_string(vm, operand)?;
         }
         STRCAT => {
-            op_strcat(vm, &operand)?;
+            op_strcat(vm, operand)?;
         }
         HASH => {
-            op_hash(vm, &operand)?;
+            op_hash(vm, operand)?;
         }
         // HASHADD => {
         //     // op_hashadd(vm, &operand)?;
@@ -401,34 +407,34 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         //     // op_hashcat(vm, &operand)?;
         // }
         LAMBDA => {
-            op_lambda(vm, &operand)?;
+            op_lambda(vm, operand)?;
         }
         BLOCK => {
-            op_block(vm, &operand)?;
+            op_block(vm, operand)?;
         }
         METHOD => {
-            op_method(vm, &operand)?;
+            op_method(vm, operand)?;
         }
         RANGE_INC => {
-            op_range_inc(vm, &operand)?;
+            op_range_inc(vm, operand)?;
         }
         RANGE_EXC => {
-            op_range_exc(vm, &operand)?;
+            op_range_exc(vm, operand)?;
         }
         OCLASS => {
-            op_oclass(vm, &operand)?;
+            op_oclass(vm, operand)?;
         }
         CLASS => {
-            op_class(vm, &operand)?;
+            op_class(vm, operand)?;
         }
         MODULE => {
-            op_module(vm, &operand)?;
+            op_module(vm, operand)?;
         }
         EXEC => {
-            op_exec(vm, &operand)?;
+            op_exec(vm, operand)?;
         }
         DEF => {
-            op_def(vm, &operand)?;
+            op_def(vm, operand)?;
         }
         // ALIAS => {
         //     // op_alias(vm, &operand)?;
@@ -437,10 +443,10 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         //     // op_undef(vm, &operand)?;
         // }
         SCLASS => {
-            op_sclass(vm, &operand)?;
+            op_sclass(vm, operand)?;
         }
         TCLASS => {
-            op_tclass(vm, &operand)?;
+            op_tclass(vm, operand)?;
         }
         // DEBUG => {
         //     // op_debug(vm, &operand)?;
@@ -458,14 +464,21 @@ pub(crate) fn consume_expr(vm: &mut VM, code: OpCode, operand: &Fetched, pos: us
         //     // op_ext3(vm, &operand)?;
         // }
         STOP => {
-            op_stop(vm, &operand)?;
+            op_stop(vm, operand)?;
         }
-        _ => { unimplemented!("{:?}: Not supported yet", code)}
+        _ => {
+            unimplemented!("{:?}: Not supported yet", code)
+        }
     }
     Ok(())
 }
 
-pub(crate) fn push_callinfo(vm: &mut VM, method_id: RSym, n_args: usize, method_owner: Option<Rc<RModule>>) {
+pub(crate) fn push_callinfo(
+    vm: &mut VM,
+    method_id: RSym,
+    n_args: usize,
+    method_owner: Option<Rc<RModule>>,
+) {
     let callinfo = CALLINFO {
         prev: vm.current_callinfo.clone(),
         method_id,
@@ -580,7 +593,11 @@ pub(crate) fn op_loadf(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_getgv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let val = vm.current_irep.syms[b as usize].clone();
-    let val = vm.globals.get(&val.name).ok_or_else(|| Error::internal(format!("global variable not found {}", val.name)))?.clone();
+    let val = vm
+        .globals
+        .get(&val.name)
+        .ok_or_else(|| Error::internal(format!("global variable not found {}", val.name)))?
+        .clone();
     vm.current_regs()[a as usize].replace(val);
     Ok(())
 }
@@ -597,10 +614,13 @@ pub(crate) fn op_getiv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let this = vm.getself()?;
     let ivar = match &this.value {
-        RValue::Instance(ins) => ins.ivar.borrow().get(
-            &vm.current_irep.syms[b as usize].name,
-        ).ok_or_else(|| Error::internal(format!("symbol not found {}", b)))?.clone(),
-        _ => unreachable!("getiv must be called on instance")
+        RValue::Instance(ins) => ins
+            .ivar
+            .borrow()
+            .get(&vm.current_irep.syms[b as usize].name)
+            .ok_or_else(|| Error::internal(format!("symbol not found {}", b)))?
+            .clone(),
+        _ => unreachable!("getiv must be called on instance"),
     };
     vm.current_regs()[a as usize].replace(ivar);
     Ok(())
@@ -613,12 +633,9 @@ pub(crate) fn op_setiv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     match &this.value {
         RValue::Instance(ins) => {
             let mut ivar = ins.ivar.borrow_mut();
-            ivar.insert(
-                vm.current_irep.syms[b as usize].name.clone(),
-                val,
-            )
-        },
-        _ => unreachable!("setiv must be called on instance")
+            ivar.insert(vm.current_irep.syms[b as usize].name.clone(), val)
+        }
+        _ => unreachable!("setiv must be called on instance"),
     };
     Ok(())
 }
@@ -629,16 +646,12 @@ pub(crate) fn op_getconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let mut current = current_namespace(vm);
 
     // Walk namespace chain upwards until found or reach top-level
-    loop {
-        if let Some(ns) = current.clone() {
-            if let Some(val) = ns.consts.borrow().get(&name).cloned() {
-                vm.current_regs()[a as usize].replace(val);
-                return Ok(());
-            }
-            current = ns.parent.borrow().clone();
-        } else {
-            break;
+    while let Some(ns) = current.clone() {
+        if let Some(val) = ns.consts.borrow().get(&name).cloned() {
+            vm.current_regs()[a as usize].replace(val);
+            return Ok(());
         }
+        current = ns.parent.borrow().clone();
     }
 
     if let Some(val) = vm.consts.get(&name).cloned() {
@@ -681,9 +694,15 @@ pub(crate) fn op_getmcnst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_getupvar(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b, c) = operand.as_bbb()?;
     let n = c as usize;
-    let mut environ = vm.upper.as_ref().ok_or_else(|| Error::internal("op_getupvar expects upper env"))?;
+    let mut environ = vm
+        .upper
+        .as_ref()
+        .ok_or_else(|| Error::internal("op_getupvar expects upper env"))?;
     for _ in 0..n {
-        environ = environ.upper.as_ref().ok_or_else(|| Error::internal("op_getupvar failed to find upvar"))?;
+        environ = environ
+            .upper
+            .as_ref()
+            .ok_or_else(|| Error::internal("op_getupvar failed to find upvar"))?;
     }
     let environ = environ.clone();
     let up_regs = &vm.regs[environ.current_regs_offset..];
@@ -695,9 +714,12 @@ pub(crate) fn op_getupvar(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }
     } else {
         let captured = environ.captured.borrow();
-        let val = &captured.as_ref().ok_or_else(|| Error::internal("captured environment not found"))?[b as usize];
+        let val = &captured
+            .as_ref()
+            .ok_or_else(|| Error::internal("captured environment not found"))?[b as usize];
         let val = val.clone();
-        vm.current_regs()[a as usize].replace(val.ok_or_else(|| Error::internal("captured value not found"))?);
+        vm.current_regs()[a as usize]
+            .replace(val.ok_or_else(|| Error::internal("captured value not found"))?);
     }
     Ok(())
 }
@@ -705,9 +727,15 @@ pub(crate) fn op_getupvar(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_setupvar(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b, c) = operand.as_bbb()?;
     let n = c as usize;
-    let mut environ = vm.upper.as_ref().ok_or_else(|| Error::internal("op_getupvar expects upper env"))?;
+    let mut environ = vm
+        .upper
+        .as_ref()
+        .ok_or_else(|| Error::internal("op_getupvar expects upper env"))?;
     for _ in 0..n {
-        environ = environ.upper.as_ref().ok_or_else(|| Error::internal("op_getupvar failed to find upvar"))?;
+        environ = environ
+            .upper
+            .as_ref()
+            .ok_or_else(|| Error::internal("op_getupvar failed to find upvar"))?;
     }
     let environ = environ.clone();
     let current_regs_offset = environ.current_regs_offset;
@@ -719,7 +747,9 @@ pub(crate) fn op_setupvar(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         target.replace(val);
     } else {
         let mut captured = environ.captured.borrow_mut();
-        let captured = captured.as_mut().ok_or_else(|| Error::internal("captured environment not found"))?;
+        let captured = captured
+            .as_mut()
+            .ok_or_else(|| Error::internal("captured environment not found"))?;
         let target = &mut captured[b as usize];
         target.replace(val);
     }
@@ -744,9 +774,9 @@ pub(crate) fn op_setidx(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val = vm.get_current_regs_cloned(a + 2)?;
     let args = vec![idx, val];
     mrb_funcall(vm, Some(recv), "[]=", &args)?;
-        Ok(())
-    }
-    
+    Ok(())
+}
+
 pub(crate) fn op_jmp(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result<(), Error> {
     let a = operand.as_s()?;
     let next_pc = calcurate_pc(&vm.current_irep, vm.pc.get(), end_pos + a as usize);
@@ -786,7 +816,10 @@ pub(crate) fn op_jmpnil(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Resul
 
 pub(crate) fn op_except(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()?;
-    let val = vm.exception.take().ok_or_else(|| Error::internal("exception not found"))?;
+    let val = vm
+        .exception
+        .take()
+        .ok_or_else(|| Error::internal("exception not found"))?;
     let exc = Rc::new(RObject::exception(val));
     vm.current_regs()[a as usize].replace(exc);
     Ok(())
@@ -803,7 +836,7 @@ pub(crate) fn op_rescue(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             let val = RObject::boolean(is_rescued);
             vm.current_regs()[b as usize].replace(val.to_refcount_assigned());
         }
-        _ => unreachable!("rescue must be called on exception")
+        _ => unreachable!("rescue must be called on exception"),
     };
     Ok(())
 }
@@ -811,16 +844,10 @@ pub(crate) fn op_rescue(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_raiseif(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()?;
     let val = vm.current_regs()[a as usize].as_ref().cloned();
-    match val {
-        Some(val) => {
-            match &val.value {
-                RValue::Exception(e) => {
-                    return Err(e.as_ref().error_type.borrow().clone());
-                }
-                _ => {}
-            }
-        }
-        None => {}
+    if let Some(val) = val
+        && let RValue::Exception(e) = &val.value
+    {
+        return Err(e.as_ref().error_type.borrow().clone());
     }
     Ok(())
 }
@@ -852,12 +879,22 @@ pub(crate) fn op_sendb(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     do_op_send(vm, a as usize, Some(a as usize + c as usize + 1), a, b, c)
 }
 
-pub(crate) fn do_op_send(vm: &mut VM, recv_index: usize, blk_index: Option<usize>, a: u8, b: u8, c: u8) -> Result<(), Error> {
+pub(crate) fn do_op_send(
+    vm: &mut VM,
+    recv_index: usize,
+    blk_index: Option<usize>,
+    a: u8,
+    b: u8,
+    c: u8,
+) -> Result<(), Error> {
     let block_index = (a + c + 1) as usize;
 
     let recv = vm.get_current_regs_cloned(recv_index)?;
     let mut args = (0..c)
-        .map(|i| vm.get_current_regs_cloned((a + i + 1) as usize).expect("args too short for required"))
+        .map(|i| {
+            vm.get_current_regs_cloned((a + i + 1) as usize)
+                .expect("args too short for required")
+        })
         .collect::<Vec<_>>();
     if let Some(blk_index) = blk_index {
         args.push(vm.get_current_regs_cloned(blk_index)?);
@@ -869,13 +906,14 @@ pub(crate) fn do_op_send(vm: &mut VM, recv_index: usize, blk_index: Option<usize
 
     let method_id = vm.current_irep.syms[b as usize].clone();
     let klass = recv.get_singleton_class_or_class(vm);
-    let (owner_module, method) = resolve_method(&klass, &method_id.name).ok_or_else(|| {
-        Error::NoMethodError(method_id.name.clone())
-    })?;
+    let (owner_module, method) = resolve_method(&klass, &method_id.name)
+        .ok_or_else(|| Error::NoMethodError(method_id.name.clone()))?;
 
     vm.current_regs()[a as usize].replace(recv.clone());
     if !method.is_rb_func {
-        let func = vm.get_fn(method.func.unwrap()).ok_or_else(|| Error::internal("function not found"))?;
+        let func = vm
+            .get_fn(method.func.unwrap())
+            .ok_or_else(|| Error::internal("function not found"))?;
         vm.current_regs_offset += a as usize;
 
         let res = func(vm, &args);
@@ -910,10 +948,17 @@ pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
     push_callinfo(vm, "<tailcall>".into(), 0, None);
 
     vm.pc.set(0);
-    let proc = vm.current_regs()[0].as_ref().cloned().ok_or_else(|| Error::internal("proc not found"))?;
+    let proc = vm.current_regs()[0]
+        .as_ref()
+        .cloned()
+        .ok_or_else(|| Error::internal("proc not found"))?;
     match &proc.value {
         RValue::Proc(proc) => {
-            vm.current_irep = proc.irep.as_ref().ok_or_else(|| Error::internal("empry irep"))?.clone();
+            vm.current_irep = proc
+                .irep
+                .as_ref()
+                .ok_or_else(|| Error::internal("empry irep"))?
+                .clone();
         }
         _ => unreachable!("call must be called on proc"),
     }
@@ -922,14 +967,21 @@ pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let callinfo = vm.current_callinfo.as_ref()
+    let callinfo = vm
+        .current_callinfo
+        .as_ref()
         .ok_or_else(|| Error::internal("no current callinfo"))?;
     let sym_id = callinfo.method_id.name.clone();
-    let owner_module = callinfo.method_owner.clone()
+    let owner_module = callinfo
+        .method_owner
+        .clone()
         .ok_or_else(|| Error::RuntimeError("super called outside of method".to_string()))?;
     let recv = vm.getself()?;
     let args = (0..b)
-        .map(|i| vm.get_current_regs_cloned((a + i + 1) as usize).expect("args too short for super"))
+        .map(|i| {
+            vm.get_current_regs_cloned((a + i + 1) as usize)
+                .expect("args too short for super")
+        })
         .collect::<Vec<_>>();
 
     let klass = match &recv.value {
@@ -939,8 +991,9 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (next_owner, method) = resolve_next_method(&klass, &sym_id, &owner_module)
         .ok_or_else(|| Error::NoMethodError(sym_id.clone()))?;
     if !method.is_rb_func {
-        let func = vm.get_fn(method.func.unwrap())
-            .ok_or_else(|| Error::internal(format!("functon registerd but no entry found: {}", &sym_id)))?;
+        let func = vm.get_fn(method.func.unwrap()).ok_or_else(|| {
+            Error::internal(format!("functon registerd but no entry found: {}", &sym_id))
+        })?;
         let res = func(vm, &args);
         for i in (a as usize + 1)..(a as usize + b as usize + 1) {
             vm.current_regs()[i].take();
@@ -953,16 +1006,24 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
                 vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
                 return Err(e);
             }
-            
         }
         return Ok(());
     }
 
     vm.current_regs()[a as usize].replace(recv.clone());
-    push_callinfo(vm, method.sym_id.clone().unwrap(), b as usize, Some(next_owner));
+    push_callinfo(
+        vm,
+        method.sym_id.clone().unwrap(),
+        b as usize,
+        Some(next_owner),
+    );
 
     vm.pc.set(0);
-    vm.current_irep = method.irep.as_ref().ok_or_else(|| Error::internal("empty irep"))?.clone();
+    vm.current_irep = method
+        .irep
+        .as_ref()
+        .ok_or_else(|| Error::internal("empty irep"))?
+        .clone();
     vm.current_regs_offset += a as usize;
     Ok(())
 }
@@ -987,7 +1048,7 @@ impl From<u32> for EnterArgInfo {
             m2: (val & ENTER_M2_MASK) >> 7,
             k: (val & ENTER_K_MASK) >> 2,
             d: (val & ENTER_D_MASK) >> 1,
-            b: (val & ENTER_B_MASK) >> 0,
+            b: (val & ENTER_B_MASK),
         }
     }
 }
@@ -1012,13 +1073,11 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let old_irep = vm.current_irep.clone();
     let nregs = old_irep.nregs;
 
-    let regs0_cloned: Vec<_> = vm.current_regs()[0..nregs].iter().cloned().collect();
-    if let Some(_) = vm.has_env_ref.get(&vm.current_irep.__id) {
-        if let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
-            environ.capture_no_clone(regs0_cloned);
-            environ.as_ref().expire();
-            vm.has_env_ref.remove(&vm.current_irep.__id);
-        }
+    let regs0_cloned: Vec<_> = vm.current_regs()[0..nregs].to_vec();
+    if let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
+        environ.capture_no_clone(regs0_cloned);
+        environ.as_ref().expire();
+        vm.has_env_ref.remove(&vm.current_irep.__id);
     }
 
     let regs0 = vm.current_regs();
@@ -1026,9 +1085,9 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         regs0[0].replace(regs_a);
     }
     if nregs > 0 {
-        for i in 1..=nregs {
-            regs0[i].take();
-        }
+        regs0[1..=nregs].iter_mut().for_each(|reg| {
+            reg.take();
+        });
     }
 
     let ci = vm.current_callinfo.take();
@@ -1062,18 +1121,10 @@ pub(crate) fn op_add(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => {
-            Rc::new(RObject::integer(n1 + n2))
-        }
-        (RValue::Float(n1), RValue::Float(n2)) => {
-            Rc::new(RObject::float(n1 + n2))
-        }
-        (RValue::Integer(n1), RValue::Float(n2)) => {
-            Rc::new(RObject::float(*n1 as f64 + n2))
-        }
-        (RValue::Float(n1), RValue::Integer(n2)) => {
-            Rc::new(RObject::float(n1 + *n2 as f64))
-        }
+        (RValue::Integer(n1), RValue::Integer(n2)) => Rc::new(RObject::integer(n1 + n2)),
+        (RValue::Float(n1), RValue::Float(n2)) => Rc::new(RObject::float(n1 + n2)),
+        (RValue::Integer(n1), RValue::Float(n2)) => Rc::new(RObject::float(*n1 as f64 + n2)),
+        (RValue::Float(n1), RValue::Integer(n2)) => Rc::new(RObject::float(n1 + *n2 as f64)),
         (RValue::String(n1), RValue::String(n2)) => {
             let mut n1 = n1.borrow_mut();
             let n2 = n2.borrow();
@@ -1096,9 +1147,7 @@ pub(crate) fn op_addi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a as usize)?;
     let val2 = b as i64;
     let result = match &val1.value {
-        RValue::Integer(n1) => {
-            RObject::integer(*n1 + val2)
-        }
+        RValue::Integer(n1) => RObject::integer(*n1 + val2),
         _ => {
             unreachable!("addi supports only integer")
         }
@@ -1113,9 +1162,7 @@ pub(crate) fn op_sub(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => {
-            RObject::integer(n1 - n2)
-        }
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::integer(n1 - n2),
         _ => {
             unreachable!("sub supports only integer")
         }
@@ -1129,9 +1176,7 @@ pub(crate) fn op_subi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a as usize)?;
     let val2 = b as i64;
     let result = match &val1.value {
-        RValue::Integer(n1) => {
-            RObject::integer(*n1 - val2)
-        }
+        RValue::Integer(n1) => RObject::integer(*n1 - val2),
         _ => {
             unreachable!("subi supports only integer")
         }
@@ -1146,9 +1191,7 @@ pub(crate) fn op_mul(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => {
-            RObject::integer(n1 * n2)
-        }
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::integer(n1 * n2),
         _ => {
             unreachable!("mul supports only integer")
         }
@@ -1163,9 +1206,7 @@ pub(crate) fn op_div(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => {
-            RObject::integer(n1 / n2)
-        }
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::integer(n1 / n2),
         _ => {
             unreachable!("div supports only integer")
         }
@@ -1180,9 +1221,7 @@ pub(crate) fn op_lt(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => {
-            RObject::boolean(n1 < n2)
-        }
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 < n2),
         _ => {
             unreachable!("lt supports only integer")
         }
@@ -1197,9 +1236,7 @@ pub(crate) fn op_le(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => {
-            RObject::boolean(n1 <= n2)
-        }
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 <= n2),
         _ => {
             unreachable!("le supports only integer")
         }
@@ -1224,9 +1261,7 @@ pub(crate) fn op_gt(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => {
-            RObject::boolean(n1 > n2)
-        }
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 > n2),
         _ => {
             unreachable!("gt supports only integer")
         }
@@ -1241,9 +1276,7 @@ pub(crate) fn op_ge(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => {
-            RObject::boolean(n1 >= n2)
-        }
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 >= n2),
         _ => {
             unreachable!("ge supports only integer")
         }
@@ -1266,9 +1299,9 @@ fn do_op_array(vm: &mut VM, this: usize, start: usize, n: usize) -> Result<(), E
     let mut ary = Vec::with_capacity(n);
     for i in 0..n {
         if this == start && i == 0 {
-            ary.push(vm.take_current_regs(start as usize)?);
+            ary.push(vm.take_current_regs(start)?);
         } else {
-            ary.push(vm.get_current_regs_cloned((start + i) as usize)?);
+            ary.push(vm.get_current_regs_cloned(start + i)?);
         }
     }
     let val = RObject::array(ary);
@@ -1331,7 +1364,7 @@ pub(crate) fn op_hash(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         hash.insert(key.as_hash_key()?, (key, val));
     }
     let val = RObject::hash(hash);
-    vm.current_regs()[a as usize].replace(Rc::new(val));
+    vm.current_regs()[a].replace(Rc::new(val));
     Ok(())
 }
 
@@ -1348,7 +1381,7 @@ pub(crate) fn op_lambda(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     //environ.capture(&vm.current_regs()[0..nregs]);
     let environ = Rc::new(environ);
     vm.cur_env.insert(vm.current_irep.__id, environ.clone());
-    vm.has_env_ref.insert(vm.current_irep.__id,true);
+    vm.has_env_ref.insert(vm.current_irep.__id, true);
 
     let val = RObject {
         tt: RType::Proc,
@@ -1379,7 +1412,7 @@ pub(crate) fn op_block(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     };
     let environ = Rc::new(environ);
     vm.cur_env.insert(vm.current_irep.__id, environ.clone());
-    vm.has_env_ref.insert(vm.current_irep.__id,true);
+    vm.has_env_ref.insert(vm.current_irep.__id, true);
 
     let val = RObject {
         tt: RType::Proc,
@@ -1439,7 +1472,7 @@ fn do_op_range(vm: &mut VM, a: usize, b: usize, exclusive: bool) -> Result<(), E
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
     };
-    vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
+    vm.current_regs()[a].replace(val.to_refcount_assigned());
     Ok(())
 }
 
@@ -1473,9 +1506,7 @@ pub(crate) fn op_class(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
                 vm.object_class.clone()
             }
         }
-        None => {
-            vm.object_class.clone()
-        }
+        None => vm.object_class.clone(),
     };
     let parent_module = current_namespace(vm);
     let name = name.name;
@@ -1503,7 +1534,10 @@ pub(crate) fn op_module(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
     let module_value = RObject::module(module.clone()).to_refcount_assigned();
     if let Some(parent) = parent_module {
-        parent.consts.borrow_mut().insert(name.clone(), module_value);
+        parent
+            .consts
+            .borrow_mut()
+            .insert(name.clone(), module_value);
     } else {
         vm.consts.insert(name.clone(), module_value);
     }
@@ -1541,7 +1575,7 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
     let target_ref = target.as_ref();
     let method_ref = method.as_ref();
-    
+
     match (&target_ref.value, &method_ref.value) {
         (RValue::Class(klass), RValue::Proc(method)) => {
             let mut procs = klass.procs.borrow_mut();
@@ -1575,13 +1609,10 @@ pub(crate) fn op_sclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
     let val = vm.getself()?;
     let singleton_class = val.singleton_class.borrow().clone();
-    match singleton_class {
-        Some(ref sc) => {
-            let robj = RObject::class(sc.clone(), vm);
-            vm.current_regs()[a].replace(robj);
-            return Ok(());
-        }
-        None => {}
+    if let Some(ref sc) = singleton_class {
+        let robj = RObject::class(sc.clone(), vm);
+        vm.current_regs()[a].replace(robj);
+        return Ok(());
     }
     Ok(())
 }
@@ -1594,7 +1625,7 @@ pub(crate) fn op_tclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     };
     vm.current_regs()[a].replace(val);
     Ok(())
-} 
+}
 
 pub(crate) fn op_stop(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
     vm.flag_preemption.set(true);

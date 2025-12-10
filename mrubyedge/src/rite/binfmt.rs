@@ -85,4 +85,4 @@ impl IrepCatchHandler {
     pub fn from_bytes(buf: &[u8]) -> Result<Self, Error> {
         plain::from_bytes(buf).map_err(|_| Error::General).cloned()
     }
-}  
+}

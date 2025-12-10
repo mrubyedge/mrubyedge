@@ -1,35 +1,95 @@
 use std::rc::Rc;
 
-use crate::{yamrb::{helpers::{mrb_define_cmethod, mrb_funcall}, value::*, vm::VM}, Error};
+use crate::{
+    Error,
+    yamrb::{
+        helpers::{mrb_define_cmethod, mrb_funcall},
+        value::*,
+        vm::VM,
+    },
+};
 
 pub(crate) fn initialize_object(vm: &mut VM) {
     let object_class = vm.object_class.clone();
     let klass = RObject::class(object_class.clone(), vm);
     vm.consts.insert("Object".to_string(), klass);
-    vm.builtin_class_table.insert("Object", object_class.clone());
+    vm.builtin_class_table
+        .insert("Object", object_class.clone());
 
     #[cfg(feature = "wasi")]
     {
         mrb_define_cmethod(vm, object_class.clone(), "puts", Box::new(mrb_kernel_puts));
         mrb_define_cmethod(vm, object_class.clone(), "p", Box::new(mrb_kernel_p));
-        mrb_define_cmethod(vm, object_class.clone(), "debug", Box::new(mrb_kernel_debug));
+        mrb_define_cmethod(
+            vm,
+            object_class.clone(),
+            "debug",
+            Box::new(mrb_kernel_debug),
+        );
     }
 
-    mrb_define_cmethod(vm, object_class.clone(), "initialize", Box::new(mrb_object_initialize));
-    mrb_define_cmethod(vm, object_class.clone(), "==", Box::new(mrb_object_double_eq));
-    mrb_define_cmethod(vm, object_class.clone(), "===", Box::new(mrb_object_triple_eq));
-    mrb_define_cmethod(vm, object_class.clone(), "object_id", Box::new(mrb_object_object_id));
-    mrb_define_cmethod(vm, object_class.clone(), "__id__", Box::new(mrb_object_object_id));
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "initialize",
+        Box::new(mrb_object_initialize),
+    );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "==",
+        Box::new(mrb_object_double_eq),
+    );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "===",
+        Box::new(mrb_object_triple_eq),
+    );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "object_id",
+        Box::new(mrb_object_object_id),
+    );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "__id__",
+        Box::new(mrb_object_object_id),
+    );
     mrb_define_cmethod(vm, object_class.clone(), "to_s", Box::new(mrb_object_to_s));
-    mrb_define_cmethod(vm, object_class.clone(), "inspect", Box::new(mrb_object_to_s));
-    mrb_define_cmethod(vm, object_class.clone(), "raise", Box::new(mrb_object_raise));
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "inspect",
+        Box::new(mrb_object_to_s),
+    );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "raise",
+        Box::new(mrb_object_raise),
+    );
     mrb_define_cmethod(vm, object_class.clone(), "nil?", Box::new(mrb_object_nil_p));
 
     // define global consts:
-    vm.consts.insert("RUBY_VERSION".to_string(), Rc::new(RObject::string(crate::yamrb::vm::VERSION.to_string())));
-    vm.consts.insert("MRUBY_VERSION".to_string(), Rc::new(RObject::string(crate::yamrb::vm::VERSION.to_string())));
-    vm.consts.insert("MRUBY_EDGE_VERSION".to_string(), Rc::new(RObject::string(crate::yamrb::vm::VERSION.to_string())));
-    vm.consts.insert("RUBY_ENGINE".to_string(), Rc::new(RObject::string(crate::yamrb::vm::ENGINE.to_string())));
+    vm.consts.insert(
+        "RUBY_VERSION".to_string(),
+        Rc::new(RObject::string(crate::yamrb::vm::VERSION.to_string())),
+    );
+    vm.consts.insert(
+        "MRUBY_VERSION".to_string(),
+        Rc::new(RObject::string(crate::yamrb::vm::VERSION.to_string())),
+    );
+    vm.consts.insert(
+        "MRUBY_EDGE_VERSION".to_string(),
+        Rc::new(RObject::string(crate::yamrb::vm::VERSION.to_string())),
+    );
+    vm.consts.insert(
+        "RUBY_ENGINE".to_string(),
+        Rc::new(RObject::string(crate::yamrb::vm::ENGINE.to_string())),
+    );
 }
 
 #[cfg(feature = "wasi")]
@@ -87,37 +147,23 @@ pub fn mrb_object_triple_eq(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
     let rhs = args[0].clone();
 
     match (&lhs.value, &rhs.value) {
-        (RValue::Integer(i1), RValue::Integer(i2)) => {
-            Ok(Rc::new(RObject::boolean(*i1 == *i2)))
-        }
-        (RValue::Float(f1), RValue::Float(f2)) => {
-            Ok(Rc::new(RObject::boolean(*f1 == *f2)))
-        }
-        (RValue::Symbol(sym1), RValue::Symbol(sym2)) => {
-            Ok(Rc::new(RObject::boolean(sym1 == sym2)))
-        }
-        (RValue::String(s1), RValue::String(s2)) => {
-            Ok(Rc::new(RObject::boolean(s1 == s2)))
-        }
-        (RValue::Class(c1), _) => {
-            match &lhs.value {
-                RValue::Class(c2) => {
-                    Ok(Rc::new(RObject::boolean(c1.sym_id == c2.sym_id)))
-                }
-                _ => {
-                    let c2 = lhs.get_class(vm);
-                    Ok(Rc::new(RObject::boolean(c1.sym_id == c2.sym_id)))
-                }
+        (RValue::Integer(i1), RValue::Integer(i2)) => Ok(Rc::new(RObject::boolean(*i1 == *i2))),
+        (RValue::Float(f1), RValue::Float(f2)) => Ok(Rc::new(RObject::boolean(*f1 == *f2))),
+        (RValue::Symbol(sym1), RValue::Symbol(sym2)) => Ok(Rc::new(RObject::boolean(sym1 == sym2))),
+        (RValue::String(s1), RValue::String(s2)) => Ok(Rc::new(RObject::boolean(s1 == s2))),
+        (RValue::Class(c1), _) => match &lhs.value {
+            RValue::Class(c2) => Ok(Rc::new(RObject::boolean(c1.sym_id == c2.sym_id))),
+            _ => {
+                let c2 = lhs.get_class(vm);
+                Ok(Rc::new(RObject::boolean(c1.sym_id == c2.sym_id)))
             }
-        }
+        },
         (RValue::Range(_s, _e, _v), _) => {
             let arg = vec![rhs];
             mrb_funcall(vm, Some(lhs), "include?", &arg)
         }
         // TODO: Implement object id for generic instance
-        _ => {
-            Ok(Rc::new(RObject::boolean(false)))
-        }
+        _ => Ok(Rc::new(RObject::boolean(false))),
     }
 }
 
@@ -133,7 +179,11 @@ pub fn mrb_object_to_s(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>
     let obj = vm.getself()?;
     let class = obj.get_class(vm);
     let addr = format!("{:018p}", Rc::as_ptr(&obj));
-    Ok(Rc::new(RObject::string(format!("#<{}:{}>", class.full_name(), addr))))
+    Ok(Rc::new(RObject::string(format!(
+        "#<{}:{}>",
+        class.full_name(),
+        addr
+    ))))
 }
 
 pub fn mrb_object_raise(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -158,72 +208,114 @@ fn test_mrb_object_is_equal() {
 
     let lhs = RObject::integer(1).to_refcount_assigned();
     let rhs = RObject::integer(1).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::integer(1).to_refcount_assigned();
     let rhs = RObject::integer(3).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 
     let lhs = RObject::string("mruby/edge is Ruby".into()).to_refcount_assigned();
     let rhs = RObject::string("mruby/edge is Ruby".into()).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::string("mruby/edge is Ruby".into()).to_refcount_assigned();
     let rhs = RObject::string("mruby/edge is not Ruby".into()).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 
     let lhs = RObject::symbol("some".into()).to_refcount_assigned();
     let rhs = RObject::symbol("some".into()).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::symbol("some".into()).to_refcount_assigned();
     let rhs = RObject::symbol("other".into()).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 
     let lhs = RObject::boolean(true).to_refcount_assigned();
     let rhs = RObject::boolean(true).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::boolean(false).to_refcount_assigned();
     let rhs = RObject::boolean(false).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::boolean(true).to_refcount_assigned();
     let rhs = RObject::boolean(false).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 
     let lhs = RObject::float(0.1).to_refcount_assigned();
     let rhs = RObject::float(0.1).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::float(0.2).to_refcount_assigned();
     let rhs = RObject::float(0.1).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 
     let lhs = RObject::nil().to_refcount_assigned();
     let rhs = RObject::nil().to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::integer(100).to_refcount_assigned();
     let rhs = RObject::nil().to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 
     let lhs = RObject::integer(100).to_refcount_assigned();
     let rhs = RObject::nil().to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 }
 
@@ -235,14 +327,20 @@ fn test_mrb_object_is_equal_range() {
     let e = RObject::integer(10).to_refcount_assigned();
     let lhs = RObject::range(s.clone(), e.clone(), true).to_refcount_assigned();
     let rhs = RObject::range(s.clone(), e.clone(), true).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let s = RObject::integer(1).to_refcount_assigned();
     let e = RObject::integer(10).to_refcount_assigned();
     let lhs = RObject::range(s.clone(), e.clone(), true).to_refcount_assigned();
     let rhs = RObject::range(s.clone(), e.clone(), false).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 
     let s = RObject::integer(1).to_refcount_assigned();
@@ -250,14 +348,20 @@ fn test_mrb_object_is_equal_range() {
     let e2 = RObject::integer(11).to_refcount_assigned();
     let lhs = RObject::range(s.clone(), e.clone(), true).to_refcount_assigned();
     let rhs = RObject::range(s.clone(), e2.clone(), true).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 
     let s = RObject::string("a".into()).to_refcount_assigned();
     let e = RObject::string("z".into()).to_refcount_assigned();
     let lhs = RObject::range(s.clone(), e.clone(), true).to_refcount_assigned();
     let rhs = RObject::range(s.clone(), e.clone(), true).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let s = RObject::string("a".into()).to_refcount_assigned();
@@ -265,7 +369,10 @@ fn test_mrb_object_is_equal_range() {
     let e2 = RObject::string("A".into()).to_refcount_assigned();
     let lhs = RObject::range(s.clone(), e.clone(), true).to_refcount_assigned();
     let rhs = RObject::range(s.clone(), e2.clone(), true).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 }
 
@@ -275,7 +382,10 @@ fn test_mrb_object_is_equal_array() {
 
     let lhs = RObject::array(vec![]).to_refcount_assigned();
     let rhs = RObject::array(vec![]).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = vec![
@@ -290,7 +400,10 @@ fn test_mrb_object_is_equal_array() {
     ];
     let lhs = RObject::array(lhs).to_refcount_assigned();
     let rhs = RObject::array(rhs).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = vec![
@@ -305,53 +418,128 @@ fn test_mrb_object_is_equal_array() {
     ];
     let lhs = RObject::array(lhs).to_refcount_assigned();
     let rhs = RObject::array(rhs).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 }
 
 #[test]
 fn test_mrb_object_is_equal_hash() {
-    use std::collections::HashMap;
     use crate::yamrb::prelude::hash::*;
+    use std::collections::HashMap;
 
     let mut vm = VM::empty();
 
     let lhs = RObject::hash(HashMap::new()).to_refcount_assigned();
     let rhs = RObject::hash(HashMap::new()).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::hash(HashMap::new()).to_refcount_assigned();
-    mrb_hash_set_index(lhs.clone(), RObject::symbol("key1".into()).to_refcount_assigned(), RObject::integer(1).to_refcount_assigned()).expect("set index failed");
-    mrb_hash_set_index(lhs.clone(), RObject::symbol("key2".into()).to_refcount_assigned(), RObject::integer(2).to_refcount_assigned()).expect("set index failed");
+    mrb_hash_set_index(
+        lhs.clone(),
+        RObject::symbol("key1".into()).to_refcount_assigned(),
+        RObject::integer(1).to_refcount_assigned(),
+    )
+    .expect("set index failed");
+    mrb_hash_set_index(
+        lhs.clone(),
+        RObject::symbol("key2".into()).to_refcount_assigned(),
+        RObject::integer(2).to_refcount_assigned(),
+    )
+    .expect("set index failed");
 
     let rhs = RObject::hash(HashMap::new()).to_refcount_assigned();
-    mrb_hash_set_index(rhs.clone(), RObject::symbol("key2".into()).to_refcount_assigned(), RObject::integer(2).to_refcount_assigned()).expect("set index failed");
-    mrb_hash_set_index(rhs.clone(), RObject::symbol("key1".into()).to_refcount_assigned(), RObject::integer(1).to_refcount_assigned()).expect("set index failed");
+    mrb_hash_set_index(
+        rhs.clone(),
+        RObject::symbol("key2".into()).to_refcount_assigned(),
+        RObject::integer(2).to_refcount_assigned(),
+    )
+    .expect("set index failed");
+    mrb_hash_set_index(
+        rhs.clone(),
+        RObject::symbol("key1".into()).to_refcount_assigned(),
+        RObject::integer(1).to_refcount_assigned(),
+    )
+    .expect("set index failed");
 
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::hash(HashMap::new()).to_refcount_assigned();
-    mrb_hash_set_index(lhs.clone(), RObject::symbol("key1".into()).to_refcount_assigned(), RObject::integer(1).to_refcount_assigned()).expect("set index failed");
-    mrb_hash_set_index(lhs.clone(), RObject::symbol("key2".into()).to_refcount_assigned(), RObject::integer(2).to_refcount_assigned()).expect("set index failed");
+    mrb_hash_set_index(
+        lhs.clone(),
+        RObject::symbol("key1".into()).to_refcount_assigned(),
+        RObject::integer(1).to_refcount_assigned(),
+    )
+    .expect("set index failed");
+    mrb_hash_set_index(
+        lhs.clone(),
+        RObject::symbol("key2".into()).to_refcount_assigned(),
+        RObject::integer(2).to_refcount_assigned(),
+    )
+    .expect("set index failed");
 
     let rhs = RObject::hash(HashMap::new()).to_refcount_assigned();
-    mrb_hash_set_index(rhs.clone(), RObject::symbol("key2".into()).to_refcount_assigned(), RObject::integer(2).to_refcount_assigned()).expect("set index failed");
-    mrb_hash_set_index(rhs.clone(), RObject::symbol("key1".into()).to_refcount_assigned(), RObject::integer(3).to_refcount_assigned()).expect("set index failed");
+    mrb_hash_set_index(
+        rhs.clone(),
+        RObject::symbol("key2".into()).to_refcount_assigned(),
+        RObject::integer(2).to_refcount_assigned(),
+    )
+    .expect("set index failed");
+    mrb_hash_set_index(
+        rhs.clone(),
+        RObject::symbol("key1".into()).to_refcount_assigned(),
+        RObject::integer(3).to_refcount_assigned(),
+    )
+    .expect("set index failed");
 
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 
     let lhs = RObject::hash(HashMap::new()).to_refcount_assigned();
-    mrb_hash_set_index(lhs.clone(), RObject::symbol("key1".into()).to_refcount_assigned(), RObject::integer(1).to_refcount_assigned()).expect("set index failed");
-    mrb_hash_set_index(lhs.clone(), RObject::symbol("key2".into()).to_refcount_assigned(), RObject::integer(2).to_refcount_assigned()).expect("set index failed");
+    mrb_hash_set_index(
+        lhs.clone(),
+        RObject::symbol("key1".into()).to_refcount_assigned(),
+        RObject::integer(1).to_refcount_assigned(),
+    )
+    .expect("set index failed");
+    mrb_hash_set_index(
+        lhs.clone(),
+        RObject::symbol("key2".into()).to_refcount_assigned(),
+        RObject::integer(2).to_refcount_assigned(),
+    )
+    .expect("set index failed");
 
     let rhs = RObject::hash(HashMap::new()).to_refcount_assigned();
-    mrb_hash_set_index(rhs.clone(), RObject::symbol("key2".into()).to_refcount_assigned(), RObject::integer(2).to_refcount_assigned()).expect("set index failed");
-    mrb_hash_set_index(rhs.clone(), RObject::symbol("key1-b".into()).to_refcount_assigned(), RObject::integer(1).to_refcount_assigned()).expect("set index failed");
+    mrb_hash_set_index(
+        rhs.clone(),
+        RObject::symbol("key2".into()).to_refcount_assigned(),
+        RObject::integer(2).to_refcount_assigned(),
+    )
+    .expect("set index failed");
+    mrb_hash_set_index(
+        rhs.clone(),
+        RObject::symbol("key1-b".into()).to_refcount_assigned(),
+        RObject::integer(1).to_refcount_assigned(),
+    )
+    .expect("set index failed");
 
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 }
 
@@ -360,17 +548,23 @@ fn test_mrb_object_is_equal_klass() {
     let mut vm = VM::empty();
 
     let lhs: Rc<RClass> = vm.get_class_by_name("String");
-    let rhs: Rc<RClass>  = RObject::string("String".into()).get_class(&mut vm);
+    let rhs: Rc<RClass> = RObject::string("String".into()).get_class(&vm);
     let lhs = RObject::class(lhs.clone(), &mut vm);
     let rhs = RObject::class(rhs.clone(), &mut vm);
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
-    let lhs: Rc<RClass> = RObject::integer(5471).get_class(&mut vm);
-    let rhs: Rc<RClass>  = RObject::string("String".into()).get_class(&mut vm);
+    let lhs: Rc<RClass> = RObject::integer(5471).get_class(&vm);
+    let rhs: Rc<RClass> = RObject::string("String".into()).get_class(&vm);
     let lhs = RObject::class(lhs.clone(), &mut vm);
     let rhs = RObject::class(rhs.clone(), &mut vm);
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 }
 
@@ -380,11 +574,17 @@ fn test_mrb_object_is_equal_instance() {
 
     let lhs = RObject::instance(vm.object_class.clone()).to_refcount_assigned();
     let rhs = lhs.clone();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(ret);
 
     let lhs = RObject::instance(vm.object_class.clone()).to_refcount_assigned();
     let rhs = RObject::instance(vm.object_class.clone()).to_refcount_assigned();
-    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
+    let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
+        .as_ref()
+        .try_into()
+        .expect("must return bool");
     assert!(!ret);
 }

@@ -4,6 +4,7 @@
 pub mod binfmt;
 pub mod insn;
 pub mod marker;
+#[allow(clippy::module_inception)] // FIXME rename
 pub mod rite;
 
 pub use rite::*;
@@ -24,7 +25,7 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "error nr {}", self)
+        write!(f, "error nr {:?}", self)
     }
 }
 

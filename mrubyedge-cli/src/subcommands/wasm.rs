@@ -1,8 +1,13 @@
-extern crate rand;
 extern crate mruby_compiler2_sys;
+extern crate rand;
 
 use clap::Args;
-use std::{fs::File, io::Read, path::{Path, PathBuf}, process::Command};
+use std::{
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use askama::Template;
 use rand::distributions::{Alphanumeric, DistString};
@@ -96,7 +101,7 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
     }
     unsafe {
         mruby_compiler2_sys::MRubyCompiler2Context::new()
-        .compile_to_file(&code, out_file.as_ref())?
+            .compile_to_file(&code, out_file.as_ref())?
     }
 
     let feature = if args.no_wasi { "no-wasi" } else { "default" };
@@ -109,7 +114,9 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
         std::fs::write("Cargo.toml", cargo_toml.render()?)?;
     } else {
         let cargo_toml = template::cargo_toml::CargoToml {
-            mrubyedge_version: &args.mruby_edge_version.unwrap_or_else(|| MRUBY_EDGE_DEFAULT_VERSION.to_string()),
+            mrubyedge_version: &args
+                .mruby_edge_version
+                .unwrap_or_else(|| MRUBY_EDGE_DEFAULT_VERSION.to_string()),
             mrubyedge_feature: feature,
             strip: &args.strip_binary.to_string(),
         };
@@ -126,7 +133,10 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
     if import_rbs.exists() {
         debug_println(
             args.verbose,
-            &format!("detected import.rbs: {}", import_rbs.as_path().to_string_lossy()),
+            &format!(
+                "detected import.rbs: {}",
+                import_rbs.as_path().to_string_lossy()
+            ),
         );
         let mut f = File::open(import_rbs)?;
         let mut s = String::new();
@@ -146,10 +156,13 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if export_rbs.exists() {
-        debug_println(args.verbose, &format!(
-            "detected export.rbs: {}",
-            export_rbs.as_path().to_string_lossy()
-        ));
+        debug_println(
+            args.verbose,
+            &format!(
+                "detected export.rbs: {}",
+                export_rbs.as_path().to_string_lossy()
+            ),
+        );
         let mut f = File::open(export_rbs)?;
         let mut s = String::new();
         f.read_to_string(&mut s)?;
@@ -210,20 +223,29 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
         "wasm32-wasip1"
     };
 
-    sh_do(&format!("cargo build --target {} --release", target), args.verbose)?;
-    sh_do(&format!(
-        "cp ./target/{}/release/mywasm.wasm {}/{}.wasm",
-        target,
-        &pwd.to_str().unwrap(),
-        &fname.to_string()
-    ), args.verbose)?;
+    sh_do(
+        &format!("cargo build --target {} --release", target),
+        args.verbose,
+    )?;
+    sh_do(
+        &format!(
+            "cp ./target/{}/release/mywasm.wasm {}/{}.wasm",
+            target,
+            &pwd.to_str().unwrap(),
+            &fname.to_string()
+        ),
+        args.verbose,
+    )?;
     if args.skip_cleanup {
         println!(
             "debug: working directory for compile wasm is remained in {}",
             std::env::current_dir()?.as_os_str().to_str().unwrap()
         );
     } else {
-        sh_do(&format!("cd .. && rm -rf work-mrubyedge-{}", &suffix), args.verbose)?;
+        sh_do(
+            &format!("cd .. && rm -rf work-mrubyedge-{}", &suffix),
+            args.verbose,
+        )?;
     }
 
     std::env::set_current_dir(pwd)?;

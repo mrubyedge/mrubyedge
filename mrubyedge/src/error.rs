@@ -18,7 +18,7 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "error nr {}", self)
+        write!(f, "error nr {:?}", self)
     }
 }
 
@@ -42,20 +42,20 @@ impl Error {
     }
 
     pub fn is_instance_of(&self, other: Rc<RClass>) -> bool {
-        match (self, other.sym_id.name.as_str()) {
-            (Error::General, "StandardError") => true,
-            (Error::Internal(_), "InternalError") => true,
-            (Error::InvalidOpCode, "StandardError") => true,
-            (Error::RuntimeError(_), "RuntimeError") => true,
-            (Error::TypeMismatch, "StandardError") => true,
-            (Error::NoMethodError(_), "NoMethodError") => true,
-            (Error::NameError(_), "NameError") => true,
-            _ => false,
-        }
+        matches!(
+            (self, other.sym_id.name.as_str()),
+            (Error::General, "StandardError")
+                | (Error::Internal(_), "InternalError")
+                | (Error::InvalidOpCode, "StandardError")
+                | (Error::RuntimeError(_), "RuntimeError")
+                | (Error::TypeMismatch, "StandardError")
+                | (Error::NoMethodError(_), "NoMethodError")
+                | (Error::NameError(_), "NameError")
+        )
     }
 
     pub fn is_a(&self, vm: &mut VM, other: Rc<RClass>) -> bool {
-        let mut klass: Option<Rc<RClass>> = RClass::from_error(vm, &self).into();
+        let mut klass: Option<Rc<RClass>> = RClass::from_error(vm, self).into();
         let target_klass_name = other.sym_id.name.as_str();
 
         while let Some(k) = klass {

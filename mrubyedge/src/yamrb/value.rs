@@ -29,6 +29,8 @@ pub enum RType {
     Nil,
 }
 
+type RHash = HashMap<ValueHasher, (Rc<RObject>, Rc<RObject>)>;
+
 /// Actual storage for Ruby values, including boxed objects and immediates.
 #[derive(Debug, Clone)]
 pub enum RValue {
@@ -41,7 +43,7 @@ pub enum RValue {
     Instance(RInstance),
     Proc(RProc),
     Array(RefCell<Vec<Rc<RObject>>>),
-    Hash(RefCell<HashMap<ValueHasher, (Rc<RObject>, Rc<RObject>)>>),
+    Hash(RefCell<RHash>),
     String(RefCell<Vec<u8>>),
     Range(Rc<RObject>, Rc<RObject>, bool),
     SharedMemory(Rc<RefCell<SharedMemory>>),
@@ -92,7 +94,7 @@ impl PartialEq for ValueEqualityForKeyValue {
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
@@ -138,7 +140,7 @@ impl RObject {
         let object_id = if n >= (i32::MAX as i64) {
             u64::MAX
         } else if n <= (i32::MIN as i64) {
-            u64::MAX
+            i64::MIN as u64
         } else {
             n as u64 * 2 + 1
         };
@@ -155,7 +157,7 @@ impl RObject {
         RObject {
             tt: RType::Float,
             value: RValue::Float(f),
-            object_id: (f.to_bits() as u64).into(),
+            object_id: f.to_bits().into(),
             singleton_class: RefCell::new(None),
         }
     }
@@ -210,8 +212,7 @@ impl RObject {
             Some(robj) => robj.clone(),
             None => {
                 let robj = Self::newclass(c.clone());
-                vm.class_object_table
-                    .insert(c.full_name(), robj.clone());
+                vm.class_object_table.insert(c.full_name(), robj.clone());
                 robj
             }
         }
@@ -223,7 +224,8 @@ impl RObject {
             value: RValue::Class(c),
             object_id: (u64::MAX).into(),
             singleton_class: RefCell::new(None),
-        }.to_refcount_assigned()
+        }
+        .to_refcount_assigned()
     }
 
     pub fn module(m: Rc<RModule>) -> Self {
@@ -283,10 +285,7 @@ impl RObject {
     }
 
     pub fn is_nil(&self) -> bool {
-        match self.tt {
-            RType::Nil => true,
-            _ => false,
-        }
+        matches!(self.tt, RType::Nil)
     }
 
     // TODO: implment Object#hash
@@ -318,7 +317,7 @@ impl RObject {
                 ValueEquality::Array(arr)
             }
             RValue::Hash(ha) => {
-                let keys: HashSet<_> = ha.borrow().keys().map(|k| k.clone()).collect();
+                let keys: HashSet<_> = ha.borrow().keys().cloned().collect();
                 ValueEquality::KeyValue(ValueEqualityForKeyValue(
                     keys,
                     ha.borrow()
@@ -406,7 +405,7 @@ impl TryFrom<&RObject> for i32 {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as i32),
+            RValue::Float(f) => Ok(f as i32),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -425,7 +424,7 @@ impl TryFrom<&RObject> for u32 {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as u32),
+            RValue::Float(f) => Ok(f as u32),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -444,7 +443,7 @@ impl TryFrom<&RObject> for i64 {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as i64),
+            RValue::Float(f) => Ok(f as i64),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -463,7 +462,7 @@ impl TryFrom<&RObject> for u64 {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as u64),
+            RValue::Float(f) => Ok(f as u64),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -482,7 +481,7 @@ impl TryFrom<&RObject> for usize {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as usize),
+            RValue::Float(f) => Ok(f as usize),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -501,7 +500,7 @@ impl TryFrom<&RObject> for f32 {
                     Ok(0.0)
                 }
             }
-            RValue::Float(f) => return Ok(f as f32),
+            RValue::Float(f) => Ok(f as f32),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -596,7 +595,7 @@ impl RModule {
 
     pub fn getmcnst(&self, name: &str) -> Option<Rc<RObject>> {
         let consts = self.consts.borrow();
-        consts.get(name).map(|v| v.clone())
+        consts.get(name).cloned()
     }
 
     pub fn find_method(&self, name: &str) -> Option<RProc> {
@@ -825,27 +824,13 @@ pub struct RException {
 impl RClass {
     pub fn from_error(vm: &mut VM, e: &Error) -> Rc<Self> {
         match e {
-            Error::General => {
-                return vm.get_class_by_name("Exception");
-            }
-            Error::Internal(_) => {
-                return vm.get_class_by_name("InternalError");
-            }
-            Error::InvalidOpCode => {
-                return vm.get_class_by_name("LoadError");
-            }
-            Error::RuntimeError(_) => {
-                return vm.get_class_by_name("RuntimeError");
-            }
-            Error::TypeMismatch => {
-                return vm.get_class_by_name("LoadError");
-            }
-            Error::NoMethodError(_) => {
-                return vm.get_class_by_name("NoMethodError");
-            }
-            Error::NameError(_) => {
-                return vm.get_class_by_name("NameError");
-            }
+            Error::General => vm.get_class_by_name("Exception"),
+            Error::Internal(_) => vm.get_class_by_name("InternalError"),
+            Error::InvalidOpCode => vm.get_class_by_name("LoadError"),
+            Error::RuntimeError(_) => vm.get_class_by_name("RuntimeError"),
+            Error::TypeMismatch => vm.get_class_by_name("LoadError"),
+            Error::NoMethodError(_) => vm.get_class_by_name("NoMethodError"),
+            Error::NameError(_) => vm.get_class_by_name("NameError"),
         }
     }
 }

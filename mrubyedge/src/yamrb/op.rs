@@ -4,7 +4,7 @@ use crate::rite::insn::{Fetched, OpCode};
 pub struct Op {
     pub code: OpCode,
     pub operand: Fetched,
-    
+
     pub pos: usize,
     pub len: usize,
 }

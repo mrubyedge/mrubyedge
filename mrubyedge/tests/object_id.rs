@@ -20,7 +20,11 @@ fn object_id_test() {
 
     // Assert
     let args = vec![];
-    let result: bool = mrb_funcall(&mut vm, None, "check_id", &args).unwrap().as_ref().try_into().unwrap();
+    let result: bool = mrb_funcall(&mut vm, None, "check_id", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert!(result);
 }
 
@@ -42,6 +46,10 @@ fn object_id_2_test() {
 
     // Assert
     let args = vec![];
-    let result: bool = mrb_funcall(&mut vm, None, "check_id", &args).unwrap().as_ref().try_into().unwrap();
+    let result: bool = mrb_funcall(&mut vm, None, "check_id", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert!(!result);
 }
