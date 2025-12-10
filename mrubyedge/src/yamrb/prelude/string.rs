@@ -34,7 +34,7 @@ pub(crate) fn initialize_string(vm: &mut VM) {
 
 pub fn mrb_string_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let mut args = args;
-    if args.len() > 0 && args.last().unwrap().is_nil() {
+    if !args.is_empty() && args.last().unwrap().is_nil() {
         args = &args[..args.len() - 1];
     }
     if args.is_empty() {

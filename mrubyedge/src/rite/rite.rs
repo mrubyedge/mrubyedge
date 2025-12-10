@@ -246,7 +246,7 @@ pub fn section_skip(head: &[u8]) -> Result<usize, Error> {
     Ok(be32_to_u32(header.size) as usize)
 }
 
-pub fn peek4<'a>(src: &'a [u8]) -> Option<[char; 4]> {
+pub fn peek4(src: &[u8]) -> Option<[char; 4]> {
     if src.len() < 4 {
         // EoD
         return None;

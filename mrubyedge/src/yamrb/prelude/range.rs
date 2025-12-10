@@ -43,14 +43,14 @@ pub fn mrb_range_is_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
                     }
                 }
                 _ => {
-                    return Ok(Rc::new(RObject::boolean(false)));
+                    Ok(Rc::new(RObject::boolean(false)))
                 }
             }
         }
         _ => {
-            return Err(Error::RuntimeError(
+            Err(Error::RuntimeError(
                 "Range#include? must be called on a Range".to_string(),
-            ));
+            ))
         }
     }
 }
@@ -64,7 +64,7 @@ pub fn mrb_range_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
                 let start = *start;
                 let mut end = *end;
                 if *exclusive {
-                    end = end - 1;
+                    end -= 1;
                 }
                 for i in start..=end {
                     let args = vec![Rc::new(RObject::integer(i))];

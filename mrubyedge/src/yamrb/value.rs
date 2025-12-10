@@ -92,7 +92,7 @@ impl PartialEq for ValueEqualityForKeyValue {
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
@@ -155,7 +155,7 @@ impl RObject {
         RObject {
             tt: RType::Float,
             value: RValue::Float(f),
-            object_id: (f.to_bits() as u64).into(),
+            object_id: f.to_bits().into(),
             singleton_class: RefCell::new(None),
         }
     }
@@ -318,7 +318,7 @@ impl RObject {
                 ValueEquality::Array(arr)
             }
             RValue::Hash(ha) => {
-                let keys: HashSet<_> = ha.borrow().keys().map(|k| k.clone()).collect();
+                let keys: HashSet<_> = ha.borrow().keys().cloned().collect();
                 ValueEquality::KeyValue(ValueEqualityForKeyValue(
                     keys,
                     ha.borrow()
@@ -406,7 +406,7 @@ impl TryFrom<&RObject> for i32 {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as i32),
+            RValue::Float(f) => Ok(f as i32),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -425,7 +425,7 @@ impl TryFrom<&RObject> for u32 {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as u32),
+            RValue::Float(f) => Ok(f as u32),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -444,7 +444,7 @@ impl TryFrom<&RObject> for i64 {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as i64),
+            RValue::Float(f) => Ok(f as i64),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -463,7 +463,7 @@ impl TryFrom<&RObject> for u64 {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as u64),
+            RValue::Float(f) => Ok(f as u64),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -482,7 +482,7 @@ impl TryFrom<&RObject> for usize {
                     Ok(0)
                 }
             }
-            RValue::Float(f) => return Ok(f as usize),
+            RValue::Float(f) => Ok(f as usize),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -501,7 +501,7 @@ impl TryFrom<&RObject> for f32 {
                     Ok(0.0)
                 }
             }
-            RValue::Float(f) => return Ok(f as f32),
+            RValue::Float(f) => Ok(f as f32),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -596,7 +596,7 @@ impl RModule {
 
     pub fn getmcnst(&self, name: &str) -> Option<Rc<RObject>> {
         let consts = self.consts.borrow();
-        consts.get(name).map(|v| v.clone())
+        consts.get(name).cloned()
     }
 
     pub fn find_method(&self, name: &str) -> Option<RProc> {
@@ -826,25 +826,25 @@ impl RClass {
     pub fn from_error(vm: &mut VM, e: &Error) -> Rc<Self> {
         match e {
             Error::General => {
-                return vm.get_class_by_name("Exception");
+                vm.get_class_by_name("Exception")
             }
             Error::Internal(_) => {
-                return vm.get_class_by_name("InternalError");
+                vm.get_class_by_name("InternalError")
             }
             Error::InvalidOpCode => {
-                return vm.get_class_by_name("LoadError");
+                vm.get_class_by_name("LoadError")
             }
             Error::RuntimeError(_) => {
-                return vm.get_class_by_name("RuntimeError");
+                vm.get_class_by_name("RuntimeError")
             }
             Error::TypeMismatch => {
-                return vm.get_class_by_name("LoadError");
+                vm.get_class_by_name("LoadError")
             }
             Error::NoMethodError(_) => {
-                return vm.get_class_by_name("NoMethodError");
+                vm.get_class_by_name("NoMethodError")
             }
             Error::NameError(_) => {
-                return vm.get_class_by_name("NameError");
+                vm.get_class_by_name("NameError")
             }
         }
     }

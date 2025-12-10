@@ -51,7 +51,7 @@ pub fn mrb_hash_get_index(this: Rc<RObject>, key: Rc<RObject>) -> Result<Rc<RObj
     };
     let hash = hash.borrow();
     let key = key.as_ref().as_hash_key()?;
-    match hash.get(&key).clone() {
+    match hash.get(&key) {
         Some((_, value)) => Ok(value.clone()),
         None => Ok(Rc::new(RObject::nil())),
     }

@@ -89,7 +89,7 @@ fn mrb_class_attr_reader(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
                     };
                     Ok(value)
                 };
-                mrb_define_cmethod(vm, class.clone(), &sym_id, Box::new(method));
+                mrb_define_cmethod(vm, class.clone(), sym_id, Box::new(method));
             }
             RValue::Nil => {
                 // skip

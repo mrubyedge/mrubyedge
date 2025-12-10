@@ -149,73 +149,73 @@ pub(crate) fn consume_expr(
     use crate::rite::insn::OpCode::*;
     match code {
         NOP => {
-            op_nop(vm, &operand)?;
+            op_nop(vm, operand)?;
         }
         MOVE => {
-            op_move(vm, &operand)?;
+            op_move(vm, operand)?;
         }
         LOADL => {
-            op_loadl(vm, &operand)?;
+            op_loadl(vm, operand)?;
         }
         LOADI => {
-            op_loadi(vm, &operand)?;
+            op_loadi(vm, operand)?;
         }
         LOADINEG => {
-            op_loadineg(vm, &operand)?;
+            op_loadineg(vm, operand)?;
         }
         LOADI__1 => {
-            op_loadi_n(vm, -1, &operand)?;
+            op_loadi_n(vm, -1, operand)?;
         }
         LOADI_0 => {
-            op_loadi_n(vm, 0, &operand)?;
+            op_loadi_n(vm, 0, operand)?;
         }
         LOADI_1 => {
-            op_loadi_n(vm, 1, &operand)?;
+            op_loadi_n(vm, 1, operand)?;
         }
         LOADI_2 => {
-            op_loadi_n(vm, 2, &operand)?;
+            op_loadi_n(vm, 2, operand)?;
         }
         LOADI_3 => {
-            op_loadi_n(vm, 3, &operand)?;
+            op_loadi_n(vm, 3, operand)?;
         }
         LOADI_4 => {
-            op_loadi_n(vm, 4, &operand)?;
+            op_loadi_n(vm, 4, operand)?;
         }
         LOADI_5 => {
-            op_loadi_n(vm, 5, &operand)?;
+            op_loadi_n(vm, 5, operand)?;
         }
         LOADI_6 => {
-            op_loadi_n(vm, 6, &operand)?;
+            op_loadi_n(vm, 6, operand)?;
         }
         LOADI_7 => {
-            op_loadi_n(vm, 7, &operand)?;
+            op_loadi_n(vm, 7, operand)?;
         }
         LOADI16 => {
-            op_loadi16(vm, &operand)?;
+            op_loadi16(vm, operand)?;
         }
         LOADI32 => {
-            op_loadi32(vm, &operand)?;
+            op_loadi32(vm, operand)?;
         }
         LOADSYM => {
-            op_loadsym(vm, &operand)?;
+            op_loadsym(vm, operand)?;
         }
         LOADNIL => {
-            op_loadnil(vm, &operand)?;
+            op_loadnil(vm, operand)?;
         }
         LOADSELF => {
-            op_loadself(vm, &operand)?;
+            op_loadself(vm, operand)?;
         }
         LOADT => {
-            op_loadt(vm, &operand)?;
+            op_loadt(vm, operand)?;
         }
         LOADF => {
-            op_loadf(vm, &operand)?;
+            op_loadf(vm, operand)?;
         }
         GETGV => {
-            op_getgv(vm, &operand)?;
+            op_getgv(vm, operand)?;
         }
         SETGV => {
-            op_setgv(vm, &operand)?;
+            op_setgv(vm, operand)?;
         }
         // GETSV => {
         //     // op_getsv(vm, &operand)?;
@@ -224,10 +224,10 @@ pub(crate) fn consume_expr(
         //     // op_setsv(vm, &operand)?;
         // }
         GETIV => {
-            op_getiv(vm, &operand)?;
+            op_getiv(vm, operand)?;
         }
         SETIV => {
-            op_setiv(vm, &operand)?;
+            op_setiv(vm, operand)?;
         }
         // GETCV => {
         //     // op_getcv(vm, &operand)?;
@@ -236,76 +236,76 @@ pub(crate) fn consume_expr(
         //     // op_setcv(vm, &operand)?;
         // }
         GETCONST => {
-            op_getconst(vm, &operand)?;
+            op_getconst(vm, operand)?;
         }
         SETCONST => {
-            op_setconst(vm, &operand)?;
+            op_setconst(vm, operand)?;
         }
         GETMCNST => {
-            op_getmcnst(vm, &operand)?;
+            op_getmcnst(vm, operand)?;
         }
         // SETMCNST => {
         //     // op_setmcnst(vm, &operand)?;
         // }
         GETUPVAR => {
-            op_getupvar(vm, &operand)?;
+            op_getupvar(vm, operand)?;
         }
         SETUPVAR => {
-            op_setupvar(vm, &operand)?;
+            op_setupvar(vm, operand)?;
         }
         GETIDX => {
-            op_getidx(vm, &operand)?;
+            op_getidx(vm, operand)?;
         }
         SETIDX => {
-            op_setidx(vm, &operand)?;
+            op_setidx(vm, operand)?;
         }
         JMP => {
-            op_jmp(vm, &operand, pos + len)?;
+            op_jmp(vm, operand, pos + len)?;
         }
         JMPIF => {
-            op_jmpif(vm, &operand, pos + len)?;
+            op_jmpif(vm, operand, pos + len)?;
         }
         JMPNOT => {
-            op_jmpnot(vm, &operand, pos + len)?;
+            op_jmpnot(vm, operand, pos + len)?;
         }
         JMPNIL => {
-            op_jmpnil(vm, &operand, pos + len)?;
+            op_jmpnil(vm, operand, pos + len)?;
         }
         // JMPUW => {
         //     // op_jmpuw(vm, &operand)?;
         // }
         EXCEPT => {
-            op_except(vm, &operand)?;
+            op_except(vm, operand)?;
         }
         RESCUE => {
-            op_rescue(vm, &operand)?;
+            op_rescue(vm, operand)?;
         }
         RAISEIF => {
-            op_raiseif(vm, &operand)?;
+            op_raiseif(vm, operand)?;
         }
         SSEND => {
-            op_ssend(vm, &operand)?;
+            op_ssend(vm, operand)?;
         }
         SSENDB => {
-            op_ssendb(vm, &operand)?;
+            op_ssendb(vm, operand)?;
         }
         SEND => {
-            op_send(vm, &operand)?;
+            op_send(vm, operand)?;
         }
         SENDB => {
-            op_sendb(vm, &operand)?;
+            op_sendb(vm, operand)?;
         }
         CALL => {
-            op_call(vm, &operand)?;
+            op_call(vm, operand)?;
         }
         SUPER => {
-            op_super(vm, &operand)?;
+            op_super(vm, operand)?;
         }
         // ARGARY => {
         //     // op_argary(vm, &operand)?;
         // }
         ENTER => {
-            op_enter(vm, &operand)?;
+            op_enter(vm, operand)?;
         }
         // KEY_P => {
         //     // op_key_p(vm, &operand)?;
@@ -317,7 +317,7 @@ pub(crate) fn consume_expr(
         //     // op_karg(vm, &operand)?;
         // }
         RETURN => {
-            op_return(vm, &operand)?;
+            op_return(vm, operand)?;
         }
         // RETURN_BLK => {
         //     // op_return_blk(vm, &operand)?;
@@ -329,43 +329,43 @@ pub(crate) fn consume_expr(
         //     // op_blkpush(vm, &operand)?;
         // }
         ADD => {
-            op_add(vm, &operand)?;
+            op_add(vm, operand)?;
         }
         ADDI => {
-            op_addi(vm, &operand)?;
+            op_addi(vm, operand)?;
         }
         SUB => {
-            op_sub(vm, &operand)?;
+            op_sub(vm, operand)?;
         }
         SUBI => {
-            op_subi(vm, &operand)?;
+            op_subi(vm, operand)?;
         }
         MUL => {
-            op_mul(vm, &operand)?;
+            op_mul(vm, operand)?;
         }
         DIV => {
-            op_div(vm, &operand)?;
+            op_div(vm, operand)?;
         }
         EQ => {
-            op_eq(vm, &operand)?;
+            op_eq(vm, operand)?;
         }
         LT => {
-            op_lt(vm, &operand)?;
+            op_lt(vm, operand)?;
         }
         LE => {
-            op_le(vm, &operand)?;
+            op_le(vm, operand)?;
         }
         GT => {
-            op_gt(vm, &operand)?;
+            op_gt(vm, operand)?;
         }
         GE => {
-            op_ge(vm, &operand)?;
+            op_ge(vm, operand)?;
         }
         ARRAY => {
-            op_array(vm, &operand)?;
+            op_array(vm, operand)?;
         }
         ARRAY2 => {
-            op_array2(vm, &operand)?;
+            op_array2(vm, operand)?;
         }
         // ARYCAT => {
         //     // op_arycat(vm, &operand)?;
@@ -389,16 +389,16 @@ pub(crate) fn consume_expr(
         //     // op_intern(vm, &operand)?;
         // }
         SYMBOL => {
-            op_symbol(vm, &operand)?;
+            op_symbol(vm, operand)?;
         }
         STRING => {
-            op_string(vm, &operand)?;
+            op_string(vm, operand)?;
         }
         STRCAT => {
-            op_strcat(vm, &operand)?;
+            op_strcat(vm, operand)?;
         }
         HASH => {
-            op_hash(vm, &operand)?;
+            op_hash(vm, operand)?;
         }
         // HASHADD => {
         //     // op_hashadd(vm, &operand)?;
@@ -407,34 +407,34 @@ pub(crate) fn consume_expr(
         //     // op_hashcat(vm, &operand)?;
         // }
         LAMBDA => {
-            op_lambda(vm, &operand)?;
+            op_lambda(vm, operand)?;
         }
         BLOCK => {
-            op_block(vm, &operand)?;
+            op_block(vm, operand)?;
         }
         METHOD => {
-            op_method(vm, &operand)?;
+            op_method(vm, operand)?;
         }
         RANGE_INC => {
-            op_range_inc(vm, &operand)?;
+            op_range_inc(vm, operand)?;
         }
         RANGE_EXC => {
-            op_range_exc(vm, &operand)?;
+            op_range_exc(vm, operand)?;
         }
         OCLASS => {
-            op_oclass(vm, &operand)?;
+            op_oclass(vm, operand)?;
         }
         CLASS => {
-            op_class(vm, &operand)?;
+            op_class(vm, operand)?;
         }
         MODULE => {
-            op_module(vm, &operand)?;
+            op_module(vm, operand)?;
         }
         EXEC => {
-            op_exec(vm, &operand)?;
+            op_exec(vm, operand)?;
         }
         DEF => {
-            op_def(vm, &operand)?;
+            op_def(vm, operand)?;
         }
         // ALIAS => {
         //     // op_alias(vm, &operand)?;
@@ -443,10 +443,10 @@ pub(crate) fn consume_expr(
         //     // op_undef(vm, &operand)?;
         // }
         SCLASS => {
-            op_sclass(vm, &operand)?;
+            op_sclass(vm, operand)?;
         }
         TCLASS => {
-            op_tclass(vm, &operand)?;
+            op_tclass(vm, operand)?;
         }
         // DEBUG => {
         //     // op_debug(vm, &operand)?;
@@ -464,7 +464,7 @@ pub(crate) fn consume_expr(
         //     // op_ext3(vm, &operand)?;
         // }
         STOP => {
-            op_stop(vm, &operand)?;
+            op_stop(vm, operand)?;
         }
         _ => {
             unimplemented!("{:?}: Not supported yet", code)
@@ -848,14 +848,8 @@ pub(crate) fn op_rescue(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_raiseif(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()?;
     let val = vm.current_regs()[a as usize].as_ref().cloned();
-    match val {
-        Some(val) => match &val.value {
-            RValue::Exception(e) => {
-                return Err(e.as_ref().error_type.borrow().clone());
-            }
-            _ => {}
-        },
-        None => {}
+    if let Some(val) = val && let RValue::Exception(e) = &val.value {
+        return Err(e.as_ref().error_type.borrow().clone());
     }
     Ok(())
 }
@@ -1056,7 +1050,7 @@ impl From<u32> for EnterArgInfo {
             m2: (val & ENTER_M2_MASK) >> 7,
             k: (val & ENTER_K_MASK) >> 2,
             d: (val & ENTER_D_MASK) >> 1,
-            b: (val & ENTER_B_MASK) >> 0,
+            b: (val & ENTER_B_MASK),
         }
     }
 }
@@ -1081,14 +1075,13 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let old_irep = vm.current_irep.clone();
     let nregs = old_irep.nregs;
 
-    let regs0_cloned: Vec<_> = vm.current_regs()[0..nregs].iter().cloned().collect();
-    if let Some(_) = vm.has_env_ref.get(&vm.current_irep.__id) {
-        if let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
+    let regs0_cloned: Vec<_> = vm.current_regs()[0..nregs].to_vec();
+    if vm.has_env_ref.get(&vm.current_irep.__id).is_some()
+        && let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
             environ.capture_no_clone(regs0_cloned);
             environ.as_ref().expire();
             vm.has_env_ref.remove(&vm.current_irep.__id);
         }
-    }
 
     let regs0 = vm.current_regs();
     if let Some(regs_a) = regs0[a].take() {
@@ -1309,9 +1302,9 @@ fn do_op_array(vm: &mut VM, this: usize, start: usize, n: usize) -> Result<(), E
     let mut ary = Vec::with_capacity(n);
     for i in 0..n {
         if this == start && i == 0 {
-            ary.push(vm.take_current_regs(start as usize)?);
+            ary.push(vm.take_current_regs(start)?);
         } else {
-            ary.push(vm.get_current_regs_cloned((start + i) as usize)?);
+            ary.push(vm.get_current_regs_cloned(start + i  )?);
         }
     }
     let val = RObject::array(ary);
@@ -1374,7 +1367,7 @@ pub(crate) fn op_hash(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         hash.insert(key.as_hash_key()?, (key, val));
     }
     let val = RObject::hash(hash);
-    vm.current_regs()[a as usize].replace(Rc::new(val));
+    vm.current_regs()[a ].replace(Rc::new(val));
     Ok(())
 }
 
@@ -1482,7 +1475,7 @@ fn do_op_range(vm: &mut VM, a: usize, b: usize, exclusive: bool) -> Result<(), E
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
     };
-    vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
+    vm.current_regs()[a ].replace(val.to_refcount_assigned());
     Ok(())
 }
 
@@ -1619,13 +1612,10 @@ pub(crate) fn op_sclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
     let val = vm.getself()?;
     let singleton_class = val.singleton_class.borrow().clone();
-    match singleton_class {
-        Some(ref sc) => {
-            let robj = RObject::class(sc.clone(), vm);
-            vm.current_regs()[a].replace(robj);
-            return Ok(());
-        }
-        None => {}
+    if let Some(ref sc) = singleton_class {
+        let robj = RObject::class(sc.clone(), vm);
+        vm.current_regs()[a].replace(robj);
+        return Ok(());
     }
     Ok(())
 }

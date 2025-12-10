@@ -55,7 +55,7 @@ impl Error {
     }
 
     pub fn is_a(&self, vm: &mut VM, other: Rc<RClass>) -> bool {
-        let mut klass: Option<Rc<RClass>> = RClass::from_error(vm, &self).into();
+        let mut klass: Option<Rc<RClass>> = RClass::from_error(vm, self).into();
         let target_klass_name = other.sym_id.name.as_str();
 
         while let Some(k) = klass {

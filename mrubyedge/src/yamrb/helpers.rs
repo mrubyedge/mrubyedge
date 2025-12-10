@@ -65,11 +65,10 @@ fn call_block(
         vm.current_regs_offset = ci.current_regs_offset;
         vm.target_class = ci.target_class.clone();
     }
-    if let Some(upper) = vm.upper.take() {
-        if let Some(upper) = &upper.as_ref().upper {
+    if let Some(upper) = vm.upper.take()
+        && let Some(upper) = &upper.as_ref().upper {
             vm.upper.replace(upper.clone());
         }
-    }
 
     match &res {
         Ok(res) => Ok(res.clone()),
@@ -162,7 +161,7 @@ pub fn mrb_funcall(
         vm.current_regs()[0].replace(recv.clone());
 
         let func = vm.fn_table[method.func.unwrap()].clone();
-        let res = func(vm, &args);
+        let res = func(vm, args);
         vm.current_regs_offset -= 2;
 
         res

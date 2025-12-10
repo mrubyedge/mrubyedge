@@ -447,7 +447,7 @@ impl Debug for OpCode {
 }
 
 fn fetch_z(bin: &mut &[u8]) -> Result<Fetched, Error> {
-    if bin.len() < 1 {
+    if bin.is_empty() {
         return Err(Error::internal("byte code too short"));
     }
     *bin = &bin[1..];

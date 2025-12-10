@@ -11,8 +11,8 @@ use super::prelude::prelude;
 use super::value::*;
 use super::{op, optable::*};
 
-pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-pub const ENGINE: &'static str = "mruby/edge";
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const ENGINE: &str = "mruby/edge";
 
 const MAX_REGS_SIZE: usize = 256;
 
@@ -67,8 +67,8 @@ impl VM {
     /// preparing the VM so it can be executed via [`VM::run`].
     pub fn open(rite: &mut Rite) -> VM {
         let irep = rite_to_irep(rite);
-        let vm = VM::new_by_raw_irep(irep);
-        vm
+        
+        VM::new_by_raw_irep(irep)
     }
 
     /// Returns a VM backed by an empty IREP that immediately executes a
@@ -172,8 +172,8 @@ impl VM {
         let mut rescued = false;
 
         loop {
-            if !rescued {
-                if let Some(_e) = self.exception.clone() {
+            if !rescued
+                && let Some(_e) = self.exception.clone() {
                     let operand = insn::Fetched::B(0);
                     if let Some(pos) = self.find_next_handler_pos() {
                         self.pc.set(pos);
@@ -194,7 +194,6 @@ impl VM {
                         continue;
                     }
                 }
-            }
             rescued = false;
 
             let pc = self.pc.get();
@@ -300,7 +299,7 @@ impl VM {
         self.builtin_class_table
             .get(name)
             .cloned()
-            .expect(format!("Class {} not found", name).as_str())
+            .unwrap_or_else(|| panic!("Class {} not found", name))
     }
 
     /// Defines a new class under the optional parent module, inheriting from
@@ -354,7 +353,7 @@ impl VM {
 fn interpret_insn(mut insns: &[u8]) -> Vec<Op> {
     let mut pos: usize = 0;
     let mut ops = Vec::new();
-    while insns.len() > 0 {
+    while !insns.is_empty() {
         let op = insns[0];
         let opcode: insn::OpCode = op.try_into().unwrap();
         let fetched = insn::FETCH_TABLE[op as usize](&mut insns).unwrap();
@@ -387,7 +386,7 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
             .pool
             .push(RPool::Str(str.to_string_lossy().to_string()));
     }
-    let code = interpret_insn(&mut irep.insn);
+    let code = interpret_insn(irep.insn);
     for ch in irep.catch_handlers.iter() {
         let pos = ch.target;
         let (i, _) = code
@@ -463,7 +462,7 @@ impl ENV {
     #[allow(unused)]
     pub(crate) fn capture(&self, regs: &[Option<Rc<RObject>>]) {
         let mut captured = self.captured.borrow_mut();
-        captured.replace(regs.iter().map(|r| r.clone()).collect());
+        captured.replace(regs.to_vec());
     }
 
     pub(crate) fn capture_no_clone(&self, regs: Vec<Option<Rc<RObject>>>) {
