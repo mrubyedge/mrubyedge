@@ -49,7 +49,7 @@ pub struct VM {
     // common class
     pub object_class: Rc<RClass>,
     pub builtin_class_table: HashMap<&'static str, Rc<RClass>>,
-    pub class_object_table: HashMap<String, Rc<RClass>>,
+    pub class_object_table: HashMap<String, Rc<RObject>>,
 
     pub globals: HashMap<String, Rc<RObject>>,
     pub consts: HashMap<String, Rc<RObject>>,

@@ -206,12 +206,24 @@ impl RObject {
     }
 
     pub fn class(c: Rc<RClass>, vm: &mut VM) -> Rc<Self> {
-        Rc::new(RObject {
+        match vm.class_object_table.get(&c.full_name()) {
+            Some(robj) => robj.clone(),
+            None => {
+                let robj = Self::newclass(c.clone());
+                vm.class_object_table
+                    .insert(c.full_name(), robj.clone());
+                robj
+            }
+        }
+    }
+
+    fn newclass(c: Rc<RClass>) -> Rc<Self> {
+        RObject {
             tt: RType::Class,
             value: RValue::Class(c),
             object_id: (u64::MAX).into(),
             singleton_class: RefCell::new(None),
-        })
+        }.to_refcount_assigned()
     }
 
     pub fn module(m: Rc<RModule>) -> Self {
