@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{yamrb::{helpers::mrb_define_cmethod, value::RObject, vm::VM}, Error};
+use crate::{Error, yamrb::{helpers::{mrb_define_class_cmethod, mrb_define_cmethod}, value::RObject, vm::VM}};
 
 use super::array::mrb_array_push;
 
@@ -8,9 +8,23 @@ use super::array::mrb_array_push;
 pub(crate) fn initialize_string(vm: &mut VM) {
     let string_class = vm.define_standard_class("String");
 
+    mrb_define_class_cmethod(vm, string_class.clone(), "new", Box::new(mrb_string_new));
+
     mrb_define_cmethod(vm, string_class.clone(), "unpack", Box::new(mrb_string_unpack));
     mrb_define_cmethod(vm, string_class.clone(), "size", Box::new(mrb_string_size));
     mrb_define_cmethod(vm, string_class.clone(), "length", Box::new(mrb_string_size));
+}
+
+pub fn mrb_string_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let mut args = args;
+    if args.len() > 0 && args.last().unwrap().is_nil() {
+        args = &args[..args.len() - 1];
+    }
+    if args.is_empty() {
+        return Ok(Rc::new(RObject::string("".to_string())));
+    }
+    let s: String = args[0].as_ref().try_into()?;
+    Ok(Rc::new(RObject::string(s)))
 }
 
 fn bytes_of<const N: usize>(value: &[u8], cursor: usize) -> Result<[u8; N], Error> {
