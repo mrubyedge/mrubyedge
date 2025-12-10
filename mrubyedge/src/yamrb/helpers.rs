@@ -177,10 +177,20 @@ pub fn mrb_define_method(_vm: &mut VM, klass: Rc<RClass>, name: &str, method: RP
     procs.insert(name.to_string(), method);
 }
 
-pub fn mrb_define_class_method(vm: &mut VM, klass: Rc<RClass>, name: &str, method: RProc) {
-    let robject = RObject::class(klass.clone(), vm);
-    let sclass = robject.initialize_or_get_singleton_class(vm);
-    let mut procs = sclass.procs.borrow_mut();
+pub fn mrb_define_class_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: RFn) {
+    let index = vm.register_fn(cmethod);
+    let method = RProc {
+        is_rb_func: false,
+        sym_id: Some(RSym::new(name.to_string())),
+        next: None,
+        irep: None,
+        func: Some(index),
+        environ: None,
+        block_self: None,
+    };
+    let class_obj = RObject::class(klass.clone(), vm);
+    let klass_singleton = class_obj.initialize_or_get_singleton_class(vm);
+    let mut procs = klass_singleton.procs.borrow_mut();
     procs.insert(name.to_string(), method);
 }
 

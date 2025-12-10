@@ -23,6 +23,7 @@ pub(crate) fn initialize_object(vm: &mut VM) {
     mrb_define_cmethod(vm, object_class.clone(), "to_s", Box::new(mrb_object_to_s));
     mrb_define_cmethod(vm, object_class.clone(), "inspect", Box::new(mrb_object_to_s));
     mrb_define_cmethod(vm, object_class.clone(), "raise", Box::new(mrb_object_raise));
+    mrb_define_cmethod(vm, object_class.clone(), "nil?", Box::new(mrb_object_nil_p));
 
     // define global consts:
     vm.consts.insert("RUBY_VERSION".to_string(), Rc::new(RObject::string(crate::yamrb::vm::VERSION.to_string())));
@@ -140,6 +141,10 @@ pub fn mrb_object_raise(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
     let msg = args[0].as_ref().try_into()?;
     let err = Error::RuntimeError(msg);
     Err(err)
+}
+
+fn mrb_object_nil_p(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    Ok(Rc::new(RObject::boolean(false)))
 }
 
 pub fn mrb_object_initialize(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
