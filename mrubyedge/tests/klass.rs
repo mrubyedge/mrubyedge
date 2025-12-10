@@ -29,7 +29,10 @@ fn attr_reader_test() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "test_main", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 123);
 }
 
@@ -52,8 +55,7 @@ fn attr_reader_2_test() {
 
     // Assert
     let args = vec![];
-    let result = mrb_funcall(&mut vm, None, "test_main", &args)
-        .unwrap();
+    let result = mrb_funcall(&mut vm, None, "test_main", &args).unwrap();
     assert!(result.as_ref().is_nil());
 }
 
@@ -78,7 +80,10 @@ fn attr_accessor_test() {
     // Assert
     let args = vec![];
     let result: String = mrb_funcall(&mut vm, None, "test_main", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(&result, "Hola, attr");
 }
 
@@ -113,9 +118,15 @@ fn class_definition_isolation_test() {
     // Assert
     let args = vec![];
     let val1: i32 = mrb_funcall(&mut vm, None, "test_main1", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     let val2: i32 = mrb_funcall(&mut vm, None, "test_main2", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(val1, 123);
     assert_eq!(val2, 456);
 }
@@ -147,6 +158,9 @@ fn class_inheritance_super_test() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "test_main", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 124);
 }

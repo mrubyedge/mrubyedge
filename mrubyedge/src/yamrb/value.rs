@@ -210,8 +210,7 @@ impl RObject {
             Some(robj) => robj.clone(),
             None => {
                 let robj = Self::newclass(c.clone());
-                vm.class_object_table
-                    .insert(c.full_name(), robj.clone());
+                vm.class_object_table.insert(c.full_name(), robj.clone());
                 robj
             }
         }
@@ -223,7 +222,8 @@ impl RObject {
             value: RValue::Class(c),
             object_id: (u64::MAX).into(),
             singleton_class: RefCell::new(None),
-        }.to_refcount_assigned()
+        }
+        .to_refcount_assigned()
     }
 
     pub fn module(m: Rc<RModule>) -> Self {

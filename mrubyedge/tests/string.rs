@@ -22,8 +22,7 @@ fn string_new_test() {
 
     // Assert
     let args = vec![];
-    let result = mrb_funcall(&mut vm, None, "test_string_new", &args)
-        .unwrap();
+    let result = mrb_funcall(&mut vm, None, "test_string_new", &args).unwrap();
     let result: i32 = result.as_ref().try_into().unwrap();
     assert_eq!(result, 0);
 }

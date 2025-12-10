@@ -18,8 +18,7 @@ fn raise_test() {
 
     // Assert
     let args = vec![];
-    let result = mrb_funcall(&mut vm, None, "test_raise", &args)
-        .err();
+    let result = mrb_funcall(&mut vm, None, "test_raise", &args).err();
     assert_eq!(&result.unwrap().message(), "Intentional Error");
 }
 
@@ -43,8 +42,7 @@ fn raise_nest_test() {
 
     // Assert
     let args = vec![];
-    let result = mrb_funcall(&mut vm, None, "test_raise", &args)
-        .err();
+    let result = mrb_funcall(&mut vm, None, "test_raise", &args).err();
     assert_eq!(&result.unwrap().message(), "Intentional Error 2");
 }
 
@@ -67,12 +65,16 @@ fn raise_nest_test_toplevel() {
     let binary = mrbc_compile("raise_nest_toplevel", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    
+
     // Assert
     let result = vm.run().err();
     assert_eq!(
-      &result.unwrap().downcast_ref::<mrubyedge::Error>().unwrap().message(),
-      "Intentional Error 0",
+        &result
+            .unwrap()
+            .downcast_ref::<mrubyedge::Error>()
+            .unwrap()
+            .message(),
+        "Intentional Error 0",
     );
 }
 
@@ -101,8 +103,7 @@ fn raise_nest_nest_test() {
 
     // Assert
     let args = vec![];
-    let result = mrb_funcall(&mut vm, None, "test_raise", &args)
-        .err();
+    let result = mrb_funcall(&mut vm, None, "test_raise", &args).err();
     assert_eq!(&result.unwrap().message(), "Intentional Error 2b");
 }
 
@@ -126,7 +127,10 @@ fn rescue_test() {
     // Assert
     let args = vec![];
     let result: String = mrb_funcall(&mut vm, None, "test_raise", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(&result, "rescue: Intentional Error 3");
 }
 
@@ -155,7 +159,10 @@ fn rescue_nest_test() {
     // Assert
     let args = vec![];
     let result: String = mrb_funcall(&mut vm, None, "test_raise_parent", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(&result, "rescue: Intentional Error 4");
 }
 
@@ -189,6 +196,9 @@ fn rescue_nest_nest_test() {
     // Assert
     let args = vec![];
     let result: String = mrb_funcall(&mut vm, None, "test_raise_parent", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(&result, "rescue: Intentional Error 4b");
 }

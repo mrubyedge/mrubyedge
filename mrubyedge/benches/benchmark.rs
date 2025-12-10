@@ -151,4 +151,4 @@
 // criterion_group!(benches, bm0_load, bm0_prelude, bm0_eval, bm2);
 // criterion_main!(benches);
 
-fn main () {}
+fn main() {}

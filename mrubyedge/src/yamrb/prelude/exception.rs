@@ -1,13 +1,17 @@
 use std::rc::Rc;
 
-use crate::{yamrb::{helpers::mrb_define_cmethod, value::*, vm::VM}, Error};
+use crate::{
+    Error,
+    yamrb::{helpers::mrb_define_cmethod, value::*, vm::VM},
+};
 
 pub(crate) fn initialize_exception(vm: &mut VM) {
     let exp_class: Rc<RClass> = vm.define_standard_class("Exception");
     let _ = vm.define_standard_class_under("InternalError", exp_class.clone());
 
     // fill in ruby's standard exceptions:
-    let std_exp_class: Rc<RClass> = vm.define_standard_class_under("StandardError", exp_class.clone());
+    let std_exp_class: Rc<RClass> =
+        vm.define_standard_class_under("StandardError", exp_class.clone());
     let _ = vm.define_standard_class_under("RuntimeError", std_exp_class.clone());
     let _ = vm.define_standard_class_under("NoMemoryError", exp_class.clone());
     let _ = vm.define_standard_class_under("ScriptError", exp_class.clone());
@@ -32,9 +36,9 @@ pub fn mrb_exception_message(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RO
         RValue::Exception(e) => {
             let message = e.as_ref().message.clone();
             Ok(RObject::string(message).to_refcount_assigned())
-        },
-        _ => {
-            Err(Error::RuntimeError("Exception#message must be called on an Exception".to_string()))
         }
+        _ => Err(Error::RuntimeError(
+            "Exception#message must be called on an Exception".to_string(),
+        )),
     }
 }

@@ -15,11 +15,12 @@ fn smoke_test() {
     vm.run().unwrap();
 
     // Assert
-    let args = vec![
-        int(1),
-        int(2),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "add", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(1), int(2)];
+    let result: i32 = mrb_funcall(&mut vm, None, "add", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 3);
 }
 
@@ -37,7 +38,11 @@ fn p_test() {
 
     // Assert
     let args = vec![];
-    let result: () = mrb_funcall(&mut vm, None, "hello", &args).unwrap().as_ref().try_into().unwrap();
+    let result: () = mrb_funcall(&mut vm, None, "hello", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, ());
 }
 
@@ -60,34 +65,44 @@ fn fib_test() {
     vm.run().unwrap();
 
     // Assert
-    let args = vec![
-        int(1),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(1)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 1);
 
-    let args = vec![
-        int(2),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(2)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 1);
 
-    let args = vec![
-        int(3),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(3)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 2);
 
-    let args = vec![
-        int(10),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(10)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 55);
 
-    let args = vec![
-        int(15),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(15)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 610);
 }
 
@@ -111,33 +126,43 @@ fn fib2_test() {
     vm.run().unwrap();
 
     // Assert
-    let args = vec![
-        int(1),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(1)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 1);
 
-    let args = vec![
-        int(2),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(2)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 1);
 
-    let args = vec![
-        int(3),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(3)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 2);
 
-    let args = vec![
-        int(10),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(10)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 55);
 
-    let args = vec![
-        int(15),
-    ];
-    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args).unwrap().as_ref().try_into().unwrap();
+    let args = vec![int(15)];
+    let result: i32 = mrb_funcall(&mut vm, None, "fib", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 610);
 }

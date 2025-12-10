@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use crate::yamrb::helpers::mrb_define_cmethod;
 use crate::Error;
+use crate::yamrb::helpers::mrb_define_cmethod;
 
 use crate::yamrb::{value::RObject, vm::VM};
 
@@ -9,7 +9,12 @@ pub(crate) fn initialize_trueclass(vm: &mut VM) {
     let trueclass = vm.define_standard_class("TrueClass");
 
     mrb_define_cmethod(vm, trueclass.clone(), "to_s", Box::new(mrb_trueclass_to_s));
-    mrb_define_cmethod(vm, trueclass.clone(), "inspect", Box::new(mrb_trueclass_inspect));
+    mrb_define_cmethod(
+        vm,
+        trueclass.clone(),
+        "inspect",
+        Box::new(mrb_trueclass_inspect),
+    );
     mrb_define_cmethod(vm, trueclass.clone(), "&", Box::new(mrb_trueclass_and));
     mrb_define_cmethod(vm, trueclass.clone(), "|", Box::new(mrb_trueclass_or));
     mrb_define_cmethod(vm, trueclass.clone(), "^", Box::new(mrb_trueclass_xor));

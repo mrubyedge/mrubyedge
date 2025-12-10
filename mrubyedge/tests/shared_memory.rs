@@ -23,10 +23,10 @@ end";
 
     // Assert
     let args = vec![];
-    let result1  = mrb_funcall(&mut vm, None, "get_memory", &args).unwrap();
+    let result1 = mrb_funcall(&mut vm, None, "get_memory", &args).unwrap();
     assert!(result1.as_ref().get_class(&mut vm).as_ref().sym_id.name == "SharedMemory");
 
-    let result2  = mrb_funcall(&mut vm, None, "read_array_from_memory", &args).unwrap();
+    let result2 = mrb_funcall(&mut vm, None, "read_array_from_memory", &args).unwrap();
     let result2: i64 = result2.as_ref().try_into().unwrap();
     assert_eq!(result2, 0);
 }
@@ -47,7 +47,7 @@ end";
 
     // Assert
     let args = vec![];
-    let result  = mrb_funcall(&mut vm, None, "read_array_from_memory", &args).unwrap();
+    let result = mrb_funcall(&mut vm, None, "read_array_from_memory", &args).unwrap();
     let result: i64 = result.as_ref().try_into().unwrap();
     assert_eq!(result, 123);
 }
@@ -73,7 +73,7 @@ end";
     let args = vec![];
     let _ = mrb_funcall(&mut vm, None, "update_memory", &args).unwrap();
 
-    let result  = mrb_funcall(&mut vm, None, "read_array_from_memory", &args).unwrap();
+    let result = mrb_funcall(&mut vm, None, "read_array_from_memory", &args).unwrap();
     let result: i64 = result.as_ref().try_into().unwrap();
     assert_eq!(result, 0x01 + 0x10 + 0x20 + 0x30);
 }

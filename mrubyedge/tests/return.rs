@@ -22,13 +22,13 @@ end
 
     // Assert
     let args = vec![Rc::new(RObject::integer(10))];
-    let result  = mrb_funcall(&mut vm, None, "fib", &args).unwrap();
+    let result = mrb_funcall(&mut vm, None, "fib", &args).unwrap();
     let result: i64 = result.as_ref().try_into().unwrap();
     assert_eq!(result, 89);
 
     // Assert 2
     let args = vec![Rc::new(RObject::integer(1))];
-    let result  = mrb_funcall(&mut vm, None, "fib", &args).unwrap();
+    let result = mrb_funcall(&mut vm, None, "fib", &args).unwrap();
     let result: i64 = result.as_ref().try_into().unwrap();
     assert_eq!(result, 1);
 }

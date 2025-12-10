@@ -23,7 +23,10 @@ fn times_test() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "test_times", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 6);
 }
 
@@ -44,8 +47,7 @@ fn times_self_test() {
 
     // Assert
     let args = vec![];
-    mrb_funcall(&mut vm, None, "test_times", &args)
-        .unwrap();
+    mrb_funcall(&mut vm, None, "test_times", &args).unwrap();
     assert!(true);
 }
 
@@ -69,8 +71,7 @@ fn times_self_2_test() {
 
     // Assert
     let args = vec![];
-    mrb_funcall(&mut vm, None, "test_times", &args)
-        .unwrap();
+    mrb_funcall(&mut vm, None, "test_times", &args).unwrap();
     assert!(true);
 }
 
@@ -93,7 +94,10 @@ fn range_each_test() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "test_each", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 110);
 }
 
@@ -116,6 +120,9 @@ fn array_each_test() {
     // Assert
     let args = vec![];
     let result: i32 = mrb_funcall(&mut vm, None, "test_each", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(result, 22222);
 }

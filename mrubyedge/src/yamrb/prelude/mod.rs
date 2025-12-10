@@ -4,19 +4,19 @@
 
 use super::vm::VM;
 
-pub mod object;
-pub mod exception;
-pub mod class;
-pub mod module;
-pub mod integer;
-pub mod nilclass;
-pub mod trueclass;
-pub mod falseclass;
-pub mod string;
 pub mod array;
+pub mod class;
+pub mod exception;
+pub mod falseclass;
 pub mod hash;
+pub mod integer;
+pub mod module;
+pub mod nilclass;
+pub mod object;
 pub mod range;
 pub mod shared_memory;
+pub mod string;
+pub mod trueclass;
 
 pub fn prelude(vm: &mut VM) {
     object::initialize_object(vm);

@@ -2,7 +2,11 @@ use std::rc::Rc;
 
 use crate::Error;
 
-use super::{optable::push_callinfo, value::{resolve_method, RClass, RFn, RModule, RObject, RProc, RSym, RValue}, vm::VM};
+use super::{
+    optable::push_callinfo,
+    value::{RClass, RFn, RModule, RObject, RProc, RSym, RValue, resolve_method},
+    vm::VM,
+};
 
 fn call_block(
     vm: &mut VM,
@@ -30,7 +34,11 @@ fn call_block(
     }
 
     vm.pc.set(0);
-    vm.current_irep = block.irep.as_ref().ok_or_else(|| Error::RuntimeError("No IREP".to_string()))?.clone();
+    vm.current_irep = block
+        .irep
+        .as_ref()
+        .ok_or_else(|| Error::RuntimeError("No IREP".to_string()))?
+        .clone();
     vm.upper = block.environ;
 
     let res = vm.run();
@@ -64,9 +72,7 @@ fn call_block(
     }
 
     match &res {
-        Ok(res) => {
-            Ok(res.clone())
-        },
+        Ok(res) => Ok(res.clone()),
         Err(e) => {
             let err = if let Some(e) = e.downcast_ref::<Error>() {
                 e.clone()
@@ -76,7 +82,7 @@ fn call_block(
             };
             Err(err)
         }
-    }   
+    }
 }
 
 /// Calls a Ruby block (Proc) with the given receiver and arguments.
@@ -91,15 +97,22 @@ fn call_block(
 /// # Returns
 ///
 /// Returns the result of the block execution or an error if the call fails.
-pub fn mrb_call_block(vm: &mut VM, block: Rc<RObject>, recv: Option<Rc<RObject>>, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+pub fn mrb_call_block(
+    vm: &mut VM,
+    block: Rc<RObject>,
+    recv: Option<Rc<RObject>>,
+    args: &[Rc<RObject>],
+) -> Result<Rc<RObject>, Error> {
     let block = match &block.value {
         RValue::Proc(p) => p.clone(),
         _ => panic!("Not a block"),
-        
     };
     let recv = match recv {
         Some(r) => r,
-        None => block.block_self.clone().ok_or_else(|| Error::RuntimeError("No block self assigned".to_string()))?,
+        None => block
+            .block_self
+            .clone()
+            .ok_or_else(|| Error::RuntimeError("No block self assigned".to_string()))?,
     };
     call_block(vm, block, recv, args, None)
 }
@@ -118,17 +131,32 @@ pub fn mrb_call_block(vm: &mut VM, block: Rc<RObject>, recv: Option<Rc<RObject>>
 /// # Returns
 ///
 /// Returns the result of the method call or an error if the method is not found or execution fails.
-pub fn mrb_funcall(vm: &mut VM, top_self: Option<Rc<RObject>>, name: &str, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+pub fn mrb_funcall(
+    vm: &mut VM,
+    top_self: Option<Rc<RObject>>,
+    name: &str,
+    args: &[Rc<RObject>],
+) -> Result<Rc<RObject>, Error> {
     let recv: Rc<RObject> = match top_self {
         Some(obj) => obj,
         None => vm.getself()?,
     };
     let binding = recv.as_ref().get_singleton_class_or_class(vm);
-    let (owner_module, method) = resolve_method(&binding, name).ok_or_else(|| Error::NoMethodError(name.to_string()))?;
-    
+    let (owner_module, method) =
+        resolve_method(&binding, name).ok_or_else(|| Error::NoMethodError(name.to_string()))?;
+
     if method.is_rb_func {
-        let method_id = method.sym_id.clone().unwrap_or_else(|| RSym::new(name.to_string()));
-        call_block(vm, method, recv.clone(), args, Some((method_id, owner_module)))
+        let method_id = method
+            .sym_id
+            .clone()
+            .unwrap_or_else(|| RSym::new(name.to_string()));
+        call_block(
+            vm,
+            method,
+            recv.clone(),
+            args,
+            Some((method_id, owner_module)),
+        )
     } else {
         vm.current_regs_offset += 2; // FIXME: magick number?
         vm.current_regs()[0].replace(recv.clone());

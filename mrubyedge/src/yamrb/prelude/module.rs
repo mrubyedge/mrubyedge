@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use crate::{
-    yamrb::{helpers::mrb_define_cmethod, value::*, vm::VM},
     Error,
+    yamrb::{helpers::mrb_define_cmethod, value::*, vm::VM},
 };
 
 pub(crate) fn initialize_module(vm: &mut VM) {
@@ -31,9 +31,11 @@ fn mrb_module_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     let arg0 = &args[0];
     let mixin = match &arg0.value {
         RValue::Module(module) => module.clone(),
-        _ => return Err(Error::RuntimeError(
-            "Module#include expects module arguments".to_string(),
-        )),
+        _ => {
+            return Err(Error::RuntimeError(
+                "Module#include expects module arguments".to_string(),
+            ));
+        }
     };
     include_module(&target_module, mixin)?;
 

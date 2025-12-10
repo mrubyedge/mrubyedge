@@ -1,15 +1,15 @@
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::env;
 use std::rc::Rc;
-use std::collections::HashMap;
 
-use crate::rite::{insn, Irep, Rite};
 use crate::Error;
+use crate::rite::{Irep, Rite, insn};
 
-use super::{op, optable::*};
+use super::op::Op;
 use super::prelude::prelude;
 use super::value::*;
-use super::op::Op;
+use super::{op, optable::*};
 
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 pub const ENGINE: &'static str = "mruby/edge";
@@ -33,7 +33,7 @@ impl TargetContext {
 
 pub struct VM {
     pub irep: Rc<IREP>,
-    
+
     pub id: usize,
     pub bytecode: Vec<u8>,
     pub current_irep: Rc<IREP>,
@@ -79,9 +79,12 @@ impl VM {
             nlocals: 0,
             nregs: 0,
             rlen: 0,
-            code: vec![
-                op::Op { code: insn::OpCode::STOP, operand: insn::Fetched::Z, pos: 18, len: 1 },
-            ],
+            code: vec![op::Op {
+                code: insn::OpCode::STOP,
+                operand: insn::Fetched::Z,
+                pos: 18,
+                len: 1,
+            }],
             syms: Vec::new(),
             pool: Vec::new(),
             reps: Vec::new(),
@@ -137,11 +140,11 @@ impl VM {
             upper,
             cur_env,
             has_env_ref,
-            fn_table
+            fn_table,
         };
 
         prelude(&mut vm);
-        
+
         vm
     }
 
@@ -151,7 +154,7 @@ impl VM {
     pub fn run(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
         let class = self.object_class.clone();
         // Insert top_self
-        let top_self = RObject{
+        let top_self = RObject {
             tt: RType::Instance,
             value: RValue::Instance(RInstance {
                 class,
@@ -161,14 +164,15 @@ impl VM {
             }),
             object_id: 0.into(),
             singleton_class: RefCell::new(None),
-        }.to_refcount_assigned();
+        }
+        .to_refcount_assigned();
         if self.current_regs()[0].is_none() {
             self.current_regs()[0].replace(top_self.clone());
         }
         let mut rescued = false;
 
         loop {
-            if ! rescued {
+            if !rescued {
                 if let Some(_e) = self.exception.clone() {
                     let operand = insn::Fetched::B(0);
                     if let Some(pos) = self.find_next_handler_pos() {
@@ -178,7 +182,7 @@ impl VM {
                     }
 
                     match op_return(self, &operand) {
-                        Ok(_) => {},
+                        Ok(_) => {}
                         Err(_) => {
                             // use assigned expection through
                             break;
@@ -198,17 +202,22 @@ impl VM {
                 // reached end of the IREP
                 break;
             }
-            let op = self.current_irep.code.get(pc).ok_or_else(
-                || Error::internal("end of opcode reached")
-            )?;
+            let op = self
+                .current_irep
+                .code
+                .get(pc)
+                .ok_or_else(|| Error::internal("end of opcode reached"))?;
             let operand = op.operand;
             self.pc.set(pc + 1);
 
             if env::var("MRUBYEDGE_DEBUG").is_ok() {
-                eprintln!("{:?}: {:?} (pos={} len={})", &op.code, &op.operand, op.pos, op.len);
+                eprintln!(
+                    "{:?}: {:?} (pos={} len={})",
+                    &op.code, &op.operand, op.pos, op.len
+                );
             }
             match consume_expr(self, op.code, &operand, op.pos, op.len) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(e) => {
                     let exception = RException::from_error(self, &e);
                     self.exception = Some(Rc::new(exception));
@@ -229,7 +238,7 @@ impl VM {
 
         let retval = match self.current_regs()[0].take() {
             Some(v) => Ok(v),
-            None => Ok(Rc::new(RObject::nil()))
+            None => Ok(Rc::new(RObject::nil())),
         };
         self.current_regs()[0].replace(top_self.clone());
 
@@ -251,11 +260,15 @@ impl VM {
     }
 
     pub(crate) fn get_current_regs_cloned(&mut self, i: usize) -> Result<Rc<RObject>, Error> {
-        self.current_regs()[i].clone().ok_or_else(|| Error::internal(format!("register {} is not assigned", i)))   
+        self.current_regs()[i]
+            .clone()
+            .ok_or_else(|| Error::internal(format!("register {} is not assigned", i)))
     }
 
     pub(crate) fn take_current_regs(&mut self, i: usize) -> Result<Rc<RObject>, Error> {
-        self.current_regs()[i].take().ok_or_else(|| Error::internal(format!("register {} is not assigned", i)))   
+        self.current_regs()[i]
+            .take()
+            .ok_or_else(|| Error::internal(format!("register {} is not assigned", i)))
     }
 
     /// Returns the current `self` object from register 0, or an error if it has
@@ -267,14 +280,16 @@ impl VM {
     /// Retrieves `self` without error handling, panicking if register 0 is
     /// empty. Prefer [`VM::getself`] when the value may be absent.
     pub fn must_getself(&mut self) -> Rc<RObject> {
-        self.current_regs()[0].clone().expect("self is not assigned")
+        self.current_regs()[0]
+            .clone()
+            .expect("self is not assigned")
     }
 
     pub(crate) fn register_fn(&mut self, f: RFn) -> usize {
         self.fn_table.push(Rc::new(f));
         self.fn_table.len() - 1
     }
-    
+
     pub(crate) fn get_fn(&self, i: usize) -> Option<Rc<RFn>> {
         self.fn_table.get(i).cloned()
     }
@@ -282,20 +297,26 @@ impl VM {
     /// Looks up a previously defined builtin class by name. Panics if the
     /// class does not exist, which usually signals a missing prelude setup.
     pub fn get_class_by_name(&self, name: &str) -> Rc<RClass> {
-        self.builtin_class_table.get(name).cloned().expect(format!("Class {} not found", name).as_str())
+        self.builtin_class_table
+            .get(name)
+            .cloned()
+            .expect(format!("Class {} not found", name).as_str())
     }
 
     /// Defines a new class under the optional parent module, inheriting from
     /// `superclass` or `Object` by default, and registers it in the constant
     /// table. The resulting class object is returned for further mutation.
-    pub fn define_class(&mut self, name: &str, superclass: Option<Rc<RClass>>, parent_module: Option<Rc<RModule>>) -> Rc<RClass> {
+    pub fn define_class(
+        &mut self,
+        name: &str,
+        superclass: Option<Rc<RClass>>,
+        parent_module: Option<Rc<RModule>>,
+    ) -> Rc<RClass> {
         let superclass = match superclass {
             Some(c) => c,
             None => self.object_class.clone(),
         };
-        let class = Rc::new(
-            RClass::new(name, Some(superclass), parent_module),
-        );
+        let class = Rc::new(RClass::new(name, Some(superclass), parent_module));
         let object = RObject::class(class.clone(), self);
         self.consts.insert(name.to_string(), object);
         class
@@ -319,7 +340,11 @@ impl VM {
         class
     }
 
-    pub(crate) fn define_standard_class_under(&mut self, name: &'static str, sklass: Rc<RClass>) -> Rc<RClass> {
+    pub(crate) fn define_standard_class_under(
+        &mut self,
+        name: &'static str,
+        sklass: Rc<RClass>,
+    ) -> Rc<RClass> {
         let class = self.define_class(name, Some(sklass.clone()), Some(sklass.module.clone()));
         self.builtin_class_table.insert(name, class.clone());
         class
@@ -343,7 +368,7 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
     let irep = &mut reps[pos];
     let mut irep1 = IREP {
         __id: pos,
-        nlocals: irep.nlocals(),  
+        nlocals: irep.nlocals(),
         nregs: irep.nregs(),
         rlen: irep.rlen(),
         code: Vec::new(),
@@ -353,15 +378,23 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
         catch_target_pos: Vec::new(),
     };
     for sym in irep.syms.iter() {
-        irep1.syms.push(RSym::new(sym.to_string_lossy().to_string()));
+        irep1
+            .syms
+            .push(RSym::new(sym.to_string_lossy().to_string()));
     }
     for str in irep.strvals.iter() {
-        irep1.pool.push(RPool::Str(str.to_string_lossy().to_string()));
+        irep1
+            .pool
+            .push(RPool::Str(str.to_string_lossy().to_string()));
     }
     let code = interpret_insn(&mut irep.insn);
     for ch in irep.catch_handlers.iter() {
         let pos = ch.target;
-        let (i, _) = code.iter().enumerate().find(|(_, op)| op.pos == pos).expect("catch handler mismatch");
+        let (i, _) = code
+            .iter()
+            .enumerate()
+            .find(|(_, op)| op.pos == pos)
+            .expect("catch handler mismatch");
         irep1.catch_target_pos.push(i);
     }
     irep1.catch_target_pos.sort();

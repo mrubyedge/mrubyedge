@@ -3,19 +3,19 @@ extern crate mrubyedge;
 
 mod helpers;
 use helpers::*;
-use std::rc::Rc;
-use mrubyedge::yamrb::helpers::mrb_define_cmethod;
-use mrubyedge::yamrb::vm::*;
-use mrubyedge::yamrb::value::*;
 use mrubyedge::Error;
+use mrubyedge::yamrb::helpers::mrb_define_cmethod;
+use mrubyedge::yamrb::value::*;
+use mrubyedge::yamrb::vm::*;
+use std::rc::Rc;
 
 fn prelude_dummy_error_func(vm: &mut VM) {
-  let klass = vm.object_class.clone();
-  mrb_define_cmethod(vm, klass, "dummy_raise", Box::new(mrb_test_dummy_raise));
+    let klass = vm.object_class.clone();
+    mrb_define_cmethod(vm, klass, "dummy_raise", Box::new(mrb_test_dummy_raise));
 }
 
 fn mrb_test_dummy_raise(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-  Err(Error::RuntimeError("Intentional Rust Error".to_string()))
+    Err(Error::RuntimeError("Intentional Rust Error".to_string()))
 }
 
 #[test]
@@ -33,8 +33,7 @@ fn rust_raise_test() {
 
     // Assert
     let args = vec![];
-    let result = mrb_funcall(&mut vm, None, "test_raise", &args)
-        .err();
+    let result = mrb_funcall(&mut vm, None, "test_raise", &args).err();
     assert_eq!(&result.unwrap().message(), "Intentional Rust Error");
 }
 
@@ -57,8 +56,7 @@ fn rust_raise_nest_test() {
 
     // Assert
     let args = vec![];
-    let result = mrb_funcall(&mut vm, None, "shim", &args)
-        .err();
+    let result = mrb_funcall(&mut vm, None, "shim", &args).err();
     assert_eq!(&result.unwrap().message(), "Intentional Rust Error");
 }
 
@@ -80,7 +78,10 @@ fn rust_raise_rescue_test() {
     // Assert
     let args = vec![];
     let result: String = mrb_funcall(&mut vm, None, "test_raise", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(&result, "rescued: Intentional Rust Error");
 }
 
@@ -101,7 +102,10 @@ fn rust_nomethod_rescue_test() {
     // Assert
     let args = vec![];
     let result: String = mrb_funcall(&mut vm, None, "test_raise", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(&result, "rescued: Method not found: dummy_nomethod");
 }
 
@@ -122,6 +126,9 @@ fn rust_noname_rescue_test() {
     // Assert
     let args = vec![];
     let result: String = mrb_funcall(&mut vm, None, "test_raise", &args)
-        .unwrap().as_ref().try_into().unwrap();
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
     assert_eq!(&result, "rescued: Cannot found name: NoName");
 }

@@ -19,7 +19,7 @@ end";
 
     // Assert
     let args = vec![];
-    let result  = mrb_funcall(&mut vm, None, "sum_unpack", &args).unwrap();
+    let result = mrb_funcall(&mut vm, None, "sum_unpack", &args).unwrap();
     let result: i64 = result.as_ref().try_into().unwrap();
     assert_eq!(result, 10);
 }

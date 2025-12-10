@@ -1,15 +1,37 @@
 use std::rc::Rc;
 
-use crate::{Error, yamrb::{helpers::{mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod}, value::{RObject, RValue}, vm::VM}};
+use crate::{
+    Error,
+    yamrb::{
+        helpers::{mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod},
+        value::{RObject, RValue},
+        vm::VM,
+    },
+};
 
 pub(crate) fn initialize_array(vm: &mut VM) {
     let array_class = vm.define_standard_class("Array");
 
     mrb_define_class_cmethod(vm, array_class.clone(), "new", Box::new(mrb_array_new));
 
-    mrb_define_cmethod(vm, array_class.clone(), "push", Box::new(mrb_array_push_self));
-    mrb_define_cmethod(vm, array_class.clone(), "[]", Box::new(mrb_array_get_index_self));
-    mrb_define_cmethod(vm, array_class.clone(), "[]=", Box::new(mrb_array_set_index_self));
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "push",
+        Box::new(mrb_array_push_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "[]",
+        Box::new(mrb_array_get_index_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "[]=",
+        Box::new(mrb_array_set_index_self),
+    );
     mrb_define_cmethod(vm, array_class.clone(), "each", Box::new(mrb_array_each));
     mrb_define_cmethod(vm, array_class.clone(), "size", Box::new(mrb_array_size));
     mrb_define_cmethod(vm, array_class.clone(), "length", Box::new(mrb_array_size));
@@ -39,10 +61,10 @@ pub fn mrb_array_push(this: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc<RObj
                 array.push(arg.clone());
             }
             Ok(this.clone())
-        },
-        _ => {
-            Err(Error::RuntimeError("Array#push must be called on an Array".to_string()))
         }
+        _ => Err(Error::RuntimeError(
+            "Array#push must be called on an Array".to_string(),
+        )),
     }
 }
 
@@ -55,7 +77,9 @@ pub fn mrb_array_get_index(this: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc
     let array = match &this.value {
         RValue::Array(a) => a.clone(),
         _ => {
-            return Err(Error::RuntimeError("Array#push must be called on an Array".to_string()));
+            return Err(Error::RuntimeError(
+                "Array#push must be called on an Array".to_string(),
+            ));
         }
     };
     let index: u32 = args[0].as_ref().try_into()?;
@@ -77,7 +101,9 @@ pub fn mrb_array_set_index(this: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc
             a.insert(index, value.clone());
         }
         _ => {
-            return Err(Error::RuntimeError("Array#push must be called on an Array".to_string()));
+            return Err(Error::RuntimeError(
+                "Array#push must be called on an Array".to_string(),
+            ));
         }
     };
     Ok(value.clone())
@@ -95,7 +121,9 @@ fn mrb_array_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
             }
         }
         _ => {
-            return Err(Error::RuntimeError("Array#each must be called on an Array".to_string()));
+            return Err(Error::RuntimeError(
+                "Array#each must be called on an Array".to_string(),
+            ));
         }
     };
     Ok(this.clone())
@@ -166,7 +194,9 @@ fn mrb_array_pack(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
             }
         }
         _ => {
-            return Err(Error::RuntimeError("Array#pack must be called on an Array".to_string()));
+            return Err(Error::RuntimeError(
+                "Array#pack must be called on an Array".to_string(),
+            ));
         }
     };
     let value = Rc::new(RObject::string_from_vec(buf));
@@ -187,11 +217,7 @@ fn test_mrb_array_push_and_index() {
     ];
     mrb_array_push(array.clone(), &args).expect("push failed");
 
-    let answers = vec![
-        1,
-        2,
-        3,
-    ];
+    let answers = vec![1, 2, 3];
 
     for (i, expected) in answers.iter().enumerate() {
         let args = vec![Rc::new(RObject::integer(i as i64))];
@@ -217,10 +243,7 @@ fn test_mrb_array_set_and_index() {
 
     let upd_index = Rc::new(RObject::integer(2));
     let newval = Rc::new(RObject::integer(42));
-    let args = vec![
-        upd_index,
-        newval,
-    ];
+    let args = vec![upd_index, newval];
 
     mrb_array_set_index(array.clone(), &args).expect("set index failed");
 
@@ -242,17 +265,12 @@ fn test_mrb_array_pack() {
         Rc::new(RObject::integer(4)),
     ]));
     vm.current_regs()[0].replace(array);
-    let format = Rc::new(RObject::string(
-        "c s l q".to_string(),
-    ));
+    let format = Rc::new(RObject::string("c s l q".to_string()));
     let args = vec![format];
     let value = mrb_array_pack(&mut vm, &args).expect("pack failed");
 
     let expected: Vec<u8> = vec![
-        0x01,
-        0x02, 0x00,
-        0x03, 0x00, 0x00, 0x00,
-        0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01, 0x02, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ];
     let value: Vec<u8> = value.as_ref().try_into().expect("value is not string");
     for (i, v) in value.iter().enumerate() {
