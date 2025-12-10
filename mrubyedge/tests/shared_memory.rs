@@ -24,7 +24,7 @@ end";
     // Assert
     let args = vec![];
     let result1 = mrb_funcall(&mut vm, None, "get_memory", &args).unwrap();
-    assert!(result1.as_ref().get_class(&mut vm).as_ref().sym_id.name == "SharedMemory");
+    assert!(result1.as_ref().get_class(&vm).as_ref().sym_id.name == "SharedMemory");
 
     let result2 = mrb_funcall(&mut vm, None, "read_array_from_memory", &args).unwrap();
     let result2: i64 = result2.as_ref().try_into().unwrap();

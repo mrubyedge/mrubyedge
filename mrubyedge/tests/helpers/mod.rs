@@ -13,7 +13,8 @@ macro_rules! mrbc_compile_ {
         let mut src = std::env::temp_dir();
         src.push(format!("{}.{}.mrb", $fname, std::process::id()));
         let mut f = File::create(&src).expect("cannot open srs file");
-        f.write($code.as_bytes()).expect("cannot create src file");
+        f.write_all($code.as_bytes())
+            .expect("cannot create src file");
         f.flush().unwrap();
 
         let mut src0 = src.as_os_str().to_string_lossy().into_owned();
@@ -43,8 +44,7 @@ macro_rules! mrbc_compile_ {
 
 pub(crate) fn mrbc_compile(fname: &'static str, code: &'static str) -> Vec<u8> {
     let dest = mrbc_compile_!(fname, code);
-    let binary = std::fs::read(dest).unwrap();
-    binary
+    std::fs::read(dest).unwrap()
 }
 
 macro_rules! mrbc_compile_debug_ {
@@ -54,7 +54,8 @@ macro_rules! mrbc_compile_debug_ {
         let mut src = std::env::temp_dir();
         src.push(format!("{}.{}.mrb", $fname, std::process::id()));
         let mut f = File::create(&src).expect("cannot open srs file");
-        f.write($code.as_bytes()).expect("cannot create src file");
+        f.write_all($code.as_bytes())
+            .expect("cannot create src file");
         f.flush().unwrap();
 
         let mut src0 = src.as_os_str().to_string_lossy().into_owned();
@@ -84,8 +85,7 @@ macro_rules! mrbc_compile_debug_ {
 
 pub(crate) fn mrbc_compile_debug(fname: &'static str, code: &'static str) -> Vec<u8> {
     let dest = mrbc_compile_debug_!(fname, code);
-    let binary = std::fs::read(dest).unwrap();
-    binary
+    std::fs::read(dest).unwrap()
 }
 
 pub(crate) fn int(n: i64) -> Rc<RObject> {

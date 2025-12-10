@@ -28,7 +28,7 @@ end
         args: &[Rc<RObject>],
     ) -> Result<Rc<RObject>, Error> {
         // Get the first argument (should be an integer)
-        let n = if args.len() > 0 {
+        let n = if !args.is_empty() {
             let arg: i64 = args[0].as_ref().try_into()?;
             arg
         } else {

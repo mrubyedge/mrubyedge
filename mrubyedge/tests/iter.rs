@@ -48,7 +48,6 @@ fn times_self_test() {
     // Assert
     let args = vec![];
     mrb_funcall(&mut vm, None, "test_times", &args).unwrap();
-    assert!(true);
 }
 
 #[test]
@@ -72,7 +71,6 @@ fn times_self_2_test() {
     // Assert
     let args = vec![];
     mrb_funcall(&mut vm, None, "test_times", &args).unwrap();
-    assert!(true);
 }
 
 #[test]
