@@ -1,3 +1,6 @@
+//! Entry point that groups the mruby/rite (mrb) helpers.
+//! It understands the binary layout, instruction stream, and marker metadata,
+//! exposing higher-level APIs via the `rite` submodule.
 pub mod binfmt;
 pub mod insn;
 pub mod marker;

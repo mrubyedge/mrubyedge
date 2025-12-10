@@ -1,3 +1,7 @@
+//! Prelude that wires up the built-in Ruby-like standard library for yamrb.
+//! Each submodule exposes initializers that install core classes and constants
+//! into a [`VM`] so user bytecode starts with the expected environment.
+
 use super::vm::VM;
 
 pub mod object;

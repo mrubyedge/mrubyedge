@@ -62,12 +62,16 @@ pub struct VM {
 }
 
 impl VM {
+    /// Builds a VM from a parsed Rite chunk, consuming the bytecode and
+    /// preparing the VM so it can be executed via [`VM::run`].
     pub fn open(rite: &mut Rite) -> VM {
         let irep = rite_to_irep(rite);
         let vm = VM::new_by_raw_irep(irep);
         vm
     }
 
+    /// Returns a VM backed by an empty IREP that immediately executes a
+    /// `STOP` instruction. Useful for tests or placeholder VMs.
     pub fn empty() -> VM {
         let irep = IREP {
             __id: 0,
@@ -85,6 +89,9 @@ impl VM {
         Self::new_by_raw_irep(irep)
     }
 
+    /// Creates a VM directly from a raw [`IREP`] tree without going through the
+    /// Rite loader. This wires up the register file, globals, and builtin
+    /// tables and runs the prelude to seed standard classes.
     pub fn new_by_raw_irep(irep: IREP) -> VM {
         let irep = Rc::new(irep);
         let globals = HashMap::new();
@@ -135,6 +142,9 @@ impl VM {
         vm
     }
 
+    /// Executes the current IREP until completion, returning the value in
+    /// register 0 or propagating any raised exception as an error. The
+    /// top-level `self` is initialized automatically before evaluation.
     pub fn run(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
         let class = self.object_class.clone();
         // Insert top_self
@@ -244,10 +254,14 @@ impl VM {
         self.current_regs()[i].take().ok_or_else(|| Error::internal(format!("register {} is not assigned", i)))   
     }
 
+    /// Returns the current `self` object from register 0, or an error if it has
+    /// not been initialized yet.
     pub fn getself(&mut self) -> Result<Rc<RObject>, Error> {
         self.get_current_regs_cloned(0)
     }
 
+    /// Retrieves `self` without error handling, panicking if register 0 is
+    /// empty. Prefer [`VM::getself`] when the value may be absent.
     pub fn must_getself(&mut self) -> Rc<RObject> {
         self.current_regs()[0].clone().expect("self is not assigned")
     }
@@ -261,10 +275,15 @@ impl VM {
         self.fn_table.get(i).cloned()
     }
 
+    /// Looks up a previously defined builtin class by name. Panics if the
+    /// class does not exist, which usually signals a missing prelude setup.
     pub fn get_class_by_name(&self, name: &str) -> Rc<RClass> {
         self.builtin_class_table.get(name).cloned().expect(format!("Class {} not found", name).as_str())
     }
 
+    /// Defines a new class under the optional parent module, inheriting from
+    /// `superclass` or `Object` by default, and registers it in the constant
+    /// table. The resulting class object is returned for further mutation.
     pub fn define_class(&mut self, name: &str, superclass: Option<Rc<RClass>>, parent_module: Option<Rc<RModule>>) -> Rc<RClass> {
         let superclass = match superclass {
             Some(c) => c,
@@ -278,6 +297,8 @@ impl VM {
         class
     }
 
+    /// Defines a new module, optionally nested under another module, and stores
+    /// it in the VM's constant table so it becomes accessible to Ruby code.
     pub fn define_module(&mut self, name: &str, parent_module: Option<Rc<RModule>>) -> Rc<RModule> {
         let module = Rc::new(RModule::new(name));
         if let Some(parent) = parent_module {

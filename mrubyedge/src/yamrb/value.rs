@@ -7,6 +7,7 @@ use crate::Error;
 use super::vm::{ENV, IREP, VM};
 use super::shared_memory::SharedMemory;
 
+/// Tag that identifies each runtime object variant handled by the VM.
 #[derive(Debug, Clone, Copy)]
 pub enum RType {
     Bool,
@@ -27,6 +28,7 @@ pub enum RType {
     Nil,
 }
 
+/// Actual storage for Ruby values, including boxed objects and immediates.
 #[derive(Debug, Clone)]
 pub enum RValue {
     Bool(bool),
@@ -47,6 +49,8 @@ pub enum RValue {
     Nil,
 }
 
+/// Canonical representation used when Ruby objects serve as Hash keys.
+/// TODO: This will be used to implement Hash#hash and Hash#eql?.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValueHasher {
     Bool(bool),
@@ -57,6 +61,7 @@ pub enum ValueHasher {
     Class(String),
 }
 
+/// Normalized form used to compare Ruby values for equality in tests and Hashes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueEquality {
     Bool(bool),
@@ -72,6 +77,7 @@ pub enum ValueEquality {
     Nil,
 }
 
+/// Key-value specific equality helper storing both keys and resolved values.
 #[derive(Debug, Clone)]
 pub struct ValueEqualityForKeyValue(HashSet<ValueHasher>, HashMap<ValueHasher, ValueEquality>);
 
@@ -89,6 +95,7 @@ impl PartialEq for ValueEqualityForKeyValue {
     }
 }
 
+/// Heap-allocated Ruby object wrapper containing type tag, value, and object id.
 #[derive(Debug, Clone)]
 pub struct RObject {
     pub tt: RType,
@@ -508,6 +515,7 @@ impl TryFrom<&RObject> for *mut u8 {
     }
 }
 
+/// Ruby module with methods, constants, and mixin relationships.
 #[derive(Debug, Clone)]
 pub struct RModule {
     pub sym_id: RSym,
@@ -584,6 +592,8 @@ impl From<Rc<RModule>> for RObject {
     }
 }
 
+/// Ruby class metadata, including its module namespace and optional superclass.
+/// Attributes and methods required for Class implementation are stored in the associated RModule.
 #[derive(Debug, Clone)]
 pub struct RClass {
     pub module: Rc<RModule>,
@@ -681,6 +691,7 @@ impl From<Rc<RClass>> for RObject {
     }
 }
 
+/// Backing storage for Ruby object instances (instance variables and data).
 #[derive(Debug, Clone)]
 pub struct RInstance {
     pub class: Rc<RClass>,
@@ -689,6 +700,7 @@ pub struct RInstance {
     pub ref_count: usize,
 }
 
+/// Ruby procedure (so-called `Proc`) representation (Ruby-defined or native function pointer).
 #[derive(Debug, Clone)]
 pub struct RProc {
     pub is_rb_func: bool,
@@ -700,8 +712,10 @@ pub struct RProc {
     pub block_self: Option<Rc<RObject>>,
 }
 
+/// Native Rust callable used to implement Ruby methods in the VM.
 pub type RFn = Box<dyn Fn(&mut VM, &[Rc<RObject>]) -> Result<Rc<RObject>, Error>>;
 
+/// Interned symbol name used across the VM to identify methods and constants.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RSym {
     pub name: String
@@ -723,6 +737,8 @@ impl From<&'static str> for RSym {
     }
 }
 
+/// Constant pool entry emitted by mruby bytecode.
+/// Strings or binary blobs is supported for now.
 #[derive(Debug, Clone)]
 pub enum RPool {
     Str(String),
@@ -738,6 +754,7 @@ impl RPool {
     }
 }
 
+/// Runtime exception object storing class, error payload, and backtrace info.
 #[derive(Debug)]
 pub struct RException {
     pub class: Rc<RClass>,
