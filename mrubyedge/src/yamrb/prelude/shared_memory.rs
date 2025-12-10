@@ -23,7 +23,8 @@ pub fn mrb_shared_memory_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RO
         value: RValue::SharedMemory(Rc::new(RefCell::new(
             SharedMemory::new(size as usize),
         ))),
-        object_id: u64::MAX.into()
+        object_id: u64::MAX.into(),
+        singleton_class: RefCell::new(None),
     };
     Ok(obj.to_refcount_assigned())
 }

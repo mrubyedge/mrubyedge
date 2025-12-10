@@ -157,6 +157,7 @@ impl VM {
                 ref_count: 1,
             }),
             object_id: 0.into(),
+            singleton_class: RefCell::new(None),
         }.to_refcount_assigned();
         if self.current_regs()[0].is_none() {
             self.current_regs()[0].replace(top_self.clone());

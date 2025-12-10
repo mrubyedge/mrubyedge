@@ -1362,6 +1362,7 @@ pub(crate) fn op_lambda(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             block_self: Some(vm.getself()?),
         }),
         object_id: u64::MAX.into(),
+        singleton_class: RefCell::new(None),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -1392,6 +1393,7 @@ pub(crate) fn op_block(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             block_self: Some(vm.getself()?),
         }),
         object_id: u64::MAX.into(),
+        singleton_class: RefCell::new(None),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -1412,6 +1414,7 @@ pub(crate) fn op_method(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             block_self: None,
         }),
         object_id: u64::MAX.into(),
+        singleton_class: RefCell::new(None),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -1434,6 +1437,7 @@ fn do_op_range(vm: &mut VM, a: usize, b: usize, exclusive: bool) -> Result<(), E
         tt: super::value::RType::Range,
         value: super::value::RValue::Range(val1, val2, exclusive),
         object_id: u64::MAX.into(),
+        singleton_class: RefCell::new(None),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
