@@ -646,16 +646,12 @@ pub(crate) fn op_getconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let mut current = current_namespace(vm);
 
     // Walk namespace chain upwards until found or reach top-level
-    loop {
-        if let Some(ns) = current.clone() {
-            if let Some(val) = ns.consts.borrow().get(&name).cloned() {
-                vm.current_regs()[a as usize].replace(val);
-                return Ok(());
-            }
-            current = ns.parent.borrow().clone();
-        } else {
-            break;
+    while let Some(ns) = current.clone() {
+        if let Some(val) = ns.consts.borrow().get(&name).cloned() {
+            vm.current_regs()[a as usize].replace(val);
+            return Ok(());
         }
+        current = ns.parent.borrow().clone();
     }
 
     if let Some(val) = vm.consts.get(&name).cloned() {
@@ -848,7 +844,9 @@ pub(crate) fn op_rescue(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_raiseif(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()?;
     let val = vm.current_regs()[a as usize].as_ref().cloned();
-    if let Some(val) = val && let RValue::Exception(e) = &val.value {
+    if let Some(val) = val
+        && let RValue::Exception(e) = &val.value
+    {
         return Err(e.as_ref().error_type.borrow().clone());
     }
     Ok(())
@@ -1076,21 +1074,20 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let nregs = old_irep.nregs;
 
     let regs0_cloned: Vec<_> = vm.current_regs()[0..nregs].to_vec();
-    if vm.has_env_ref.get(&vm.current_irep.__id).is_some()
-        && let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
-            environ.capture_no_clone(regs0_cloned);
-            environ.as_ref().expire();
-            vm.has_env_ref.remove(&vm.current_irep.__id);
-        }
+    if let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
+        environ.capture_no_clone(regs0_cloned);
+        environ.as_ref().expire();
+        vm.has_env_ref.remove(&vm.current_irep.__id);
+    }
 
     let regs0 = vm.current_regs();
     if let Some(regs_a) = regs0[a].take() {
         regs0[0].replace(regs_a);
     }
     if nregs > 0 {
-        for i in 1..=nregs {
-            regs0[i].take();
-        }
+        regs0[1..=nregs].iter_mut().for_each(|reg| {
+            reg.take();
+        });
     }
 
     let ci = vm.current_callinfo.take();
@@ -1304,7 +1301,7 @@ fn do_op_array(vm: &mut VM, this: usize, start: usize, n: usize) -> Result<(), E
         if this == start && i == 0 {
             ary.push(vm.take_current_regs(start)?);
         } else {
-            ary.push(vm.get_current_regs_cloned(start + i  )?);
+            ary.push(vm.get_current_regs_cloned(start + i)?);
         }
     }
     let val = RObject::array(ary);
@@ -1367,7 +1364,7 @@ pub(crate) fn op_hash(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         hash.insert(key.as_hash_key()?, (key, val));
     }
     let val = RObject::hash(hash);
-    vm.current_regs()[a ].replace(Rc::new(val));
+    vm.current_regs()[a].replace(Rc::new(val));
     Ok(())
 }
 
@@ -1475,7 +1472,7 @@ fn do_op_range(vm: &mut VM, a: usize, b: usize, exclusive: bool) -> Result<(), E
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
     };
-    vm.current_regs()[a ].replace(val.to_refcount_assigned());
+    vm.current_regs()[a].replace(val.to_refcount_assigned());
     Ok(())
 }
 

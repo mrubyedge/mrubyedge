@@ -29,6 +29,8 @@ pub enum RType {
     Nil,
 }
 
+type RHash = HashMap<ValueHasher, (Rc<RObject>, Rc<RObject>)>;
+
 /// Actual storage for Ruby values, including boxed objects and immediates.
 #[derive(Debug, Clone)]
 pub enum RValue {
@@ -41,7 +43,7 @@ pub enum RValue {
     Instance(RInstance),
     Proc(RProc),
     Array(RefCell<Vec<Rc<RObject>>>),
-    Hash(RefCell<HashMap<ValueHasher, (Rc<RObject>, Rc<RObject>)>>),
+    Hash(RefCell<RHash>),
     String(RefCell<Vec<u8>>),
     Range(Rc<RObject>, Rc<RObject>, bool),
     SharedMemory(Rc<RefCell<SharedMemory>>),
@@ -138,7 +140,7 @@ impl RObject {
         let object_id = if n >= (i32::MAX as i64) {
             u64::MAX
         } else if n <= (i32::MIN as i64) {
-            u64::MAX
+            i64::MIN as u64
         } else {
             n as u64 * 2 + 1
         };
@@ -283,10 +285,7 @@ impl RObject {
     }
 
     pub fn is_nil(&self) -> bool {
-        match self.tt {
-            RType::Nil => true,
-            _ => false,
-        }
+        matches!(self.tt, RType::Nil)
     }
 
     // TODO: implment Object#hash
@@ -825,27 +824,13 @@ pub struct RException {
 impl RClass {
     pub fn from_error(vm: &mut VM, e: &Error) -> Rc<Self> {
         match e {
-            Error::General => {
-                vm.get_class_by_name("Exception")
-            }
-            Error::Internal(_) => {
-                vm.get_class_by_name("InternalError")
-            }
-            Error::InvalidOpCode => {
-                vm.get_class_by_name("LoadError")
-            }
-            Error::RuntimeError(_) => {
-                vm.get_class_by_name("RuntimeError")
-            }
-            Error::TypeMismatch => {
-                vm.get_class_by_name("LoadError")
-            }
-            Error::NoMethodError(_) => {
-                vm.get_class_by_name("NoMethodError")
-            }
-            Error::NameError(_) => {
-                vm.get_class_by_name("NameError")
-            }
+            Error::General => vm.get_class_by_name("Exception"),
+            Error::Internal(_) => vm.get_class_by_name("InternalError"),
+            Error::InvalidOpCode => vm.get_class_by_name("LoadError"),
+            Error::RuntimeError(_) => vm.get_class_by_name("RuntimeError"),
+            Error::TypeMismatch => vm.get_class_by_name("LoadError"),
+            Error::NoMethodError(_) => vm.get_class_by_name("NoMethodError"),
+            Error::NameError(_) => vm.get_class_by_name("NameError"),
         }
     }
 }

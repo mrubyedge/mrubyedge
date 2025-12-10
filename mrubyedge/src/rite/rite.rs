@@ -84,36 +84,31 @@ pub fn load<'a>(src: &'a [u8]) -> Result<Rite<'a>, Error> {
         return Err(Error::TooShort);
     }
 
-    loop {
-        match peek4(head) {
-            Some(chrs) => match chrs {
-                IREP => {
-                    let (cur, irep_header, irep) = section_irep_1(head)?;
-                    rite.irep_header = irep_header;
-                    rite.irep = irep;
-                    head = &head[cur..];
-                }
-                LVAR => {
-                    let (cur, lvar) = section_lvar(head)?;
-                    rite.lvar = Some(lvar);
-                    head = &head[cur..];
-                }
-                DBG => {
-                    let cur = section_skip(head)?;
-                    head = &head[cur..];
-                }
-                END => {
-                    let cur = section_end(head)?;
-                    head = &head[cur..];
-                }
-                _ => {
-                    dbg!(chrs);
-                    dbg!(head);
-                    return Err(Error::InvalidFormat);
-                }
-            },
-            None => {
-                break;
+    while let Some(chrs) = peek4(head) {
+        match chrs {
+            IREP => {
+                let (cur, irep_header, irep) = section_irep_1(head)?;
+                rite.irep_header = irep_header;
+                rite.irep = irep;
+                head = &head[cur..];
+            }
+            LVAR => {
+                let (cur, lvar) = section_lvar(head)?;
+                rite.lvar = Some(lvar);
+                head = &head[cur..];
+            }
+            DBG => {
+                let cur = section_skip(head)?;
+                head = &head[cur..];
+            }
+            END => {
+                let cur = section_end(head)?;
+                head = &head[cur..];
+            }
+            _ => {
+                eprintln!("{:?}", chrs);
+                eprint!("{:?}", head);
+                return Err(Error::InvalidFormat);
             }
         }
     }

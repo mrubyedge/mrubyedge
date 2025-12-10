@@ -144,17 +144,11 @@ fn test_mrb_string_unpack() {
 
     let ret = helpers::mrb_funcall(&mut vm, Some(data), "unpack", &arg).expect("unpack failed");
 
-    let answers = vec![
+    let answers = [
         0x01,
         0x02 | 0x03 << 8,
         0x04 | 0x05 << 8 | 0x06 << 16 | 0x07 << 24,
-        0x04 | 0x04 << 8
-            | 0x03 << 16
-            | 0x03 << 24
-            | 0x02 << 32
-            | 0x02 << 40
-            | 0x00 << 48
-            | 0x00 << 56,
+        (0x04 | 0x04 << 8 | 0x03 << 16 | 0x03 << 24 | 0x02 << 32 | 0x02 << 40),
     ];
 
     for (i, expected) in answers.iter().enumerate() {

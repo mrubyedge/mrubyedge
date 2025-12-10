@@ -43,7 +43,13 @@ pub fn mrb_array_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
         vec![]
     } else {
         let size: usize = args[0].as_ref().try_into()?;
-        vec![Rc::new(RObject::nil()); size]
+        {
+            let mut v = Vec::with_capacity(size);
+            for _ in 0..size {
+                v.push(Rc::new(RObject::nil()));
+            }
+            v
+        }
     };
     Ok(Rc::new(RObject::array(array)))
 }
@@ -217,7 +223,7 @@ fn test_mrb_array_push_and_index() {
     ];
     mrb_array_push(array.clone(), &args).expect("push failed");
 
-    let answers = vec![1, 2, 3];
+    let answers = [1, 2, 3];
 
     for (i, expected) in answers.iter().enumerate() {
         let args = vec![Rc::new(RObject::integer(i as i64))];

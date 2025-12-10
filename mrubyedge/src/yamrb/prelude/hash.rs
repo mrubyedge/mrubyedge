@@ -118,12 +118,12 @@ fn test_mrb_hash_set_and_index() {
     prelude::prelude(&mut vm);
 
     let hash = Rc::new(RObject::hash(HashMap::new()));
-    let keys = vec![
+    let keys = [
         Rc::new(RObject::string("key".to_string())),
         Rc::new(RObject::integer(1234)),
         Rc::new(RObject::symbol("key2".into())),
     ];
-    let values = vec![
+    let values = [
         Rc::new(RObject::integer(1)),
         Rc::new(RObject::integer(2)),
         Rc::new(RObject::integer(42)),
