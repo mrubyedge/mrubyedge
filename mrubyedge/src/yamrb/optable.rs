@@ -1445,8 +1445,8 @@ fn do_op_range(vm: &mut VM, a: usize, b: usize, exclusive: bool) -> Result<(), E
 
 pub(crate) fn op_oclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let val = vm.object_class.clone().into();
-    vm.current_regs()[a].replace(Rc::new(val));
+    let val = RObject::class(vm.object_class.clone(), vm);
+    vm.current_regs()[a].replace(val);
     Ok(())
 }
 
@@ -1482,14 +1482,15 @@ pub(crate) fn op_class(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let klass = vm.define_class(&name, Some(superclass), parent_module.clone());
 
     // register constant under parent namespace (if any) or top-level
-    let class_value = RObject::class(klass.clone()).to_refcount_assigned();
+    let class_value = RObject::class(klass.clone(), vm);
     if let Some(parent) = parent_module {
         parent.consts.borrow_mut().insert(name.clone(), class_value);
     } else {
         vm.consts.insert(name.clone(), class_value);
     }
 
-    vm.current_regs()[a as usize].replace(Rc::new(klass.into()));
+    let class_value = RObject::class(klass.clone(), vm);
+    vm.current_regs()[a as usize].replace(class_value);
     Ok(())
 }
 
@@ -1576,8 +1577,8 @@ pub(crate) fn op_sclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let singleton_class = val.singleton_class.borrow().clone();
     match singleton_class {
         Some(ref sc) => {
-            let robj = sc.clone().into();
-            vm.current_regs()[a].replace(Rc::new(robj));
+            let robj = RObject::class(sc.clone(), vm);
+            vm.current_regs()[a].replace(robj);
             return Ok(());
         }
         None => {}
@@ -1587,11 +1588,11 @@ pub(crate) fn op_sclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_tclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let val: RObject = match &vm.target_class {
-        TargetContext::Class(klass) => klass.clone().into(),
-        TargetContext::Module(module) => module.clone().into(),
+    let val: Rc<RObject> = match &vm.target_class {
+        TargetContext::Class(klass) => RObject::class(klass.clone(), vm),
+        TargetContext::Module(module) => Rc::new(module.clone().into()),
     };
-    vm.current_regs()[a].replace(val.to_refcount_assigned());
+    vm.current_regs()[a].replace(val);
     Ok(())
 } 
 

@@ -177,6 +177,13 @@ pub fn mrb_define_method(_vm: &mut VM, klass: Rc<RClass>, name: &str, method: RP
     procs.insert(name.to_string(), method);
 }
 
+pub fn mrb_define_class_method(vm: &mut VM, klass: Rc<RClass>, name: &str, method: RProc) {
+    let robject = RObject::class(klass.clone(), vm);
+    let sclass = robject.initialize_or_get_singleton_class(vm);
+    let mut procs = sclass.procs.borrow_mut();
+    procs.insert(name.to_string(), method);
+}
+
 /// Defines a singleton C method (native Rust function) on a specific Ruby object.
 ///
 /// Singleton methods are methods defined on individual objects rather than classes.

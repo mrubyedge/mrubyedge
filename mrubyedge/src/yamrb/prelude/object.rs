@@ -4,8 +4,8 @@ use crate::{yamrb::{helpers::{mrb_define_cmethod, mrb_funcall}, value::*, vm::VM
 
 pub(crate) fn initialize_object(vm: &mut VM) {
     let object_class = vm.object_class.clone();
-    let klass: RObject = object_class.clone().into();
-    vm.consts.insert("Object".to_string(), klass.to_refcount_assigned());
+    let klass = RObject::class(object_class.clone(), vm);
+    vm.consts.insert("Object".to_string(), klass);
     vm.builtin_class_table.insert("Object", object_class.clone());
 
     #[cfg(feature = "wasi")]
@@ -354,17 +354,17 @@ fn test_mrb_object_is_equal_hash() {
 fn test_mrb_object_is_equal_klass() {
     let mut vm = VM::empty();
 
-    let lhs: RObject = vm.get_class_by_name("String").into();
-    let rhs: RObject = RObject::string("String".into()).get_class(&mut vm).into();
-    let lhs = lhs.to_refcount_assigned();
-    let rhs = rhs.to_refcount_assigned();
+    let lhs: Rc<RClass> = vm.get_class_by_name("String");
+    let rhs: Rc<RClass>  = RObject::string("String".into()).get_class(&mut vm);
+    let lhs = RObject::class(lhs.clone(), &mut vm);
+    let rhs = RObject::class(rhs.clone(), &mut vm);
     let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
     assert!(ret);
 
-    let lhs: RObject = RObject::integer(5471).get_class(&mut vm).into();
-    let rhs: RObject = RObject::string("String".into()).get_class(&mut vm).into();
-    let lhs = lhs.to_refcount_assigned();
-    let rhs = rhs.to_refcount_assigned();
+    let lhs: Rc<RClass> = RObject::integer(5471).get_class(&mut vm);
+    let rhs: Rc<RClass>  = RObject::string("String".into()).get_class(&mut vm);
+    let lhs = RObject::class(lhs.clone(), &mut vm);
+    let rhs = RObject::class(rhs.clone(), &mut vm);
     let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs).as_ref().try_into().expect("must return bool");
     assert!(!ret);
 }

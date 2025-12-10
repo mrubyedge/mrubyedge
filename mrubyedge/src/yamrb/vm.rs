@@ -49,6 +49,7 @@ pub struct VM {
     // common class
     pub object_class: Rc<RClass>,
     pub builtin_class_table: HashMap<&'static str, Rc<RClass>>,
+    pub class_object_table: HashMap<String, Rc<RClass>>,
 
     pub globals: HashMap<String, Rc<RObject>>,
     pub consts: HashMap<String, Rc<RObject>>,
@@ -97,6 +98,7 @@ impl VM {
         let globals = HashMap::new();
         let consts = HashMap::new();
         let builtin_class_table = HashMap::new();
+        let class_object_table = HashMap::new();
 
         let object_class = Rc::new(RClass::new("Object", None, None));
 
@@ -129,6 +131,7 @@ impl VM {
             flag_preemption,
             object_class,
             builtin_class_table,
+            class_object_table,
             globals,
             consts,
             upper,
@@ -293,7 +296,7 @@ impl VM {
         let class = Rc::new(
             RClass::new(name, Some(superclass), parent_module),
         );
-        let object = RObject::class(class.clone()).to_refcount_assigned();
+        let object = RObject::class(class.clone(), self);
         self.consts.insert(name.to_string(), object);
         class
     }

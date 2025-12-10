@@ -205,13 +205,13 @@ impl RObject {
         }
     }
 
-    pub fn class(c: Rc<RClass>) -> Self {
-        RObject {
+    pub fn class(c: Rc<RClass>, vm: &mut VM) -> Rc<Self> {
+        Rc::new(RObject {
             tt: RType::Class,
             value: RValue::Class(c),
             object_id: (u64::MAX).into(),
             singleton_class: RefCell::new(None),
-        }
+        })
     }
 
     pub fn module(m: Rc<RModule>) -> Self {
@@ -737,12 +737,6 @@ impl std::ops::Deref for RClass {
     type Target = RModule;
     fn deref(&self) -> &Self::Target {
         &self.module
-    }
-}
-
-impl From<Rc<RClass>> for RObject {
-    fn from(value: Rc<RClass>) -> Self {
-        RObject::class(value)
     }
 }
 
