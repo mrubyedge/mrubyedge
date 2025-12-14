@@ -436,12 +436,12 @@ pub(crate) fn consume_expr(
         DEF => {
             op_def(vm, operand)?;
         }
-        // ALIAS => {
-        //     // op_alias(vm, &operand)?;
-        // }
-        // UNDEF => {
-        //     // op_undef(vm, &operand)?;
-        // }
+        ALIAS => {
+            op_alias(vm, operand)?;
+        }
+        UNDEF => {
+            op_undef(vm, &operand)?;
+        }
         SCLASS => {
             op_sclass(vm, operand)?;
         }
@@ -1602,6 +1602,56 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }
     }
     vm.current_regs()[a as usize].replace(RObject::symbol(sym).to_refcount_assigned());
+    Ok(())
+}
+
+pub(crate) fn op_alias(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bb()?;
+    let new_name = vm.current_irep.syms[a as usize].clone();
+    let old_name = vm.current_irep.syms[b as usize].clone();
+
+    let owner = vm.target_class.clone();
+    let (owner_module, method) = match &owner {
+        TargetContext::Class(klass) => {
+            let (owner_module, method) = resolve_method(klass, &old_name.name)
+                .ok_or_else(|| Error::NoMethodError(old_name.name.clone()))?;
+            (owner_module, method)
+        }
+        TargetContext::Module(module) => {
+            let method = module
+                .procs
+                .borrow()
+                .get(&old_name.name)
+                .cloned()
+                .ok_or_else(|| Error::NoMethodError(old_name.name.clone()))?;
+            (module.clone(), method)
+        }
+    };
+
+    let mut new_method = method.clone();
+    new_method.sym_id = Some(new_name.clone());
+
+    let mut procs = owner_module.procs.borrow_mut();
+    procs.insert(new_name.name.clone(), new_method);
+
+    Ok(())
+}
+
+pub(crate) fn op_undef(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let a = operand.as_b()?;
+    let sym = vm.current_irep.syms[a as usize].clone();
+
+    let owner = vm.target_class.clone();
+    match &owner {
+        TargetContext::Class(klass) => {
+            let mut procs = klass.procs.borrow_mut();
+            procs.remove(&sym.name);
+        }
+        TargetContext::Module(module) => {
+            let mut procs = module.procs.borrow_mut();
+            procs.remove(&sym.name);
+        }
+    };
     Ok(())
 }
 
