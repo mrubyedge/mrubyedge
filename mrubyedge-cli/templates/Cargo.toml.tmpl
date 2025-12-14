@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies.mrubyedge]
 version = "{{ mrubyedge_version }}"
 default-features = false
-features = [ "{{ mrubyedge_feature }}" ]
+features = [ {{ mrubyedge_feature }} ]
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.

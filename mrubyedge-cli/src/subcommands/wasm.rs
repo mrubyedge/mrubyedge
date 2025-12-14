@@ -23,6 +23,8 @@ pub struct WasmArgs {
     fnname: Option<PathBuf>,
     #[arg(short = 'm', long)]
     mruby_edge_version: Option<String>,
+    #[arg(short = 'F', long)]
+    features: Vec<String>,
     #[arg(short = 'W', long)]
     no_wasi: bool,
     #[arg(long)]
@@ -104,12 +106,25 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
             .compile_to_file(&code, out_file.as_ref())?
     }
 
-    let feature = if args.no_wasi { "no-wasi" } else { "default" };
+    let mut features = Vec::new();
+    if args.no_wasi {
+        features.push("no-wasi");
+    } else {
+        features.push("wasi");
+    }
+    for f in args.features.iter() {
+        features.push(f.as_str());
+    }
+    let mrubyedge_feature = features
+        .iter()
+        .map(|s| format!("\"{}\"", s))
+        .collect::<Vec<String>>()
+        .join(", ");
 
     if args.debug_mruby_edge {
         let cargo_toml = template::cargo_toml::CargoTomlDebug {
             mruby_edge_crate_path: "/Users/udzura/ghq/github.com/udzura/mrubyedge/mrubyedge",
-            mrubyedge_feature: feature,
+            mrubyedge_feature: &mrubyedge_feature,
         };
         std::fs::write("Cargo.toml", cargo_toml.render()?)?;
     } else {
@@ -117,7 +132,7 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
             mrubyedge_version: &args
                 .mruby_edge_version
                 .unwrap_or_else(|| MRUBY_EDGE_DEFAULT_VERSION.to_string()),
-            mrubyedge_feature: feature,
+            mrubyedge_feature: &mrubyedge_feature,
             strip: &args.strip_binary.to_string(),
         };
         std::fs::write("Cargo.toml", cargo_toml.render()?)?;

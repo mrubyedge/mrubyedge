@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 # fixme can be changed
 path = "{{ mruby_edge_crate_path }}"
 default-features = false
-features = [ "{{ mrubyedge_feature }}" ]
+features = [ {{ mrubyedge_feature }} ]
 
 [profile.release]
 # In debug profile, we do not optimize for size
