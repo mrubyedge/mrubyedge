@@ -439,9 +439,9 @@ pub(crate) fn consume_expr(
         ALIAS => {
             op_alias(vm, operand)?;
         }
-        // UNDEF => {
-        //     // op_undef(vm, &operand)?;
-        // }
+        UNDEF => {
+            op_undef(vm, &operand)?;
+        }
         SCLASS => {
             op_sclass(vm, operand)?;
         }
@@ -1634,6 +1634,24 @@ pub(crate) fn op_alias(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let mut procs = owner_module.procs.borrow_mut();
     procs.insert(new_name.name.clone(), new_method);
 
+    Ok(())
+}
+
+pub(crate) fn op_undef(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let a = operand.as_b()?;
+    let sym = vm.current_irep.syms[a as usize].clone();
+
+    let owner = vm.target_class.clone();
+    match &owner {
+        TargetContext::Class(klass) => {
+            let mut procs = klass.procs.borrow_mut();
+            procs.remove(&sym.name);
+        }
+        TargetContext::Module(module) => {
+            let mut procs = module.procs.borrow_mut();
+            procs.remove(&sym.name);
+        }
+    };
     Ok(())
 }
 

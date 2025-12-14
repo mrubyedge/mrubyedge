@@ -28,3 +28,9 @@ end
 
 f = Alias2.new("World of undef")
 f.say_hello
+
+begin 
+  f.greet
+rescue NoMethodError => e
+  puts e.message
+end
