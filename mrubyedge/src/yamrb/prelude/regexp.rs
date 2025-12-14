@@ -5,10 +5,12 @@ use std::{
     collections::HashMap,
 };
 
+use regex::Regex;
+
 use crate::{
     Error,
     yamrb::{
-        helpers::mrb_define_class_cmethod,
+        helpers::{mrb_define_class_cmethod, mrb_define_cmethod, mrb_funcall},
         value::{RData, RObject, RValue},
         vm::VM,
     },
@@ -17,11 +19,65 @@ use crate::{
 pub(crate) fn initialize_regexp(vm: &mut VM) {
     let regexp_class = vm.define_standard_class("Regexp");
 
-    mrb_define_class_cmethod(vm, regexp_class, "new", Box::new(mrb_regexp_new));
+    mrb_define_class_cmethod(vm, regexp_class.clone(), "new", Box::new(mrb_regexp_new));
+    mrb_define_class_cmethod(
+        vm,
+        regexp_class.clone(),
+        "compile",
+        Box::new(mrb_regexp_new),
+    );
+
+    mrb_define_cmethod(vm, regexp_class.clone(), "=~", Box::new(mrb_regexp_match));
+    mrb_define_cmethod(
+        vm,
+        regexp_class.clone(),
+        "!~",
+        Box::new(mrb_regexp_not_match),
+    );
+
+    // Additional counterpart Regexp methods to String
+    let string_class = vm.get_class_by_name("String");
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
+        "=~",
+        Box::new(mrb_string_regexp_match),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
+        "!~",
+        Box::new(mrb_string_regexp_not_match),
+    );
 }
 
-pub struct Regexp {
+pub struct RRegexp {
     pattern: String,
+}
+
+fn get_regexp_from_object(obj: &Rc<RObject>) -> Result<Regex, Error> {
+    let pattern_str: String = match &obj.value {
+        RValue::Data(data) => {
+            let borrow = data.data.borrow();
+            let any_ref = borrow
+                .as_ref()
+                .ok_or_else(|| Error::RuntimeError("Invalid Regexp data".to_string()))?;
+            let regexp = any_ref
+                .downcast_ref::<RRegexp>()
+                .ok_or_else(|| Error::RuntimeError("Invalid Regexp data".to_string()))?;
+            regexp.pattern.clone()
+        }
+        _ => {
+            return Err(Error::RuntimeError(
+                "Regexp#=~ must be called on a Regexp".to_string(),
+            ));
+        }
+    };
+
+    let pattern = Regex::new(&pattern_str).map_err(|e| {
+        Error::RuntimeError(format!("Invalid regexp pattern in Regexp#=~: {:?}", e))
+    })?;
+    Ok(pattern)
 }
 
 pub fn mrb_regexp_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -30,7 +86,7 @@ pub fn mrb_regexp_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
         RValue::String(pattern) => {
             // For simplicity, we only support literal patterns without options.
             let pattern_str = pattern.clone().borrow().to_owned();
-            let regexp = Regexp {
+            let regexp = RRegexp {
                 pattern: String::from_utf8(pattern_str).map_err(|e| {
                     Error::RuntimeError(format!("Invalid regexp expression: {:?}", e))
                 })?,
@@ -53,4 +109,48 @@ pub fn mrb_regexp_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
             "Regexp.new requires a string pattern".to_string(),
         )),
     }
+}
+
+fn mrb_regexp_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let regexp_obj = vm.getself()?;
+    let target_obj = args[0].clone();
+
+    let regexp = get_regexp_from_object(&regexp_obj)?;
+
+    let target_str = match &target_obj.value {
+        RValue::String(s) => s.clone().borrow().to_owned(),
+        _ => {
+            return Err(Error::RuntimeError(
+                "Regexp#=~ requires a string argument".to_string(),
+            ));
+        }
+    };
+
+    let haystack = String::from_utf8(target_str).map_err(|e| {
+        Error::RuntimeError(format!("Invalid string argument for Regexp#=~: {:?}", e))
+    })?;
+
+    match regexp.find(&haystack) {
+        Some(matched) => Ok(RObject::integer(matched.start() as i64).to_refcount_assigned()),
+        None => Ok(RObject::nil().to_refcount_assigned()),
+    }
+}
+
+fn mrb_regexp_not_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    match mrb_regexp_match(vm, args)? {
+        res if res.is_nil() => Ok(RObject::boolean(true).to_refcount_assigned()),
+        _ => Ok(RObject::boolean(false).to_refcount_assigned()),
+    }
+}
+
+fn mrb_string_regexp_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let string_obj = vm.getself()?;
+    let regexp_obj = args[0].clone();
+    mrb_funcall(vm, Some(regexp_obj), "=~", &[string_obj])
+}
+
+fn mrb_string_regexp_not_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let string_obj = vm.getself()?;
+    let regexp_obj = args[0].clone();
+    mrb_funcall(vm, Some(regexp_obj), "!~", &[string_obj])
 }

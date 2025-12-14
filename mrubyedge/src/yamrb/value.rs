@@ -361,7 +361,7 @@ impl RObject {
             RValue::String(_) => vm.get_class_by_name("String"),
             RValue::Range(_, _, _) => vm.get_class_by_name("Range"),
             RValue::SharedMemory(_) => vm.get_class_by_name("SharedMemory"),
-            RValue::Data(_) => todo!("return ...? class"),
+            RValue::Data(d) => d.class.clone(),
             RValue::Exception(e) => e.class.clone(),
             RValue::Nil => vm.get_class_by_name("NilClass"),
         }
