@@ -142,7 +142,7 @@ impl RObject {
         } else if n <= (i32::MIN as i64) {
             i64::MIN as u64
         } else {
-            n as u64 * 2 + 1
+            (n * 2) as u64 + 1
         };
 
         RObject {
@@ -525,6 +525,7 @@ impl TryFrom<&RObject> for String {
     fn try_from(value: &RObject) -> Result<Self, Self::Error> {
         match &value.value {
             RValue::String(s) => Ok(String::from_utf8_lossy(&s.borrow()).to_string()),
+            RValue::Symbol(sym) => Ok(sym.name.clone()),
             v => Ok(format!("{:?}", v)),
         }
     }

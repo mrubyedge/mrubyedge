@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     Error,
     yamrb::{
-        helpers::{mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod},
+        helpers::{self, mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod},
         value::{RObject, RValue},
         vm::VM,
     },
@@ -36,6 +36,30 @@ pub(crate) fn initialize_array(vm: &mut VM) {
     mrb_define_cmethod(vm, array_class.clone(), "size", Box::new(mrb_array_size));
     mrb_define_cmethod(vm, array_class.clone(), "length", Box::new(mrb_array_size));
     mrb_define_cmethod(vm, array_class.clone(), "pack", Box::new(mrb_array_pack));
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "inspect",
+        Box::new(mrb_array_inspect),
+    );
+}
+
+pub fn mrb_array_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let array: Vec<Rc<RObject>> = this.as_ref().try_into()?;
+    let mut s = String::new();
+    s.push('[');
+    for (i, elem) in array.iter().enumerate() {
+        let elem_str: String = helpers::mrb_funcall(vm, Some(elem.clone()), "inspect", &[])?
+            .as_ref()
+            .try_into()?;
+        s.push_str(&elem_str);
+        if i + 1 < array.len() {
+            s.push_str(", ");
+        }
+    }
+    s.push(']');
+    Ok(Rc::new(RObject::string(s)))
 }
 
 pub fn mrb_array_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

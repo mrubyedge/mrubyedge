@@ -4,6 +4,7 @@ use crate::{
     Error,
     yamrb::{
         helpers::{mrb_define_class_cmethod, mrb_define_cmethod},
+        prelude::object,
         value::RObject,
         vm::VM,
     },
@@ -30,6 +31,18 @@ pub(crate) fn initialize_string(vm: &mut VM) {
         "length",
         Box::new(mrb_string_size),
     );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
+        "inspect",
+        Box::new(mrb_string_inspect),
+    );
+    mrb_define_cmethod(vm, string_class.clone(), "to_s", Box::new(object::mrb_self));
+}
+
+pub fn mrb_string_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this: String = vm.getself()?.as_ref().try_into()?;
+    Ok(Rc::new(RObject::string(format!("\"{}\"", this))))
 }
 
 pub fn mrb_string_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

@@ -367,24 +367,24 @@ pub(crate) fn consume_expr(
         ARRAY2 => {
             op_array2(vm, operand)?;
         }
-        // ARYCAT => {
-        //     // op_arycat(vm, &operand)?;
-        // }
+        ARYCAT => {
+            op_arycat(vm, operand)?;
+        }
         // ARYPUSH => {
         //     // op_arypush(vm, &operand)?;
         // }
         // ARYSPLAT => {
         //     // op_arysplat(vm, &operand)?;
         // }
-        // AREF => {
-        //     // op_aref(vm, &operand)?;
-        // }
+        AREF => {
+            op_aref(vm, operand)?;
+        }
         // ASET => {
         //     // op_aset(vm, &operand)?;
         // }
-        // APOST => {
-        //     // op_apost(vm, &operand)?;
-        // }
+        APOST => {
+            op_apost(vm, operand)?;
+        }
         // INTERN => {
         //     // op_intern(vm, &operand)?;
         // }
@@ -440,7 +440,7 @@ pub(crate) fn consume_expr(
             op_alias(vm, operand)?;
         }
         UNDEF => {
-            op_undef(vm, &operand)?;
+            op_undef(vm, operand)?;
         }
         SCLASS => {
             op_sclass(vm, operand)?;
@@ -1306,6 +1306,81 @@ fn do_op_array(vm: &mut VM, this: usize, start: usize, n: usize) -> Result<(), E
     }
     let val = RObject::array(ary);
     vm.current_regs()[this].replace(Rc::new(val));
+    Ok(())
+}
+
+pub(crate) fn op_arycat(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let a = operand.as_b()? as usize;
+    let b = a + 1;
+    let val1 = vm.get_current_regs_cloned(a)?;
+    let val2 = vm.take_current_regs(b)?;
+    match (&val1.value, &val2.value) {
+        (RValue::Array(ary1), RValue::Array(ary2)) => {
+            let mut ary1 = ary1.borrow_mut();
+            let ary2 = ary2.borrow();
+            for item in ary2.iter() {
+                ary1.push(item.clone());
+            }
+        }
+        (RValue::Nil, RValue::Array(ary2)) => {
+            let mut ary1 = Vec::new();
+            let ary2 = ary2.borrow();
+            for item in ary2.iter() {
+                ary1.push(item.clone());
+            }
+            let val = RObject::array(ary1);
+            vm.current_regs()[a].replace(Rc::new(val));
+        }
+        _ => {
+            unreachable!("arycat supports only array")
+        }
+    };
+    Ok(())
+}
+
+pub(crate) fn op_aref(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b, c) = operand.as_bbb()?;
+    let array = vm.get_current_regs_cloned(b as usize)?;
+    let index = c as usize;
+    match &array.value {
+        RValue::Array(ary) => {
+            let ary = ary.borrow();
+            let val = ary
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| Rc::new(RObject::nil()));
+            vm.current_regs()[a as usize].replace(val);
+        }
+        _ => {
+            unreachable!("aref supports only array")
+        }
+    };
+    Ok(())
+}
+
+pub(crate) fn op_apost(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b, c) = operand.as_bbb()?;
+    if c != 0 {
+        return Err(Error::internal(
+            "apost with 3 operands is not supported yet",
+        ));
+    }
+    let array = vm.get_current_regs_cloned(a as usize)?;
+    let n = b as usize;
+    match &array.value {
+        RValue::Array(ary) => {
+            let mut dest = Vec::new();
+            let ary = ary.borrow();
+            for i in n..ary.len() {
+                dest.push(ary[i].clone());
+            }
+            let newval = RObject::array(dest).to_refcount_assigned();
+            vm.current_regs()[a as usize].replace(newval);
+        }
+        _ => {
+            unreachable!("apost supports only array")
+        }
+    };
     Ok(())
 }
 
