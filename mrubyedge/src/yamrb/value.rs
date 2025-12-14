@@ -142,7 +142,7 @@ impl RObject {
         } else if n <= (i32::MIN as i64) {
             i64::MIN as u64
         } else {
-            n as u64 * 2 + 1
+            (n * 2) as u64 + 1
         };
 
         RObject {
