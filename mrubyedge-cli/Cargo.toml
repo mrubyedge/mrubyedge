@@ -1,6 +1,6 @@
 [package]
 name = "mrubyedge-cli"
-version = "1.0.8"
+version = "1.0.9"
 edition = "2024"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
 description = "mruby/edge cli endpoint - run, compile to wasm, etc."
