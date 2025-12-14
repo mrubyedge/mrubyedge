@@ -92,6 +92,10 @@ pub(crate) fn initialize_object(vm: &mut VM) {
     );
 }
 
+pub fn mrb_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    vm.getself()
+}
+
 #[cfg(feature = "wasi")]
 pub fn mrb_kernel_puts(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let msg = args[0].clone();

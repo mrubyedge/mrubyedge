@@ -15,6 +15,17 @@ pub(crate) fn initialize_integer(vm: &mut VM) {
         "times",
         Box::new(mrb_integer_times),
     );
+    mrb_define_cmethod(
+        vm,
+        integer_class.clone(),
+        "inspect",
+        Box::new(mrb_integer_inspect),
+    );
+}
+
+fn mrb_integer_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this: i64 = vm.getself()?.as_ref().try_into()?;
+    Ok(Rc::new(RObject::string(this.to_string())))
 }
 
 fn mrb_integer_times(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

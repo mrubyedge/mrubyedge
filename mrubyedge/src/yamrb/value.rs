@@ -525,6 +525,7 @@ impl TryFrom<&RObject> for String {
     fn try_from(value: &RObject) -> Result<Self, Self::Error> {
         match &value.value {
             RValue::String(s) => Ok(String::from_utf8_lossy(&s.borrow()).to_string()),
+            RValue::Symbol(sym) => Ok(sym.name.clone()),
             v => Ok(format!("{:?}", v)),
         }
     }
