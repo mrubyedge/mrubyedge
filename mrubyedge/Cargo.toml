@@ -11,6 +11,9 @@ license = "BSD-3-Clause"
 [dependencies]
 getrandom = { version = "0.2.14", optional = true }
 plain = "0.2.3"
+regex = { version = "1.12.2", default-features = false, features = [
+    "std",
+], optional = true }
 simple_endian = "0.3"
 
 [dev-dependencies]
@@ -24,4 +27,5 @@ harness = false
 [features]
 default = ["wasi"]
 wasi = ["dep:getrandom"]
+mruby-regexp = ["dep:regex"]
 no-wasi = []

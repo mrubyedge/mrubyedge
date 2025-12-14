@@ -577,6 +577,7 @@ dependencies = [
  "getrandom",
  "mec-mrbc-sys",
  "plain",
+ "regex",
  "simple_endian",
 ]
 
