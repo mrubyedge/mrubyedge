@@ -1431,6 +1431,17 @@ pub(crate) fn op_strcat(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
                 s1.push(*c);
             }
         }
+        (RValue::String(s1), _) => {
+            let mut s1 = s1.borrow_mut();
+            let s2 = mrb_funcall(vm, Some(val2.clone()), "to_s", &[])?;
+            let s2 = match &s2.value {
+                RValue::String(s) => s.borrow(),
+                _ => unreachable!("to_s must return string"),
+            };
+            for c in s2.to_vec().iter() {
+                s1.push(*c);
+            }
+        }
         _ => {
             unreachable!("strcat supports only string")
         }
