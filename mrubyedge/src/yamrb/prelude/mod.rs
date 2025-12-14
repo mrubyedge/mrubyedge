@@ -19,6 +19,9 @@ pub mod string;
 pub mod symbol;
 pub mod trueclass;
 
+#[cfg(feature = "mruby-regexp")]
+pub mod regexp;
+
 pub fn prelude(vm: &mut VM) {
     object::initialize_object(vm);
     exception::initialize_exception(vm);
@@ -34,4 +37,7 @@ pub fn prelude(vm: &mut VM) {
     hash::initialize_hash(vm);
     range::initialize_range(vm);
     shared_memory::initialize_shared_memory(vm);
+
+    #[cfg(feature = "mruby-regexp")]
+    regexp::initialize_regexp(vm);
 }

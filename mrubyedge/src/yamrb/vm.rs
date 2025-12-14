@@ -159,7 +159,6 @@ impl VM {
             value: RValue::Instance(RInstance {
                 class,
                 ivar: RefCell::new(HashMap::new()),
-                data: Vec::new(),
                 ref_count: 1,
             }),
             object_id: 0.into(),

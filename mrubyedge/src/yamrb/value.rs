@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cell::Cell;
 use std::collections::HashSet;
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
@@ -47,7 +48,7 @@ pub enum RValue {
     String(RefCell<Vec<u8>>),
     Range(Rc<RObject>, Rc<RObject>, bool),
     SharedMemory(Rc<RefCell<SharedMemory>>),
-    Data,
+    Data(Rc<RData>),
     Exception(Rc<RException>),
     Nil,
 }
@@ -243,7 +244,6 @@ impl RObject {
             value: RValue::Instance(RInstance {
                 class: c,
                 ivar: RefCell::new(HashMap::new()),
-                data: Vec::new(),
                 ref_count: 1,
             }),
             object_id: (u64::MAX).into(),
@@ -361,7 +361,7 @@ impl RObject {
             RValue::String(_) => vm.get_class_by_name("String"),
             RValue::Range(_, _, _) => vm.get_class_by_name("Range"),
             RValue::SharedMemory(_) => vm.get_class_by_name("SharedMemory"),
-            RValue::Data => todo!("return ...? class"),
+            RValue::Data(_) => todo!("return ...? class"),
             RValue::Exception(e) => e.class.clone(),
             RValue::Nil => vm.get_class_by_name("NilClass"),
         }
@@ -752,12 +752,22 @@ impl std::ops::Deref for RClass {
     }
 }
 
-/// Backing storage for Ruby object instances (instance variables and data).
+/// Backing storage for Ruby object instances (instance variables).
 #[derive(Debug, Clone)]
 pub struct RInstance {
     pub class: Rc<RClass>,
     pub ivar: RefCell<HashMap<String, Rc<RObject>>>,
-    pub data: Vec<u8>,
+    pub ref_count: usize,
+}
+
+type RDataContainer = Box<dyn Any>;
+
+/// Backing storage for Ruby object instances (instance variables w/ data).
+#[derive(Debug, Clone)]
+pub struct RData {
+    pub class: Rc<RClass>,
+    pub ivar: RefCell<HashMap<String, Rc<RObject>>>,
+    pub data: RefCell<Option<Rc<RDataContainer>>>,
     pub ref_count: usize,
 }
 
@@ -829,6 +839,7 @@ impl RClass {
             Error::Internal(_) => vm.get_class_by_name("InternalError"),
             Error::InvalidOpCode => vm.get_class_by_name("LoadError"),
             Error::RuntimeError(_) => vm.get_class_by_name("RuntimeError"),
+            Error::ArgumentError(_) => vm.get_class_by_name("ArgumentError"),
             Error::TypeMismatch => vm.get_class_by_name("LoadError"),
             Error::NoMethodError(_) => vm.get_class_by_name("NoMethodError"),
             Error::NameError(_) => vm.get_class_by_name("NameError"),

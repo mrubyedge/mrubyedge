@@ -11,6 +11,7 @@ pub enum Error {
     Internal(String),
     InvalidOpCode,
     RuntimeError(String),
+    ArgumentError(String),
     TypeMismatch,
     NoMethodError(String),
     NameError(String),
@@ -35,6 +36,7 @@ impl Error {
             Error::Internal(msg) => format!("[Internal Error] {}", msg.clone()),
             Error::InvalidOpCode => "Invalid opcode".to_string(),
             Error::RuntimeError(msg) => msg.clone(),
+            Error::ArgumentError(msg) => format!("Invalid argument: {}", msg),
             Error::TypeMismatch => "Type mismatch".to_string(),
             Error::NoMethodError(msg) => format!("Method not found: {}", msg),
             Error::NameError(msg) => format!("Cannot found name: {}", msg),
@@ -48,6 +50,7 @@ impl Error {
                 | (Error::Internal(_), "InternalError")
                 | (Error::InvalidOpCode, "StandardError")
                 | (Error::RuntimeError(_), "RuntimeError")
+                | (Error::ArgumentError(_), "ArgumentError")
                 | (Error::TypeMismatch, "StandardError")
                 | (Error::NoMethodError(_), "NoMethodError")
                 | (Error::NameError(_), "NameError")
