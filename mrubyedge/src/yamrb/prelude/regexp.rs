@@ -1,4 +1,4 @@
-#[cfg(feature = "mruby-regexp")]
+#![cfg(feature = "mruby-regexp")]
 use std::rc::Rc;
 use std::{
     cell::{Cell, RefCell},
