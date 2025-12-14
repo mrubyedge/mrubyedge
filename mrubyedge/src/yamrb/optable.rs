@@ -620,6 +620,12 @@ pub(crate) fn op_getiv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             .get(&vm.current_irep.syms[b as usize].name)
             .ok_or_else(|| Error::internal(format!("symbol not found {}", b)))?
             .clone(),
+        RValue::Data(data) => data
+            .ivar
+            .borrow()
+            .get(&vm.current_irep.syms[b as usize].name)
+            .ok_or_else(|| Error::internal(format!("symbol not found {}", b)))?
+            .clone(),
         _ => unreachable!("getiv must be called on instance"),
     };
     vm.current_regs()[a as usize].replace(ivar);
@@ -633,6 +639,10 @@ pub(crate) fn op_setiv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     match &this.value {
         RValue::Instance(ins) => {
             let mut ivar = ins.ivar.borrow_mut();
+            ivar.insert(vm.current_irep.syms[b as usize].name.clone(), val)
+        }
+        RValue::Data(data) => {
+            let mut ivar = data.ivar.borrow_mut();
             ivar.insert(vm.current_irep.syms[b as usize].name.clone(), val)
         }
         _ => unreachable!("setiv must be called on instance"),
@@ -1418,6 +1428,17 @@ pub(crate) fn op_strcat(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             let mut s1 = s1.borrow_mut();
             let s2 = s2.to_string();
             for c in s2.as_bytes() {
+                s1.push(*c);
+            }
+        }
+        (RValue::String(s1), _) => {
+            let mut s1 = s1.borrow_mut();
+            let s2 = mrb_funcall(vm, Some(val2.clone()), "to_s", &[])?;
+            let s2 = match &s2.value {
+                RValue::String(s) => s.borrow(),
+                _ => unreachable!("to_s must return string"),
+            };
+            for c in s2.to_vec().iter() {
                 s1.push(*c);
             }
         }

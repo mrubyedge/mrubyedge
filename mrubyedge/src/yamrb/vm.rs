@@ -159,7 +159,6 @@ impl VM {
             value: RValue::Instance(RInstance {
                 class,
                 ivar: RefCell::new(HashMap::new()),
-                data: Vec::new(),
                 ref_count: 1,
             }),
             object_id: 0.into(),
@@ -316,7 +315,11 @@ impl VM {
         };
         let class = Rc::new(RClass::new(name, Some(superclass), parent_module));
         let object = RObject::class(class.clone(), self);
-        self.consts.insert(name.to_string(), object);
+        self.consts.insert(name.to_string(), object.clone());
+        self.object_class
+            .consts
+            .borrow_mut()
+            .insert(name.to_string(), object);
         class
     }
 
@@ -328,7 +331,11 @@ impl VM {
             module.parent.replace(Some(parent));
         }
         let object = RObject::module(module.clone()).to_refcount_assigned();
-        self.consts.insert(name.to_string(), object);
+        self.consts.insert(name.to_string(), object.clone());
+        self.object_class
+            .consts
+            .borrow_mut()
+            .insert(name.to_string(), object);
         module
     }
 
