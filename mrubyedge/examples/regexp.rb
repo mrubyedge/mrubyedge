@@ -8,6 +8,7 @@ target2 = "micropython"
 if re !~ target2
   puts "not matched"
 end
+p re
 
 re3 = /(m?ruby).*?(m?ruby).*?(m?ruby(?:ists)?)/
 target3 = "mruby/edge is a mruby for embedded systems, built for rubyists."
@@ -18,3 +19,4 @@ if matched
   puts "matched: #{matched[2]}"
   puts "matched: #{matched[3]}"
 end
+p matched

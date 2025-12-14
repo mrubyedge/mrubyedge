@@ -45,6 +45,12 @@ pub(crate) fn initialize_regexp(vm: &mut VM) {
         "match",
         Box::new(mrb_regexp_match),
     );
+    mrb_define_cmethod(
+        vm,
+        regexp_class.clone(),
+        "inspect",
+        Box::new(mrb_regexp_inspect),
+    );
 
     let matchdata_class = vm.define_standard_class("MatchData");
     mrb_define_cmethod(
@@ -216,6 +222,29 @@ fn mrb_regexp_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
         }
         None => Ok(RObject::nil().to_refcount_assigned()),
     }
+}
+
+fn mrb_regexp_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let regexp_obj = vm.getself()?;
+    let pattern_str: String = match &regexp_obj.value {
+        RValue::Data(data) => {
+            let borrow = data.data.borrow();
+            let any_ref = borrow
+                .as_ref()
+                .ok_or_else(|| Error::RuntimeError("Invalid Regexp data".to_string()))?;
+            let regexp = any_ref
+                .downcast_ref::<RRegexp>()
+                .ok_or_else(|| Error::RuntimeError("Invalid Regexp data".to_string()))?;
+            regexp.pattern.clone()
+        }
+        _ => {
+            return Err(Error::RuntimeError(
+                "Regexp#inspect must be called on a Regexp".to_string(),
+            ));
+        }
+    };
+    let inspect_str = format!("/{}/", pattern_str);
+    Ok(RObject::string(inspect_str).to_refcount_assigned())
 }
 
 fn mrb_matchdata_index(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
