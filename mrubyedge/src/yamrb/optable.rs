@@ -915,7 +915,7 @@ pub(crate) fn do_op_send(
     }
 
     let method_id = vm.current_irep.syms[b as usize].clone();
-    let klass = recv.get_singleton_class_or_class(vm);
+    let klass = recv.initialize_or_get_singleton_class(vm);
     let (owner_module, method) = resolve_method(&klass, &method_id.name)
         .ok_or_else(|| Error::NoMethodError(method_id.name.clone()))?;
 
@@ -1687,7 +1687,7 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }
         (_, RValue::Proc(method)) => {
             let robject = target.clone();
-            let sclass = robject.get_singleton_class_or_class(vm);
+            let sclass = robject.initialize_or_get_singleton_class(vm);
             let mut procs = sclass.procs.borrow_mut();
             let mut method = method.clone();
             method.sym_id = Some(sym.clone());

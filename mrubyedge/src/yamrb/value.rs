@@ -212,21 +212,24 @@ impl RObject {
         match vm.class_object_table.get(&c.full_name()) {
             Some(robj) => robj.clone(),
             None => {
-                let robj = Self::newclass(c.clone());
+                let robj = Self::newclass(c.clone(), vm);
                 vm.class_object_table.insert(c.full_name(), robj.clone());
                 robj
             }
         }
     }
 
-    fn newclass(c: Rc<RClass>) -> Rc<Self> {
-        RObject {
+    fn newclass(c: Rc<RClass>, vm: &mut VM) -> Rc<Self> {
+        let obj = RObject {
             tt: RType::Class,
-            value: RValue::Class(c),
+            value: RValue::Class(c.clone()),
             object_id: (u64::MAX).into(),
             singleton_class: RefCell::new(None),
         }
-        .to_refcount_assigned()
+        .to_refcount_assigned();
+        let sclass = obj.initialize_or_get_singleton_class(vm);
+        c.singleton_class_ref.borrow_mut().replace(sclass.clone());
+        obj
     }
 
     pub fn module(m: Rc<RModule>) -> Self {
@@ -329,15 +332,6 @@ impl RObject {
             RValue::Nil => ValueEquality::Nil,
             _ => ValueEquality::ObjectID(self.object_id.get()),
         }
-    }
-
-    pub fn get_singleton_class_or_class(&self, vm: &VM) -> Rc<RClass> {
-        self.singleton_class
-            .borrow()
-            .as_ref()
-            .map(|s| s.clone())
-            .or_else(|| Some(self.get_class(vm)))
-            .expect("should have singleton class or class")
     }
 
     pub fn get_class(&self, vm: &VM) -> Rc<RClass> {
@@ -659,6 +653,7 @@ impl From<Rc<RModule>> for RObject {
 pub struct RClass {
     pub module: Rc<RModule>,
     pub super_class: Option<Rc<RClass>>,
+    pub singleton_class_ref: RefCell<Option<Rc<RClass>>>,
 }
 
 impl RClass {
@@ -668,12 +663,14 @@ impl RClass {
         parent_module: Option<Rc<RModule>>,
     ) -> Self {
         let module = Rc::new(RModule::new(name));
+        let singleton_class_ref = RefCell::new(None);
         if let Some(parent) = parent_module {
             module.parent.replace(Some(parent));
         }
         RClass {
             module,
             super_class,
+            singleton_class_ref,
         }
     }
 

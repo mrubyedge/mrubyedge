@@ -141,7 +141,7 @@ pub fn mrb_funcall(
         Some(obj) => obj,
         None => vm.getself()?,
     };
-    let binding = recv.as_ref().get_singleton_class_or_class(vm);
+    let binding = recv.initialize_or_get_singleton_class(vm);
     let (owner_module, method) =
         resolve_method(&binding, name).ok_or_else(|| Error::NoMethodError(name.to_string()))?;
 
@@ -216,8 +216,11 @@ pub fn mrb_define_class_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmet
         environ: None,
         block_self: None,
     };
-    let class_obj = RObject::class(klass.clone(), vm);
-    let klass_singleton = class_obj.initialize_or_get_singleton_class(vm);
+    let klass_singleton = klass
+        .singleton_class_ref
+        .borrow()
+        .clone()
+        .expect("Singleton class not initialized");
     let mut procs = klass_singleton.procs.borrow_mut();
     procs.insert(name.to_string(), method);
 }
