@@ -164,3 +164,65 @@ fn class_inheritance_super_test() {
         .unwrap();
     assert_eq!(result, 124);
 }
+
+#[test]
+fn class_define_class_method_test() {
+    let code = "
+    class Test
+      def self.hello
+        123
+      end
+    end
+
+    def test_main
+      Test.hello
+    end
+    ";
+    let binary = mrbc_compile("class_define_class_method", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    // Assert
+    let args = vec![];
+    let result: i32 = mrb_funcall(&mut vm, None, "test_main", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, 123);
+}
+
+#[test]
+fn class_inheritance_class_method_test() {
+    let code = "
+    class Test1
+      def self.hello
+        123
+      end
+    end
+
+    class Test2 < Test1
+      def self.hello
+        super + 1
+      end
+    end
+
+    def test_main
+      Test2.hello
+    end
+    ";
+    let binary = mrbc_compile_debug("class_inheritance_class_method", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    // Assert
+    let args = vec![];
+    let result: i32 = mrb_funcall(&mut vm, None, "test_main", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, 124);
+}
