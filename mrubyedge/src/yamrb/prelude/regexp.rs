@@ -123,7 +123,6 @@ pub fn mrb_regexp_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
             };
             let regexp_data = Rc::new(RData {
                 class: vm.get_class_by_name("Regexp"),
-                ivar: RefCell::new(HashMap::new()),
                 data: RefCell::new(Some(Rc::new(Box::new(regexp) as Box<dyn std::any::Any>))),
                 ref_count: 1,
             });
@@ -132,6 +131,7 @@ pub fn mrb_regexp_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
                 value: RValue::Data(regexp_data),
                 object_id: Cell::new(0),
                 singleton_class: RefCell::new(None),
+                ivar: RefCell::new(HashMap::new()),
             }
             .to_refcount_assigned())
         }
@@ -208,7 +208,6 @@ fn mrb_regexp_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
             };
             let matchdata_data = Rc::new(RData {
                 class: vm.get_class_by_name("MatchData"),
-                ivar: RefCell::new(HashMap::new()),
                 data: RefCell::new(Some(Rc::new(Box::new(matchdata) as Box<dyn std::any::Any>))),
                 ref_count: 1,
             });
@@ -217,6 +216,7 @@ fn mrb_regexp_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
                 value: RValue::Data(matchdata_data),
                 object_id: Cell::new(0),
                 singleton_class: RefCell::new(None),
+                ivar: RefCell::new(HashMap::new()),
             }
             .to_refcount_assigned())
         }
