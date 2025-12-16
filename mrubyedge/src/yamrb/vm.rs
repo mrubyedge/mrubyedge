@@ -158,11 +158,11 @@ impl VM {
             tt: RType::Instance,
             value: RValue::Instance(RInstance {
                 class,
-                ivar: RefCell::new(HashMap::new()),
                 ref_count: 1,
             }),
             object_id: 0.into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
         .to_refcount_assigned();
         if self.current_regs()[0].is_none() {

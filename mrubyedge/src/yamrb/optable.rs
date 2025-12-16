@@ -613,22 +613,8 @@ pub(crate) fn op_setgv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_getiv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let this = vm.getself()?;
-    let ivar = match &this.value {
-        RValue::Instance(ins) => ins
-            .ivar
-            .borrow()
-            .get(&vm.current_irep.syms[b as usize].name)
-            .ok_or_else(|| Error::internal(format!("symbol not found {}", b)))?
-            .clone(),
-        RValue::Data(data) => data
-            .ivar
-            .borrow()
-            .get(&vm.current_irep.syms[b as usize].name)
-            .ok_or_else(|| Error::internal(format!("symbol not found {}", b)))?
-            .clone(),
-        _ => unreachable!("getiv must be called on instance"),
-    };
-    vm.current_regs()[a as usize].replace(ivar);
+    let key = vm.current_irep.syms[b as usize].name.clone();
+    vm.current_regs()[a as usize].replace(this.get_ivar(&key));
     Ok(())
 }
 
@@ -636,17 +622,8 @@ pub(crate) fn op_setiv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let this = vm.getself()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
-    match &this.value {
-        RValue::Instance(ins) => {
-            let mut ivar = ins.ivar.borrow_mut();
-            ivar.insert(vm.current_irep.syms[b as usize].name.clone(), val)
-        }
-        RValue::Data(data) => {
-            let mut ivar = data.ivar.borrow_mut();
-            ivar.insert(vm.current_irep.syms[b as usize].name.clone(), val)
-        }
-        _ => unreachable!("setiv must be called on instance"),
-    };
+    let key = vm.current_irep.syms[b as usize].name.clone();
+    this.set_ivar(&key, val.clone());
     Ok(())
 }
 
@@ -1501,6 +1478,7 @@ pub(crate) fn op_lambda(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
+        ivar: RefCell::new(HashMap::new()),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -1532,6 +1510,7 @@ pub(crate) fn op_block(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
+        ivar: RefCell::new(HashMap::new()),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -1553,6 +1532,7 @@ pub(crate) fn op_method(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
+        ivar: RefCell::new(HashMap::new()),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -1571,12 +1551,7 @@ pub(crate) fn op_range_exc(vm: &mut VM, operand: &Fetched) -> Result<(), Error> 
 fn do_op_range(vm: &mut VM, a: usize, b: usize, exclusive: bool) -> Result<(), Error> {
     let val1 = vm.get_current_regs_cloned(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
-    let val = RObject {
-        tt: super::value::RType::Range,
-        value: super::value::RValue::Range(val1, val2, exclusive),
-        object_id: u64::MAX.into(),
-        singleton_class: RefCell::new(None),
-    };
+    let val = RObject::range(val1, val2, exclusive);
     vm.current_regs()[a].replace(val.to_refcount_assigned());
     Ok(())
 }
