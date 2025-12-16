@@ -345,12 +345,35 @@ impl VM {
         class
     }
 
+    pub(crate) fn define_standard_class_with_superclass(
+        &mut self,
+        name: &'static str,
+        superclass: Rc<RClass>,
+    ) -> Rc<RClass> {
+        let class = self.define_class(name, Some(superclass.clone()), None);
+        self.builtin_class_table.insert(name, class.clone());
+        class
+    }
+
+    #[allow(dead_code)]
     pub(crate) fn define_standard_class_under(
         &mut self,
         name: &'static str,
-        sklass: Rc<RClass>,
+        parent: Rc<RModule>,
     ) -> Rc<RClass> {
-        let class = self.define_class(name, Some(sklass.clone()), Some(sklass.module.clone()));
+        let class = self.define_class(name, None, Some(parent));
+        self.builtin_class_table.insert(name, class.clone());
+        class
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn define_standard_class_with_superclass_under(
+        &mut self,
+        name: &'static str,
+        superclass: Rc<RClass>,
+        parent: Rc<RModule>,
+    ) -> Rc<RClass> {
+        let class = self.define_class(name, Some(superclass.clone()), Some(parent));
         self.builtin_class_table.insert(name, class.clone());
         class
     }

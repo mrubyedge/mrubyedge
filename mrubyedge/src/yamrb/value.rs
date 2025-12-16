@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
 
 use crate::Error;
-use crate::yamrb::helpers::mrb_funcall;
+use crate::yamrb::helpers::mrb_call_inspect;
 
 use super::shared_memory::SharedMemory;
 use super::vm::{ENV, IREP, VM};
@@ -212,24 +212,26 @@ impl RObject {
         match vm.class_object_table.get(&c.full_name()) {
             Some(robj) => robj.clone(),
             None => {
-                let robj = Self::newclass(c.clone(), vm);
+                let robj = Self::newclass(c.clone());
                 vm.class_object_table.insert(c.full_name(), robj.clone());
                 robj
             }
         }
     }
 
-    fn newclass(c: Rc<RClass>, vm: &mut VM) -> Rc<Self> {
-        let obj = RObject {
+    fn newclass(c: Rc<RClass>) -> Rc<Self> {
+        RObject {
             tt: RType::Class,
             value: RValue::Class(c.clone()),
             object_id: (u64::MAX).into(),
             singleton_class: RefCell::new(None),
         }
-        .to_refcount_assigned();
-        let sclass = obj.initialize_or_get_singleton_class(vm);
-        c.singleton_class_ref.borrow_mut().replace(sclass.clone());
-        obj
+        .to_refcount_assigned()
+    }
+
+    pub fn class_singleton(c: Rc<RClass>, vm: &mut VM) -> Rc<RClass> {
+        let class_obj = Self::class(c.clone(), vm);
+        class_obj.initialize_or_get_singleton_class_for_class(vm)
     }
 
     pub fn module(m: Rc<RModule>) -> Self {
@@ -366,22 +368,59 @@ impl RObject {
             return sclass.clone();
         }
 
-        let inspect = mrb_funcall(vm, Some(self.clone()), "inspect", &[]);
-        let class_name: String = match inspect {
-            Ok(inspect) => inspect
-                .as_ref()
-                .try_into()
-                .unwrap_or_else(|_| "<Singleton Class - unknown inspect type>".to_string()),
-            Err(e) => format!("<Singleton Class - inspect error: {:?}>", e),
+        let class_name = {
+            let inspect = mrb_call_inspect(vm, self.clone());
+            match inspect {
+                Ok(inspect) => inspect
+                    .as_ref()
+                    .try_into()
+                    .unwrap_or_else(|_| "<Singleton Class - unknown inspect type>".to_string()),
+                Err(e) => format!("<Singleton Class - inspect error: {:?}>", e),
+            }
         };
 
-        let sclass = Rc::new(RClass::new(
+        let sclass = Rc::new(RClass::new_singleton(
             &class_name,
             Some(self.get_class(vm).clone()),
             self.get_class(vm).parent.borrow().clone(),
         ));
 
         self.singleton_class.replace(Some(sclass.clone()));
+        sclass
+    }
+
+    pub(crate) fn initialize_or_get_singleton_class_for_class(
+        self: &Rc<Self>,
+        vm: &mut VM,
+    ) -> Rc<RClass> {
+        if self.singleton_class.borrow().is_some() {
+            return self.singleton_class.borrow().as_ref().unwrap().clone();
+        }
+
+        let class = match &self.value {
+            RValue::Class(c) => c.clone(),
+            _ => panic!("Not called on a class"),
+        };
+        let class_name = format!("#<Class:{}>", class.full_name());
+        let super_class = match &class.super_class {
+            Some(parent) => {
+                let parent_obj = RObject::class(parent.clone(), vm);
+                parent_obj.initialize_or_get_singleton_class_for_class(vm)
+            }
+            None => vm.get_class_by_name("Class"),
+        };
+
+        let sclass = Rc::new(RClass::new_singleton(
+            &class_name,
+            Some(super_class),
+            self.get_class(vm).parent.borrow().clone(),
+        ));
+
+        self.singleton_class.replace(Some(sclass.clone()));
+        class
+            .singleton_class_ref
+            .borrow_mut()
+            .replace(sclass.clone());
         sclass
     }
 }
@@ -654,6 +693,7 @@ pub struct RClass {
     pub module: Rc<RModule>,
     pub super_class: Option<Rc<RClass>>,
     pub singleton_class_ref: RefCell<Option<Rc<RClass>>>,
+    pub is_singleton: bool,
 }
 
 impl RClass {
@@ -671,6 +711,25 @@ impl RClass {
             module,
             super_class,
             singleton_class_ref,
+            is_singleton: false,
+        }
+    }
+
+    pub fn new_singleton(
+        name: &str,
+        super_class: Option<Rc<RClass>>,
+        parent_module: Option<Rc<RModule>>,
+    ) -> Self {
+        let module = Rc::new(RModule::new(name));
+        let singleton_class_ref = RefCell::new(None);
+        if let Some(parent) = parent_module {
+            module.parent.replace(Some(parent));
+        }
+        RClass {
+            module,
+            super_class,
+            singleton_class_ref,
+            is_singleton: true,
         }
     }
 

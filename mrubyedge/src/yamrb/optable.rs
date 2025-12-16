@@ -915,7 +915,12 @@ pub(crate) fn do_op_send(
     }
 
     let method_id = vm.current_irep.syms[b as usize].clone();
-    let klass = recv.initialize_or_get_singleton_class(vm);
+    let klass = recv.get_class(vm);
+    let klass = if klass.is_singleton {
+        klass
+    } else {
+        recv.initialize_or_get_singleton_class(vm)
+    };
     let (owner_module, method) = resolve_method(&klass, &method_id.name)
         .ok_or_else(|| Error::NoMethodError(method_id.name.clone()))?;
 
@@ -996,7 +1001,7 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
     let klass = match &recv.value {
         RValue::Instance(ins) => ins.class.clone(),
-        _ => unreachable!("super must be called on instance"),
+        _ => recv.initialize_or_get_singleton_class(vm),
     };
     let (next_owner, method) = resolve_next_method(&klass, &sym_id, &owner_module)
         .ok_or_else(|| Error::NoMethodError(sym_id.clone()))?;
@@ -1610,6 +1615,7 @@ pub(crate) fn op_class(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
     // register constant under parent namespace (if any) or top-level
     let class_value = RObject::class(klass.clone(), vm);
+    class_value.initialize_or_get_singleton_class_for_class(vm);
     if let Some(parent) = parent_module {
         parent.consts.borrow_mut().insert(name.clone(), class_value);
     } else {
@@ -1687,7 +1693,12 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }
         (_, RValue::Proc(method)) => {
             let robject = target.clone();
-            let sclass = robject.initialize_or_get_singleton_class(vm);
+            let current_class = robject.get_class(vm);
+            let sclass = if current_class.is_singleton {
+                current_class
+            } else {
+                robject.initialize_or_get_singleton_class(vm)
+            };
             let mut procs = sclass.procs.borrow_mut();
             let mut method = method.clone();
             method.sym_id = Some(sym.clone());
@@ -1754,12 +1765,12 @@ pub(crate) fn op_undef(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_sclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
     let val = vm.getself()?;
-    let singleton_class = val.singleton_class.borrow().clone();
-    if let Some(ref sc) = singleton_class {
-        let robj = RObject::class(sc.clone(), vm);
-        vm.current_regs()[a].replace(robj);
-        return Ok(());
-    }
+    let singleton_class = match val.tt {
+        RType::Class | RType::Module => val.initialize_or_get_singleton_class_for_class(vm),
+        _ => val.initialize_or_get_singleton_class(vm),
+    };
+    let robj = RObject::class(singleton_class.clone(), vm);
+    vm.current_regs()[a].replace(robj);
     Ok(())
 }
 
