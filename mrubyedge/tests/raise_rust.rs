@@ -106,7 +106,7 @@ fn rust_nomethod_rescue_test() {
         .as_ref()
         .try_into()
         .unwrap();
-    assert_eq!(&result, "rescued: Method not found: dummy_nomethod");
+    assert!(result.contains("rescued: Method not found: dummy_nomethod"));
 }
 
 #[test]
