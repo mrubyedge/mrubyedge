@@ -141,9 +141,9 @@ pub fn mrb_funcall(
         Some(obj) => obj,
         None => vm.getself()?,
     };
-    let binding = recv.as_ref().get_singleton_class_or_class(vm);
-    let (owner_module, method) =
-        resolve_method(&binding, name).ok_or_else(|| Error::NoMethodError(name.to_string()))?;
+    let binding = recv.singleton_or_this_class(vm);
+    let (owner_module, method) = resolve_method(&binding, name)
+        .ok_or_else(|| Error::NoMethodError(format!("{} for {}", name, binding.full_name())))?;
 
     if method.is_rb_func {
         let method_id = method
@@ -163,6 +163,34 @@ pub fn mrb_funcall(
 
         let func = vm.fn_table[method.func.unwrap()].clone();
         let res = func(vm, args);
+        vm.current_regs_offset -= 2;
+
+        res
+    }
+}
+
+pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, Error> {
+    let binding = recv.get_class(vm);
+    let (owner_module, method) = resolve_method(&binding, "inspect")
+        .ok_or_else(|| Error::NoMethodError("inspect".to_string()))?;
+    if method.is_rb_func {
+        let method_id = method
+            .sym_id
+            .clone()
+            .unwrap_or_else(|| RSym::new("inspect".to_string()));
+        call_block(
+            vm,
+            method,
+            recv.clone(),
+            &[],
+            Some((method_id, owner_module)),
+        )
+    } else {
+        vm.current_regs_offset += 2; // FIXME: magick number?
+        vm.current_regs()[0].replace(recv.clone());
+
+        let func = vm.fn_table[method.func.unwrap()].clone();
+        let res = func(vm, &[]);
         vm.current_regs_offset -= 2;
 
         res
@@ -216,8 +244,7 @@ pub fn mrb_define_class_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmet
         environ: None,
         block_self: None,
     };
-    let class_obj = RObject::class(klass.clone(), vm);
-    let klass_singleton = class_obj.initialize_or_get_singleton_class(vm);
+    let klass_singleton = RObject::class_singleton(klass, vm);
     let mut procs = klass_singleton.procs.borrow_mut();
     procs.insert(name.to_string(), method);
 }

@@ -75,5 +75,5 @@ fn undef_test() {
         .as_ref()
         .try_into()
         .unwrap();
-    assert_eq!(result, "Method not found: sample");
+    assert!(result.contains("Method not found: sample"));
 }

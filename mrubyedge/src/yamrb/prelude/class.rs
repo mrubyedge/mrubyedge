@@ -11,7 +11,10 @@ use crate::{
 
 pub(crate) fn initialize_class(vm: &mut VM) {
     let module_class = vm.get_class_by_name("Module");
-    let class_class = vm.define_standard_class_under("Class", module_class);
+    let class_class = vm.define_standard_class_with_superclass("Class", module_class);
+
+    // Create singleton class for Object class
+    RObject::class(vm.object_class.clone(), vm).initialize_or_get_singleton_class_for_class(vm);
 
     mrb_define_cmethod(vm, class_class.clone(), "new", Box::new(mrb_class_new));
     mrb_define_cmethod(

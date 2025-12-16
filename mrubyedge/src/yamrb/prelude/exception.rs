@@ -7,27 +7,27 @@ use crate::{
 
 pub(crate) fn initialize_exception(vm: &mut VM) {
     let exp_class: Rc<RClass> = vm.define_standard_class("Exception");
-    let _ = vm.define_standard_class_under("InternalError", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("InternalError", exp_class.clone());
 
     // fill in ruby's standard exceptions:
     let std_exp_class: Rc<RClass> =
-        vm.define_standard_class_under("StandardError", exp_class.clone());
-    let _ = vm.define_standard_class_under("RuntimeError", std_exp_class.clone());
-    let _ = vm.define_standard_class_under("TypeError", std_exp_class.clone());
-    let _ = vm.define_standard_class_under("ArgumentError", std_exp_class.clone());
-    let _ = vm.define_standard_class_under("NoMemoryError", exp_class.clone());
-    let _ = vm.define_standard_class_under("ScriptError", exp_class.clone());
-    let _ = vm.define_standard_class_under("LoadError", exp_class.clone());
-    let _ = vm.define_standard_class_under("NotImplementedError", std_exp_class.clone());
-    let _ = vm.define_standard_class_under("SyntaxError", exp_class.clone());
-    let _ = vm.define_standard_class_under("SecurityError", std_exp_class.clone());
-    let _ = vm.define_standard_class_under("SignalException", exp_class.clone());
-    let _ = vm.define_standard_class_under("Interrupt", exp_class.clone());
-    let _ = vm.define_standard_class_under("SystemExit", exp_class.clone());
-    let _ = vm.define_standard_class_under("SystemStackError", exp_class.clone());
-    let _ = vm.define_standard_class_under("SystemCallError", std_exp_class.clone());
-    let _ = vm.define_standard_class_under("NoMethodError", std_exp_class.clone());
-    let _ = vm.define_standard_class_under("NameError", std_exp_class.clone());
+        vm.define_standard_class_with_superclass("StandardError", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("RuntimeError", std_exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("TypeError", std_exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("ArgumentError", std_exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("NoMemoryError", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("ScriptError", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("LoadError", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("NotImplementedError", std_exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("SyntaxError", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("SecurityError", std_exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("SignalException", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("Interrupt", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("SystemExit", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("SystemStackError", exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("SystemCallError", std_exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("NoMethodError", std_exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("NameError", std_exp_class.clone());
 
     mrb_define_cmethod(vm, exp_class, "message", Box::new(mrb_exception_message));
 }

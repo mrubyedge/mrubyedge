@@ -42,7 +42,7 @@ fn assign_post_test() {
       ans
     end
     ";
-    let binary = mrbc_compile_debug("assign2", code);
+    let binary = mrbc_compile("assign2", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     vm.run().unwrap();
