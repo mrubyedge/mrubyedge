@@ -226,3 +226,41 @@ fn class_inheritance_class_method_test() {
         .unwrap();
     assert_eq!(result, 124);
 }
+
+#[test]
+fn class_can_have_singleton_instance_variables() {
+    let code = r#"
+    class Hello
+      def self.set_world(value)
+        @world = value
+      end
+
+      def self.get_world
+        @world
+      end
+    end
+
+    def test_main_0
+      Hello.get_world
+    end
+
+    def test_main_1
+      Hello.set_world("hello")
+      Hello.get_world
+    end
+    "#;
+    let binary = mrbc_compile("class_singleton_ivar", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_main_0", &args).unwrap();
+    assert!(result.as_ref().is_nil());
+
+    let result = mrb_funcall(&mut vm, None, "test_main_1", &args).unwrap();
+    let value: String = result
+        .as_ref()
+        .try_into()
+        .expect("get_world should return string");
+    assert_eq!(value, "hello");
+}
