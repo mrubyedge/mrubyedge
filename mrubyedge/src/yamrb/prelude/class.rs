@@ -78,19 +78,7 @@ fn mrb_class_attr_reader(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
                 let method = move |vm: &mut VM, _args: &[Rc<RObject>]| {
                     let this = vm.getself()?;
                     let key = format!("@{}", sym_id);
-                    let value = match &this.value {
-                        RValue::Instance(i) => match i.ivar.borrow().get(&key) {
-                            Some(v) => v.clone(),
-                            None => Rc::new(RObject::nil()),
-                        },
-                        _ => {
-                            return Err(Error::RuntimeError(
-                                "attr_reader defined method must be called from instance"
-                                    .to_string(),
-                            ));
-                        }
-                    };
-                    Ok(value)
+                    Ok(this.get_ivar(&key))
                 };
                 mrb_define_cmethod(vm, class.clone(), sym_id, Box::new(method));
             }
@@ -125,17 +113,7 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
                     let this = vm.getself()?;
                     let key = format!("@{}", sym_id);
                     let value = args[0].clone();
-                    match &this.value {
-                        RValue::Instance(i) => {
-                            i.ivar.borrow_mut().insert(key, value.clone());
-                        }
-                        _ => {
-                            return Err(Error::RuntimeError(
-                                "attr_reader defined method must be called from instance"
-                                    .to_string(),
-                            ));
-                        }
-                    };
+                    this.set_ivar(&key, value.clone());
                     Ok(value)
                 };
                 let sym_id = format!("{}=", sym_id);

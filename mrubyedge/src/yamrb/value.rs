@@ -107,7 +107,11 @@ pub struct RObject {
     pub object_id: Cell<u64>,
 
     pub singleton_class: RefCell<Option<Rc<RClass>>>,
+
+    pub ivar: RefCell<HashMap<String, Rc<RObject>>>,
 }
+
+const UNSET_OBJECT_ID: u64 = u64::MAX;
 
 impl RObject {
     pub fn nil() -> Self {
@@ -116,6 +120,7 @@ impl RObject {
             value: RValue::Nil,
             object_id: 4.into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -125,6 +130,7 @@ impl RObject {
             value: RValue::Bool(b),
             object_id: (if b { 20 } else { 0 }).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -134,14 +140,13 @@ impl RObject {
             value: RValue::Symbol(sym),
             object_id: 2.into(), // TODO: calc the same id for the same symbol
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
     pub fn integer(n: i64) -> Self {
-        let object_id = if n >= (i32::MAX as i64) {
-            u64::MAX
-        } else if n <= (i32::MIN as i64) {
-            i64::MIN as u64
+        let object_id = if (i32::MAX as i64) <= n || n <= (i32::MIN as i64) {
+            UNSET_OBJECT_ID
         } else {
             (n * 2) as u64 + 1
         };
@@ -151,6 +156,7 @@ impl RObject {
             value: RValue::Integer(n),
             object_id: object_id.into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -160,6 +166,7 @@ impl RObject {
             value: RValue::Float(f),
             object_id: f.to_bits().into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -167,8 +174,9 @@ impl RObject {
         RObject {
             tt: RType::String,
             value: RValue::String(RefCell::new(s.into_bytes())),
-            object_id: (u64::MAX).into(),
+            object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -176,8 +184,9 @@ impl RObject {
         RObject {
             tt: RType::String,
             value: RValue::String(RefCell::new(v)),
-            object_id: (u64::MAX).into(),
+            object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -185,8 +194,9 @@ impl RObject {
         RObject {
             tt: RType::Array,
             value: RValue::Array(RefCell::new(v)),
-            object_id: (u64::MAX).into(),
+            object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -194,8 +204,9 @@ impl RObject {
         RObject {
             tt: RType::Hash,
             value: RValue::Hash(RefCell::new(h)),
-            object_id: (u64::MAX).into(),
+            object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -203,8 +214,9 @@ impl RObject {
         RObject {
             tt: RType::Range,
             value: RValue::Range(start, end, exclusive),
-            object_id: (u64::MAX).into(),
+            object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -223,8 +235,9 @@ impl RObject {
         RObject {
             tt: RType::Class,
             value: RValue::Class(c),
-            object_id: (u64::MAX).into(),
+            object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
         .to_refcount_assigned()
     }
@@ -238,8 +251,9 @@ impl RObject {
         RObject {
             tt: RType::Module,
             value: RValue::Module(m),
-            object_id: (u64::MAX).into(),
+            object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -248,11 +262,11 @@ impl RObject {
             tt: RType::Instance,
             value: RValue::Instance(RInstance {
                 class: c,
-                ivar: RefCell::new(HashMap::new()),
                 ref_count: 1,
             }),
-            object_id: (u64::MAX).into(),
+            object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
@@ -260,15 +274,16 @@ impl RObject {
         RObject {
             tt: RType::Exception,
             value: RValue::Exception(e),
-            object_id: (u64::MAX).into(),
+            object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
+            ivar: RefCell::new(HashMap::new()),
         }
     }
 
     pub fn to_refcount_assigned(self) -> Rc<Self> {
         let rc = Rc::new(self);
         let id = Rc::as_ptr(&rc) as u64;
-        if rc.object_id.get() == u64::MAX {
+        if rc.object_id.get() == UNSET_OBJECT_ID {
             rc.object_id.set(id);
         }
         rc
@@ -291,6 +306,19 @@ impl RObject {
 
     pub fn is_nil(&self) -> bool {
         matches!(self.tt, RType::Nil)
+    }
+
+    pub fn set_ivar(&self, key: &str, value: Rc<RObject>) {
+        self.ivar.borrow_mut().insert(key.to_string(), value);
+    }
+
+    pub fn get_ivar(&self, key: &str) -> Rc<RObject> {
+        self.ivar
+            .borrow()
+            .get(key)
+            .cloned()
+            .or_else(|| Some(RObject::nil().to_refcount_assigned()))
+            .unwrap()
     }
 
     // TODO: implment Object#hash
@@ -824,7 +852,6 @@ impl std::ops::Deref for RClass {
 #[derive(Debug, Clone)]
 pub struct RInstance {
     pub class: Rc<RClass>,
-    pub ivar: RefCell<HashMap<String, Rc<RObject>>>,
     pub ref_count: usize,
 }
 
@@ -834,7 +861,6 @@ type RDataContainer = Box<dyn Any>;
 #[derive(Debug, Clone)]
 pub struct RData {
     pub class: Rc<RClass>,
-    pub ivar: RefCell<HashMap<String, Rc<RObject>>>,
     pub data: RefCell<Option<Rc<RDataContainer>>>,
     pub ref_count: usize,
 }
