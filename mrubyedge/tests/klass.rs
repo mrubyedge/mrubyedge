@@ -178,7 +178,7 @@ fn class_define_class_method_test() {
       Test.hello
     end
     ";
-    let binary = mrbc_compile_debug("class_define_class_method", code);
+    let binary = mrbc_compile("class_define_class_method", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     vm.run().unwrap();
@@ -212,7 +212,7 @@ fn class_inheritance_class_method_test() {
       Test2.hello
     end
     ";
-    let binary = mrbc_compile_debug("class_inheritance_class_method", code);
+    let binary = mrbc_compile("class_inheritance_class_method", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     vm.run().unwrap();

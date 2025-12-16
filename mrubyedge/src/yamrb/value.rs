@@ -230,7 +230,7 @@ impl RObject {
     }
 
     pub fn class_singleton(c: Rc<RClass>, vm: &mut VM) -> Rc<RClass> {
-        let class_obj = Self::class(c.clone(), vm);
+        let class_obj = Self::class(c, vm);
         class_obj.initialize_or_get_singleton_class_for_class(vm)
     }
 
