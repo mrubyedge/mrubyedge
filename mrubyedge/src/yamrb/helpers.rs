@@ -141,7 +141,7 @@ pub fn mrb_funcall(
         Some(obj) => obj,
         None => vm.getself()?,
     };
-    let binding = recv.initialize_or_get_singleton_class(vm);
+    let binding = recv.singleton_or_this_class(vm);
     let (owner_module, method) = resolve_method(&binding, name)
         .ok_or_else(|| Error::NoMethodError(format!("{} for {}", name, binding.full_name())))?;
 

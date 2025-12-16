@@ -865,7 +865,26 @@ pub(crate) fn op_raiseif(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_move(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let val = vm.get_current_regs_cloned(b as usize)?;
-    vm.current_regs()[a as usize].replace(val);
+
+    dbg!(
+        "new",
+        val.singleton_class.borrow().is_some(),
+        val.tt,
+        &val.object_id
+    );
+    let old = vm.current_regs()[a as usize].replace(val);
+    match old {
+        Some(v) => {
+            dbg!(
+                "old",
+                v.singleton_class.borrow().is_some(),
+                v.tt,
+                &v.object_id
+            );
+        }
+        None => { /* nothing to do */ }
+    }
+
     Ok(())
 }
 
@@ -941,6 +960,12 @@ pub(crate) fn do_op_send(
 
         match res {
             Ok(val) => {
+                dbg!(
+                    "retval",
+                    val.singleton_class.borrow().is_some(),
+                    val.tt,
+                    &val.object_id
+                );
                 vm.current_regs()[a as usize].replace(val);
             }
             Err(e) => {
@@ -1767,7 +1792,9 @@ pub(crate) fn op_undef(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_sclass(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let val = vm.getself()?;
+    let val = vm.current_regs()[a]
+        .take()
+        .expect("SCLASS: operand too short");
     let singleton_class = match val.tt {
         RType::Class | RType::Module => val.initialize_or_get_singleton_class_for_class(vm),
         _ => val.initialize_or_get_singleton_class(vm),

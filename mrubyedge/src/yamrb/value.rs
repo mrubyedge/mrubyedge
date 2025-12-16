@@ -386,6 +386,11 @@ impl RObject {
         ));
 
         self.singleton_class.replace(Some(sclass.clone()));
+        eprintln!(
+            "Created singleton class: {} / {}",
+            class_name,
+            self.object_id.get()
+        );
         sclass
     }
 
