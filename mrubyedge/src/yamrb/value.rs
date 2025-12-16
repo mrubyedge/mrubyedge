@@ -222,7 +222,7 @@ impl RObject {
     fn newclass(c: Rc<RClass>) -> Rc<Self> {
         RObject {
             tt: RType::Class,
-            value: RValue::Class(c.clone()),
+            value: RValue::Class(c),
             object_id: (u64::MAX).into(),
             singleton_class: RefCell::new(None),
         }
