@@ -866,25 +866,7 @@ pub(crate) fn op_move(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let val = vm.get_current_regs_cloned(b as usize)?;
 
-    dbg!(
-        "new",
-        val.singleton_class.borrow().is_some(),
-        val.tt,
-        &val.object_id
-    );
-    let old = vm.current_regs()[a as usize].replace(val);
-    match old {
-        Some(v) => {
-            dbg!(
-                "old",
-                v.singleton_class.borrow().is_some(),
-                v.tt,
-                &v.object_id
-            );
-        }
-        None => { /* nothing to do */ }
-    }
-
+    let _old = vm.current_regs()[a as usize].replace(val);
     Ok(())
 }
 
@@ -960,12 +942,6 @@ pub(crate) fn do_op_send(
 
         match res {
             Ok(val) => {
-                dbg!(
-                    "retval",
-                    val.singleton_class.borrow().is_some(),
-                    val.tt,
-                    &val.object_id
-                );
                 vm.current_regs()[a as usize].replace(val);
             }
             Err(e) => {
