@@ -919,10 +919,11 @@ pub(crate) fn do_op_send(
     let klass = if klass.is_singleton {
         klass
     } else {
-        recv.initialize_or_get_singleton_class(vm)
+        recv.singleton_or_this_class(vm)
     };
-    let (owner_module, method) = resolve_method(&klass, &method_id.name)
-        .ok_or_else(|| Error::NoMethodError(method_id.name.clone()))?;
+    let (owner_module, method) = resolve_method(&klass, &method_id.name).ok_or_else(|| {
+        Error::NoMethodError(format!("{} for {}", method_id.name, klass.full_name()))
+    })?;
 
     vm.current_regs()[a as usize].replace(recv.clone());
     if !method.is_rb_func {
@@ -1003,8 +1004,10 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         RValue::Instance(ins) => ins.class.clone(),
         _ => recv.initialize_or_get_singleton_class(vm),
     };
-    let (next_owner, method) = resolve_next_method(&klass, &sym_id, &owner_module)
-        .ok_or_else(|| Error::NoMethodError(sym_id.clone()))?;
+    let (next_owner, method) =
+        resolve_next_method(&klass, &sym_id, &owner_module).ok_or_else(|| {
+            Error::NoMethodError(format!("{} for {}", sym_id.clone(), klass.full_name()))
+        })?;
     if !method.is_rb_func {
         let func = vm.get_fn(method.func.unwrap()).ok_or_else(|| {
             Error::internal(format!("functon registerd but no entry found: {}", &sym_id))

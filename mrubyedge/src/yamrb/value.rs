@@ -423,6 +423,13 @@ impl RObject {
             .replace(sclass.clone());
         sclass
     }
+
+    pub fn singleton_or_this_class(self: &Rc<Self>, vm: &mut VM) -> Rc<RClass> {
+        if let Some(sclass) = self.singleton_class.borrow().as_ref() {
+            return sclass.clone();
+        }
+        self.get_class(vm)
+    }
 }
 
 impl TryFrom<&RObject> for i32 {
