@@ -72,6 +72,13 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         Box::new(mrb_object_raise),
     );
     mrb_define_cmethod(vm, object_class.clone(), "nil?", Box::new(mrb_object_nil_p));
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "lambda",
+        Box::new(mrb_object_lambda),
+    );
+    mrb_define_cmethod(vm, object_class, "proc", Box::new(mrb_object_lambda));
 
     // define global consts:
     vm.consts.insert(
@@ -204,6 +211,17 @@ fn mrb_object_nil_p(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
 pub fn mrb_object_initialize(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     // Abstract method; do nothing
     Ok(Rc::new(RObject::nil()))
+}
+
+pub fn mrb_object_lambda(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let proc = args[args.len() - 1].clone();
+    if matches!(proc.value, RValue::Proc(_)) {
+        Ok(proc)
+    } else {
+        Err(Error::RuntimeError(
+            "Object#lambda expects a Proc as the last argument".to_string(),
+        ))
+    }
 }
 
 #[test]
