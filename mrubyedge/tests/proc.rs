@@ -93,17 +93,17 @@ fn proc_closure_test() {
     // Assert
     let args = vec![];
     let result = mrb_funcall(&mut vm, None, "test_proc_closure", &args).unwrap();
-    
+
     if let mrubyedge::yamrb::value::RValue::Array(arr) = &result.value {
         let arr = arr.borrow();
         assert_eq!(arr.len(), 3);
-        
+
         let r1: i64 = arr[0].as_ref().try_into().unwrap();
         let r2: i64 = arr[1].as_ref().try_into().unwrap();
         let r3: i64 = arr[2].as_ref().try_into().unwrap();
-        
-        assert_eq!(r1, 15);  // 10 + 5
-        assert_eq!(r2, 25);  // 15 + 10
+
+        assert_eq!(r1, 15); // 10 + 5
+        assert_eq!(r2, 25); // 15 + 10
         assert_eq!(r3, 125); // 25 + 100
     } else {
         panic!("Expected array result");
@@ -174,17 +174,20 @@ fn proc_class_variable_test() {
     // Assert
     let args = vec![];
     let result = mrb_funcall(&mut vm, None, "test_router", &args).unwrap();
-    
+
     if let mrubyedge::yamrb::value::RValue::Array(arr) = &result.value {
         let arr = arr.borrow();
         assert_eq!(arr.len(), 2);
-        
+
         // First result should be 5 (length of "/home")
         let r1: i64 = arr[0].as_ref().try_into().unwrap();
         assert_eq!(r1, 5);
-        
+
         // Second result should be nil
-        assert!(matches!(&arr[1].value, mrubyedge::yamrb::value::RValue::Nil));
+        assert!(matches!(
+            &arr[1].value,
+            mrubyedge::yamrb::value::RValue::Nil
+        ));
     } else {
         panic!("Expected array result");
     }
