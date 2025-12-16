@@ -13,6 +13,7 @@ pub mod integer;
 pub mod module;
 pub mod nilclass;
 pub mod object;
+pub mod proc;
 pub mod range;
 pub mod shared_memory;
 pub mod string;
@@ -32,6 +33,7 @@ pub fn prelude(vm: &mut VM) {
     trueclass::initialize_trueclass(vm);
     falseclass::initialize_falseclass(vm);
     symbol::initialize_symbol(vm);
+    proc::initialize_proc(vm);
     string::initialize_string(vm);
     array::initialize_array(vm);
     hash::initialize_hash(vm);
