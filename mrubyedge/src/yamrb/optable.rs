@@ -325,9 +325,9 @@ pub(crate) fn consume_expr(
         // BREAK => {
         //     // op_break(vm, &operand)?;
         // }
-        // BLKPUSH => {
-        //     // op_blkpush(vm, &operand)?;
-        // }
+        BLKPUSH => {
+            op_blkpush(vm, operand)?;
+        }
         ADD => {
             op_add(vm, operand)?;
         }
@@ -1108,6 +1108,14 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     if vm.current_regs()[0].is_none() {
         todo!("debug");
     }
+    Ok(())
+}
+
+pub(crate) fn op_blkpush(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, _s) = operand.as_bs()?;
+    let n = dbg!(vm.current_callinfo.as_ref().unwrap().n_args);
+    let block = vm.get_current_regs_cloned(n + 1)?;
+    vm.current_regs()[a as usize].replace(block);
     Ok(())
 }
 
