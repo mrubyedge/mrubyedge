@@ -38,3 +38,7 @@ def while_break_2
     return
   end
 end
+
+p times_break
+p times_break_2
+p while_break
