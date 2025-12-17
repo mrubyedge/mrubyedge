@@ -571,11 +571,11 @@ dependencies = [
 
 [[package]]
 name = "mrubyedge"
-version = "1.0.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcb4e5b3db926932706d40c2d3f0af54bb9f6ba0a2b039f6ea237d95fa7e0fe3"
+version = "1.0.12"
 dependencies = [
+ "criterion",
  "getrandom",
+ "mec-mrbc-sys",
  "plain",
  "regex",
  "simple_endian",
@@ -584,10 +584,10 @@ dependencies = [
 [[package]]
 name = "mrubyedge"
 version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b20b3a61b50f381ff7e47641124a9c377b24a97653df4696d15d43e5a6d38846"
 dependencies = [
- "criterion",
  "getrandom",
- "mec-mrbc-sys",
  "plain",
  "regex",
  "simple_endian",
@@ -600,7 +600,7 @@ dependencies = [
  "askama",
  "clap",
  "mruby-compiler2-sys",
- "mrubyedge 1.0.11",
+ "mrubyedge 1.0.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom",
  "rand",
  "syn",
