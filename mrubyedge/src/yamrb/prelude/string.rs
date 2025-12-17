@@ -119,12 +119,12 @@ fn mrb_string_unpack(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
                 value as i64
             }
             b'C' => {
-                let value = i8::from_le_bytes(bytes_of::<1>(&value, cursor)?);
+                let value = u8::from_le_bytes(bytes_of::<1>(&value, cursor)?);
                 cursor += 1;
                 value as i64
             }
             b'c' => {
-                let value = u8::from_le_bytes(bytes_of::<1>(&value, cursor)?);
+                let value = i8::from_le_bytes(bytes_of::<1>(&value, cursor)?);
                 cursor += 1;
                 value as i64
             }
