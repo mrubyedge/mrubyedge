@@ -78,7 +78,12 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         "lambda",
         Box::new(mrb_object_lambda),
     );
-    mrb_define_cmethod(vm, object_class, "proc", Box::new(mrb_object_lambda));
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "proc",
+        Box::new(mrb_object_lambda),
+    );
 
     // define global consts:
     vm.consts.insert(
@@ -97,6 +102,7 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         "RUBY_ENGINE".to_string(),
         Rc::new(RObject::string(crate::yamrb::vm::ENGINE.to_string())),
     );
+    mrb_define_cmethod(vm, object_class.clone(), "wasm?", Box::new(mrb_is_wasm));
 }
 
 pub fn mrb_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -222,6 +228,11 @@ pub fn mrb_object_lambda(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObjec
             "Object#lambda expects a Proc as the last argument".to_string(),
         ))
     }
+}
+
+fn mrb_is_wasm(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let is_wasm = cfg!(target_arch = "wasm32");
+    Ok(Rc::new(RObject::boolean(is_wasm)))
 }
 
 #[test]
