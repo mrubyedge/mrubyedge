@@ -158,12 +158,15 @@ pub fn mrb_funcall(
             Some((method_id, owner_module)),
         )
     } else {
-        vm.current_regs_offset += 2; // FIXME: magick number?
-        vm.current_regs()[0].replace(recv.clone());
+        let prev = vm.current_regs()[0].replace(recv.clone());
 
         let func = vm.fn_table[method.func.unwrap()].clone();
         let res = func(vm, args);
-        vm.current_regs_offset -= 2;
+        if let Some(prev) = prev {
+            vm.current_regs()[0].replace(prev);
+        } else {
+            vm.current_regs()[0].take();
+        }
 
         res
     }
