@@ -3,7 +3,7 @@ extern crate rand;
 
 use clap::Args;
 use std::{
-    fs::File,
+    fs::{File, rename},
     io::Read,
     path::{Path, PathBuf},
     process::Command,
@@ -15,18 +15,20 @@ use rand::distributions::{Alphanumeric, DistString};
 use crate::rbs_parser;
 use crate::template;
 
-const MRUBY_EDGE_DEFAULT_VERSION: &'static str = ">= 1";
+const MRUBY_EDGE_DEFAULT_VERSION: &str = ">= 1";
 
 #[derive(Debug, Clone, Args)]
 pub struct WasmArgs {
     #[arg(short = 'f', long)]
-    fnname: Option<PathBuf>,
+    fnname: Option<String>,
     #[arg(short = 'm', long)]
     mruby_edge_version: Option<String>,
     #[arg(short = 'F', long)]
     features: Vec<String>,
     #[arg(short = 'W', long)]
     no_wasi: bool,
+    #[arg(short = 'o', long)]
+    out_path: Option<PathBuf>,
     #[arg(long)]
     skip_cleanup: bool,
     #[arg(long)]
@@ -41,13 +43,13 @@ pub struct WasmArgs {
 fn sh_do(sharg: &str, debug: bool) -> Result<(), Box<dyn std::error::Error>> {
     println!("running: `{}`", sharg);
     let out = Command::new("/bin/sh").args(["-c", sharg]).output()?;
-    if debug && out.stdout.len() != 0 {
+    if debug && !out.stdout.is_empty() {
         println!(
             "stdout:\n{}",
             String::from_utf8_lossy(&out.stdout).to_string().trim()
         );
     }
-    if debug && out.stderr.len() != 0 {
+    if debug && !out.stderr.is_empty() {
         println!(
             "stderr:\n{}",
             String::from_utf8_lossy(&out.stderr).to_string().trim()
@@ -140,7 +142,6 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     let export_rbs_fname = format!("{}.export.rbs", fname);
     let export_rbs = mrubyfile.parent().unwrap().join(&export_rbs_fname);
-    let cont: String;
 
     let mut ftypes_imports = Vec::new();
     let import_rbs_fname = format!("{}.import.rbs", fname);
@@ -170,7 +171,7 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    if export_rbs.exists() {
+    let cont = if export_rbs.exists() {
         debug_println(
             args.verbose,
             &format!(
@@ -199,11 +200,11 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
 
         let lib_rs = template::LibRs {
             file_basename: &fname,
-            ftypes: &&ftypes,
+            ftypes: &ftypes,
             ftypes_imports: &ftypes_imports,
         };
-        let rendered = lib_rs.render()?;
-        cont = rendered;
+
+        lib_rs.render()?
     } else {
         if fnname.is_none() {
             panic!("--fnname FNNAME should be specified when export.rbs does not exist")
@@ -211,7 +212,7 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
         let fnname = fnname.unwrap();
 
         let ftypes = vec![template::RustFnTemplate {
-            func_name: fnname.to_str().unwrap(),
+            func_name: &fnname,
             args_decl: "",
             args_let_vec: "vec![]",
             str_args_converter: "",
@@ -222,14 +223,14 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
 
         let lib_rs = template::LibRs {
             file_basename: &fname,
-            ftypes: &&ftypes,
+            ftypes: &ftypes,
             ftypes_imports: &ftypes_imports,
         };
-        let rendered = lib_rs.render()?;
-        cont = rendered;
-    }
+
+        lib_rs.render()?
+    };
     debug_println(args.verbose, "[debug] will generate main.rs:");
-    debug_println(args.verbose, &format!("{}", &cont));
+    debug_println(args.verbose, &cont);
     std::fs::write("src/lib.rs", cont)?;
 
     let target = if args.no_wasi {
@@ -242,30 +243,32 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
         &format!("cargo build --target {} --release", target),
         args.verbose,
     )?;
-    sh_do(
-        &format!(
-            "cp ./target/{}/release/mywasm.wasm {}/{}.wasm",
-            target,
-            &pwd.to_str().unwrap(),
-            &fname.to_string()
-        ),
-        args.verbose,
-    )?;
+
+    let output_path = if let Some(out_path) = &args.out_path {
+        std::fs::canonicalize(out_path).unwrap_or_else(|_| pwd.join(out_path))
+    } else {
+        pwd.join(format!("{}.wasm", &fname))
+    };
+
+    let from = format!("./target/{}/release/mywasm.wasm", target);
+    let to = output_path.to_str().expect("Invalid output path");
+    rename(from, to)?;
     if args.skip_cleanup {
         println!(
             "debug: working directory for compile wasm is remained in {}",
             std::env::current_dir()?.as_os_str().to_str().unwrap()
         );
     } else {
-        sh_do(
-            &format!("cd .. && rm -rf work-mrubyedge-{}", &suffix),
-            args.verbose,
-        )?;
+        std::env::set_current_dir("..")?;
+        sh_do(&format!("rm -rf {}", &dirname), args.verbose)?;
     }
 
     std::env::set_current_dir(pwd)?;
 
-    println!("[ok] wasm file is generated: {}.wasm", &fname);
+    println!(
+        "[ok] wasm file is generated: {}",
+        &output_path.to_string_lossy()
+    );
 
     Ok(())
 }
