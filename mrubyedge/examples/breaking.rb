@@ -3,7 +3,7 @@ def onetimes
   puts "whoa?"
 end
 
-onetimes do
+p(onetimes do
   puts "dummy"
-  # break
-end
+  break 42
+end)

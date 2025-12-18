@@ -14,12 +14,13 @@ fn call_block(
     recv: Rc<RObject>,
     args: &[Rc<RObject>],
     method_info: Option<(RSym, Rc<RModule>)>,
+    return_register: usize,
 ) -> Result<Rc<RObject>, Error> {
     let (method_id, method_owner) = match method_info {
         Some((id, owner)) => (id, Some(owner)),
         None => (RSym::new("<block>".to_string()), None),
     };
-    push_callinfo(vm, method_id, args.len(), method_owner);
+    push_callinfo(vm, method_id, args.len(), method_owner, return_register);
 
     let old_callinfo = vm.current_callinfo.take();
 
@@ -102,6 +103,7 @@ pub fn mrb_call_block(
     block: Rc<RObject>,
     recv: Option<Rc<RObject>>,
     args: &[Rc<RObject>],
+    return_register: usize,
 ) -> Result<Rc<RObject>, Error> {
     let block = match &block.value {
         RValue::Proc(p) => p.clone(),
@@ -114,7 +116,7 @@ pub fn mrb_call_block(
             .clone()
             .ok_or_else(|| Error::RuntimeError("No block self assigned".to_string()))?,
     };
-    call_block(vm, block, recv, args, None)
+    call_block(vm, block, recv, args, None, return_register)
 }
 
 /// Calls a method on an object by name with the given arguments.
@@ -156,11 +158,14 @@ pub fn mrb_funcall(
             recv.clone(),
             args,
             Some((method_id, owner_module)),
+            0, // unused
         )
     } else {
         let prev = vm.current_regs()[0].replace(recv.clone());
 
+        vm.break_level += 1; // Enter new break level
         let func = vm.fn_table[method.func.unwrap()].clone();
+        vm.break_level -= 1; // Exit break level after call
         let res = func(vm, args);
         if let Some(prev) = prev {
             vm.current_regs()[0].replace(prev);
@@ -187,6 +192,7 @@ pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, E
             recv.clone(),
             &[],
             Some((method_id, owner_module)),
+            0, // unused
         )
     } else {
         vm.current_regs_offset += 2; // FIXME: magick number?

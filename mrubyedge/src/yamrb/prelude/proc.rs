@@ -24,5 +24,5 @@ fn mrb_proc_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
 
 pub fn mrb_proc_call(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
-    mrb_call_block(vm, this.clone(), None, args)
+    mrb_call_block(vm, this.clone(), None, args, 0)
 }

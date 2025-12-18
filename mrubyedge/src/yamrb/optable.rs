@@ -322,9 +322,9 @@ pub(crate) fn consume_expr(
         // RETURN_BLK => {
         //     // op_return_blk(vm, &operand)?;
         // }
-        // BREAK => {
-        //     // op_break(vm, &operand)?;
-        // }
+        BREAK => {
+            op_break(vm, operand)?;
+        }
         BLKPUSH => {
             op_blkpush(vm, operand)?;
         }
@@ -478,6 +478,7 @@ pub(crate) fn push_callinfo(
     method_id: RSym,
     n_args: usize,
     method_owner: Option<Rc<RModule>>,
+    return_reg: usize,
 ) {
     let callinfo = CALLINFO {
         prev: vm.current_callinfo.clone(),
@@ -486,9 +487,11 @@ pub(crate) fn push_callinfo(
         pc: vm.pc.get(),
         current_regs_offset: vm.current_regs_offset,
         n_args,
+        return_reg,
         target_class: vm.target_class.clone(),
         method_owner,
     };
+    vm.break_level += 1;
     vm.current_callinfo = Some(Rc::new(callinfo));
 }
 
@@ -930,7 +933,7 @@ pub(crate) fn do_op_send(
         return Ok(());
     }
 
-    push_callinfo(vm, method_id, c as usize, Some(owner_module));
+    push_callinfo(vm, method_id, c as usize, Some(owner_module), a as usize);
 
     vm.pc.set(0);
     vm.current_irep = method.irep.ok_or_else(|| Error::internal("empry irep"))?;
@@ -939,7 +942,7 @@ pub(crate) fn do_op_send(
 }
 
 pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
-    push_callinfo(vm, "<tailcall>".into(), 0, None);
+    push_callinfo(vm, "<tailcall>".into(), 0, None, 0);
 
     vm.pc.set(0);
     let proc = vm.current_regs()[0]
@@ -1012,6 +1015,7 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         method.sym_id.clone().unwrap(),
         b as usize,
         Some(next_owner),
+        a as usize,
     );
 
     vm.pc.set(0);
@@ -1096,6 +1100,7 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         vm.flag_preemption.set(true);
         return Ok(());
     }
+    vm.break_level -= 1;
 
     let ci = ci.unwrap();
     if let Some(prev) = &ci.prev {
@@ -1111,9 +1116,63 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     Ok(())
 }
 
+// TODO: Dont repeat yourself
+pub(crate) fn return_without_value(vm: &mut VM) -> Result<(), Error> {
+    let old_irep = vm.current_irep.clone();
+    let nregs = old_irep.nregs;
+
+    let regs0_cloned: Vec<_> = vm.current_regs()[0..nregs].to_vec();
+    if let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
+        environ.capture_no_clone(regs0_cloned);
+        environ.as_ref().expire();
+        vm.has_env_ref.remove(&vm.current_irep.__id);
+    }
+
+    let regs0 = vm.current_regs();
+    if nregs > 0 {
+        regs0[1..=nregs].iter_mut().for_each(|reg| {
+            reg.take();
+        });
+    }
+
+    let ci = vm.current_callinfo.take();
+    if ci.is_none() {
+        // When called from mrb_funcall, return error if there's an exception
+        if let Some(e) = &vm.exception {
+            return Err(e.error_type.borrow().clone());
+        }
+        // For normal completion, set preemption flag and terminate
+        vm.flag_preemption.set(true);
+        return Ok(());
+    }
+    vm.break_level -= 1;
+
+    let ci = ci.unwrap();
+    if let Some(prev) = &ci.prev {
+        vm.current_callinfo.replace(prev.clone());
+    }
+    vm.current_irep = ci.pc_irep.clone();
+    vm.pc.set(ci.pc);
+    vm.current_regs_offset = ci.current_regs_offset;
+    vm.target_class = ci.target_class.clone();
+    if vm.current_regs()[0].is_none() {
+        todo!("debug");
+    }
+    Ok(())
+}
+
+pub(crate) fn op_break(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let a = operand.as_b()? as usize;
+    let val = vm.get_current_regs_cloned(a)?;
+    vm.break_value.borrow_mut().replace(val);
+    vm.break_target_level.set(Some(vm.break_level));
+
+    return_without_value(vm)
+}
+
 pub(crate) fn op_blkpush(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, _s) = operand.as_bs()?;
-    let n = dbg!(vm.current_callinfo.as_ref().unwrap().n_args);
+    let n = vm.current_callinfo.as_ref().unwrap().n_args;
     let block = vm.get_current_regs_cloned(n + 1)?;
     vm.current_regs()[a as usize].replace(block);
     Ok(())
@@ -1640,7 +1699,7 @@ pub(crate) fn op_exec(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let recv = vm.get_current_regs_cloned(a as usize)?;
 
     vm.current_regs()[a as usize].replace(recv.clone());
-    push_callinfo(vm, "<exec>".into(), 0, None);
+    push_callinfo(vm, "<exec>".into(), 0, None, a as usize);
 
     vm.pc.set(0);
     let irep = vm.current_irep.reps[b as usize].clone();

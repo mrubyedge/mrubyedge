@@ -54,6 +54,10 @@ pub struct VM {
     pub globals: HashMap<String, Rc<RObject>>,
     pub consts: HashMap<String, Rc<RObject>>,
 
+    pub break_level: usize,
+    pub break_value: RefCell<Option<Rc<RObject>>>,
+    pub break_target_level: Cell<Option<usize>>,
+
     pub upper: Option<Rc<ENV>>,
     // TODO: using fixed array?
     pub cur_env: HashMap<usize, Rc<ENV>>,
@@ -116,6 +120,9 @@ impl VM {
         let exception = None;
         let flag_preemption = Cell::new(false);
         let fn_table = Vec::new();
+        let break_level = 0;
+        let break_value = RefCell::new(None);
+        let break_target_level = Cell::new(None);
         let upper = None;
         let cur_env = HashMap::new();
         let has_env_ref = HashMap::new();
@@ -137,6 +144,9 @@ impl VM {
             class_object_table,
             globals,
             consts,
+            break_level,
+            break_value,
+            break_target_level,
             upper,
             cur_env,
             has_env_ref,
@@ -213,6 +223,38 @@ impl VM {
                     &op.code, &op.operand, op.pos, op.len
                 );
             }
+
+            if self.break_target_level.get().is_some() {
+                let target_level = self.break_target_level.get().unwrap();
+                // dbg!(("breaking", self.break_level, target_level));
+                if self.break_level == target_level {
+                    self.break_target_level.set(None);
+                    let val = self
+                        .break_value
+                        .borrow_mut()
+                        .take()
+                        .unwrap_or_else(|| Rc::new(RObject::nil()));
+
+                    let return_reg = match self.current_callinfo.as_ref() {
+                        Some(ci) => ci.return_reg,
+                        None => 0,
+                    };
+                    return_without_value(self)?;
+                    // TODO: getting return target register for send...
+                    self.current_regs()[return_reg].replace(val);
+                    if self.flag_preemption.get() {
+                        break;
+                    } else {
+                        continue;
+                    }
+                } else if self.break_level < target_level {
+                    eprintln!("[BUG] break target level mismatch");
+                } else {
+                    return_without_value(self)?;
+                    continue;
+                }
+            }
+
             match consume_expr(self, op.code, &operand, op.pos, op.len) {
                 Ok(_) => {}
                 Err(e) => {
@@ -471,6 +513,7 @@ pub struct CALLINFO {
     pub current_regs_offset: usize,
     pub target_class: TargetContext,
     pub n_args: usize,
+    pub return_reg: usize,
     pub method_owner: Option<Rc<RModule>>,
 }
 

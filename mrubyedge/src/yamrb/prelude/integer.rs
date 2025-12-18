@@ -33,7 +33,7 @@ fn mrb_integer_times(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
     for i in 0..this {
         let block = args[0].clone();
         let args = vec![Rc::new(RObject::integer(i))];
-        mrb_call_block(vm, block, None, &args)?;
+        mrb_call_block(vm, block, None, &args, 0)?;
     }
     vm.getself()
 }
