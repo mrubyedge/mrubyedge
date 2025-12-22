@@ -44,6 +44,13 @@ fn call_block(
 
     let res = vm.run();
 
+    // consume breadcrumb for RUN itself
+    let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
+    if let Some(upper) = &cur.as_ref().upper {
+        //eprintln!("returning to {}", upper.event);
+        vm.current_breadcrumb.replace(upper.clone());
+    }
+
     if let Some(prev) = prev_self {
         vm.current_regs()[0].replace(prev);
     } else {
@@ -123,14 +130,13 @@ pub fn mrb_call_block(
         event: "block_call",
         return_reg: None,
     });
-    eprintln!("pile on {}", new_breadcrumb.event);
+    //eprintln!("pile on {}", new_breadcrumb.event);
     vm.current_breadcrumb.replace(new_breadcrumb);
     //dbg!(&vm.current_breadcrumb);
     let res = call_block(vm, block, recv, args, None, return_register);
-    //dbg!(&vm.current_breadcrumb);
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
-        eprintln!("returning to {}", upper.event);
+        //eprintln!("returning to {}", upper.event);
         vm.current_breadcrumb.replace(upper.clone());
     }
     res
@@ -170,7 +176,7 @@ pub fn mrb_funcall(
         event: "funcall",
         return_reg: None,
     });
-    eprintln!("pile on {}", new_breadcrumb.event);
+    //("pile on {}", new_breadcrumb.event);
     vm.current_breadcrumb.replace(new_breadcrumb);
     //dbg!(&vm.current_breadcrumb);
 
@@ -205,7 +211,7 @@ pub fn mrb_funcall(
     //dbg!(&vm.current_breadcrumb);
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
-        eprintln!("returning to {}", upper.event);
+        //eprintln!("returning to {}", upper.event);
         vm.current_breadcrumb.replace(upper.clone());
     }
 

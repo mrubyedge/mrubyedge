@@ -1137,14 +1137,14 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
     let ci = vm.current_callinfo.take();
     if ci.is_none() {
-        //dbg!(&vm.current_breadcrumb);
         let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
         if let Some(upper) = &cur.as_ref().upper {
-            //eprintln!("returning to {}", upper.event);
+            eprintln!("returning to {}", upper.event);
             vm.current_breadcrumb.replace(upper.clone());
         }
         // When called from mrb_funcall, return error if there's an exception
         if let Some(e) = &vm.exception {
+            //eprintln!("err...");
             return Err(e.error_type.borrow().clone());
         }
         // For normal completion, set preemption flag and terminate
@@ -1168,7 +1168,7 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     //dbg!(&vm.current_breadcrumb);
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
-        //eprintln!("returning to {}", upper.event);
+        eprintln!("returning to {}", upper.event);
         vm.current_breadcrumb.replace(upper.clone());
     }
     Ok(())

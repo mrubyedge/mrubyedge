@@ -211,15 +211,16 @@ impl VM {
                     continue;
                 }
 
+                dbg!("return break val on upper");
+                // dbg!(&self.current_breadcrumb);
                 let retreg = match self.current_breadcrumb.as_ref() {
                     Some(bc) if bc.event == "do_op_send" => {
                         let retreg = bc.as_ref().return_reg.unwrap_or(0);
-                        //dbg!(("return to reg {:?}", retreg));
+                        // dbg!(("return to reg {:?}", retreg));
                         retreg
                     }
                     _ => 0,
                 };
-
                 match op_return(self, &operand) {
                     Ok(_) => {}
                     Err(_) => {
@@ -227,7 +228,16 @@ impl VM {
                             && matches!(e.error_type.borrow().clone(), Error::Break(_))
                         {
                             let retval = self.break_value.borrow_mut().take();
-                            //dbg!("return break val");
+                            // dbg!(&self.current_breadcrumb);
+                            // let retreg = match self.current_breadcrumb.as_ref() {
+                            //     Some(bc) if bc.event == "do_op_send" => {
+                            //         let retreg = bc.as_ref().return_reg.unwrap_or(0);
+                            //         dbg!(("return to reg {:?}", retreg));
+                            //         retreg
+                            //     }
+                            //     _ => retreg,
+                            // };
+
                             self.break_level -= 1; // handle as return
                             self.current_regs()[retreg]
                                 .replace(retval.expect("break value missing"));
@@ -236,7 +246,7 @@ impl VM {
                             // self.break_level -= 1;
                         } else {
                             if let Error::Break(brkval) = e.error_type.borrow().clone() {
-                                //dbg!("set break val to VM");
+                                // dbg!("set break val to VM");
                                 self.break_value.borrow_mut().replace(brkval.clone());
                             }
                             break;
