@@ -414,11 +414,6 @@ impl RObject {
         ));
 
         self.singleton_class.replace(Some(sclass.clone()));
-        eprintln!(
-            "Created singleton class: {} / {}",
-            class_name,
-            self.object_id.get()
-        );
         sclass
     }
 
@@ -642,6 +637,12 @@ impl TryFrom<&RObject> for *mut u8 {
             RValue::SharedMemory(sm) => Ok(sm.borrow_mut().as_mut_ptr()),
             _ => Err(Error::TypeMismatch),
         }
+    }
+}
+
+impl PartialEq for RObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.object_id.get() == other.object_id.get()
     }
 }
 
@@ -937,6 +938,8 @@ impl RClass {
             Error::TypeMismatch => vm.get_class_by_name("LoadError"),
             Error::NoMethodError(_) => vm.get_class_by_name("NoMethodError"),
             Error::NameError(_) => vm.get_class_by_name("NameError"),
+
+            Error::Break(_) => vm.get_class_by_name("_Break"),
         }
     }
 }

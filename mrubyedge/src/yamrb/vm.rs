@@ -31,6 +31,13 @@ impl TargetContext {
     }
 }
 
+#[derive(Debug)]
+pub struct BreadCrumb {
+    pub event: &'static str, // TODO: be enum
+    pub return_reg: Option<usize>,
+    pub upper: Option<Rc<BreadCrumb>>,
+}
+
 pub struct VM {
     pub irep: Rc<IREP>,
 
@@ -41,6 +48,7 @@ pub struct VM {
     pub regs: [Option<Rc<RObject>>; MAX_REGS_SIZE],
     pub current_regs_offset: usize,
     pub current_callinfo: Option<Rc<CALLINFO>>,
+    pub current_breadcrumb: Option<Rc<BreadCrumb>>,
     pub target_class: TargetContext,
     pub exception: Option<Rc<RException>>,
 
@@ -116,6 +124,11 @@ impl VM {
         let regs: [Option<Rc<RObject>>; MAX_REGS_SIZE] = [const { None }; MAX_REGS_SIZE];
         let current_regs_offset = 0;
         let current_callinfo = None;
+        let current_breadcrumb = Some(Rc::new(BreadCrumb {
+            upper: None,
+            event: "root",
+            return_reg: None,
+        }));
         let target_class = TargetContext::Class(object_class.clone());
         let exception = None;
         let flag_preemption = Cell::new(false);
@@ -136,6 +149,7 @@ impl VM {
             regs,
             current_regs_offset,
             current_callinfo,
+            current_breadcrumb,
             target_class,
             exception,
             flag_preemption,
@@ -162,6 +176,14 @@ impl VM {
     /// register 0 or propagating any raised exception as an error. The
     /// top-level `self` is initialized automatically before evaluation.
     pub fn run(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
+        let upper = self.current_breadcrumb.take();
+        let new_breadcrumb = Rc::new(BreadCrumb {
+            upper,
+            event: "run",
+            return_reg: None,
+        });
+        self.current_breadcrumb.replace(new_breadcrumb);
+
         let class = self.object_class.clone();
         // Insert top_self
         let top_self = RObject {
@@ -181,7 +203,7 @@ impl VM {
         let mut rescued = false;
 
         loop {
-            if !rescued && let Some(_e) = self.exception.clone() {
+            if !rescued && let Some(e) = self.exception.clone() {
                 let operand = insn::Fetched::B(0);
                 if let Some(pos) = self.find_next_handler_pos() {
                     self.pc.set(pos);
@@ -189,11 +211,36 @@ impl VM {
                     continue;
                 }
 
+                let retreg = match self.current_breadcrumb.as_ref() {
+                    Some(bc) if bc.event == "do_op_send" => {
+                        let retreg = bc.as_ref().return_reg.unwrap_or(0);
+                        //dbg!(("return to reg {:?}", retreg));
+                        retreg
+                    }
+                    _ => 0,
+                };
+
                 match op_return(self, &operand) {
                     Ok(_) => {}
                     Err(_) => {
-                        // use assigned expection through
-                        break;
+                        if self.break_value.borrow_mut().is_some()
+                            && matches!(e.error_type.borrow().clone(), Error::Break(_))
+                        {
+                            let retval = self.break_value.borrow_mut().take();
+                            //dbg!("return break val");
+                            self.break_level -= 1; // handle as return
+                            self.current_regs()[retreg]
+                                .replace(retval.expect("break value missing"));
+                            self.exception.take();
+
+                            // self.break_level -= 1;
+                        } else {
+                            if let Error::Break(brkval) = e.error_type.borrow().clone() {
+                                //dbg!("set break val to VM");
+                                self.break_value.borrow_mut().replace(brkval.clone());
+                            }
+                            break;
+                        }
                     }
                 }
                 if self.flag_preemption.get() {
@@ -224,37 +271,6 @@ impl VM {
                 );
             }
 
-            if self.break_target_level.get().is_some() {
-                let target_level = self.break_target_level.get().unwrap();
-                // dbg!(("breaking", self.break_level, target_level));
-                if self.break_level == target_level {
-                    self.break_target_level.set(None);
-                    let val = self
-                        .break_value
-                        .borrow_mut()
-                        .take()
-                        .unwrap_or_else(|| Rc::new(RObject::nil()));
-
-                    let return_reg = match self.current_callinfo.as_ref() {
-                        Some(ci) => ci.return_reg,
-                        None => 0,
-                    };
-                    return_without_value(self)?;
-                    // TODO: getting return target register for send...
-                    self.current_regs()[return_reg].replace(val);
-                    if self.flag_preemption.get() {
-                        break;
-                    } else {
-                        continue;
-                    }
-                } else if self.break_level < target_level {
-                    eprintln!("[BUG] break target level mismatch");
-                } else {
-                    return_without_value(self)?;
-                    continue;
-                }
-            }
-
             match consume_expr(self, op.code, &operand, op.pos, op.len) {
                 Ok(_) => {}
                 Err(e) => {
@@ -272,6 +288,7 @@ impl VM {
         self.flag_preemption.set(false);
 
         if let Some(e) = self.exception.clone() {
+            //dbg!(&self.current_breadcrumb);
             return Err(e.error_type.borrow().clone().into());
         }
 
@@ -281,6 +298,7 @@ impl VM {
         };
         self.current_regs()[0].replace(top_self.clone());
 
+        //dbg!(&self.current_breadcrumb);
         retval
     }
 

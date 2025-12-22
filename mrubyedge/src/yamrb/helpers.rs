@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::Error;
+use crate::{Error, yamrb::vm::BreadCrumb};
 
 use super::{
     optable::push_callinfo,
@@ -116,7 +116,24 @@ pub fn mrb_call_block(
             .clone()
             .ok_or_else(|| Error::RuntimeError("No block self assigned".to_string()))?,
     };
-    call_block(vm, block, recv, args, None, return_register)
+    //dbg!(&vm.current_breadcrumb);
+    let upper = vm.current_breadcrumb.take();
+    let new_breadcrumb = Rc::new(BreadCrumb {
+        upper,
+        event: "block_call",
+        return_reg: None,
+    });
+    eprintln!("pile on {}", new_breadcrumb.event);
+    vm.current_breadcrumb.replace(new_breadcrumb);
+    //dbg!(&vm.current_breadcrumb);
+    let res = call_block(vm, block, recv, args, None, return_register);
+    //dbg!(&vm.current_breadcrumb);
+    let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
+    if let Some(upper) = &cur.as_ref().upper {
+        eprintln!("returning to {}", upper.event);
+        vm.current_breadcrumb.replace(upper.clone());
+    }
+    res
 }
 
 /// Calls a method on an object by name with the given arguments.
@@ -147,7 +164,17 @@ pub fn mrb_funcall(
     let (owner_module, method) = resolve_method(&binding, name)
         .ok_or_else(|| Error::NoMethodError(format!("{} for {}", name, binding.full_name())))?;
 
-    if method.is_rb_func {
+    let upper = vm.current_breadcrumb.take();
+    let new_breadcrumb = Rc::new(BreadCrumb {
+        upper,
+        event: "funcall",
+        return_reg: None,
+    });
+    eprintln!("pile on {}", new_breadcrumb.event);
+    vm.current_breadcrumb.replace(new_breadcrumb);
+    //dbg!(&vm.current_breadcrumb);
+
+    let res = if method.is_rb_func {
         let method_id = method
             .sym_id
             .clone()
@@ -174,7 +201,15 @@ pub fn mrb_funcall(
         }
 
         res
+    };
+    //dbg!(&vm.current_breadcrumb);
+    let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
+    if let Some(upper) = &cur.as_ref().upper {
+        eprintln!("returning to {}", upper.event);
+        vm.current_breadcrumb.replace(upper.clone());
     }
+
+    res
 }
 
 pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, Error> {
