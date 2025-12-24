@@ -491,7 +491,6 @@ pub(crate) fn push_callinfo(
         target_class: vm.target_class.clone(),
         method_owner,
     };
-    vm.break_level += 1;
     vm.current_callinfo = Some(Rc::new(callinfo));
 }
 
@@ -1159,7 +1158,6 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         vm.flag_preemption.set(true);
         return Ok(());
     }
-    vm.break_level -= 1;
 
     let ci = ci.unwrap();
     if let Some(prev) = &ci.prev {

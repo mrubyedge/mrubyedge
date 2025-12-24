@@ -184,10 +184,7 @@ pub fn mrb_funcall(
         )
     } else {
         let prev = vm.current_regs()[0].replace(recv.clone());
-
-        vm.break_level += 1; // Enter new break level
         let func = vm.fn_table[method.func.unwrap()].clone();
-        vm.break_level -= 1; // Exit break level after call
         let res = func(vm, args);
         if let Some(prev) = prev {
             vm.current_regs()[0].replace(prev);

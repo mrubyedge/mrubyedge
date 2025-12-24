@@ -83,10 +83,6 @@ pub struct VM {
     pub globals: HashMap<String, Rc<RObject>>,
     pub consts: HashMap<String, Rc<RObject>>,
 
-    pub break_level: usize,
-    pub break_value: RefCell<Option<Rc<RObject>>>,
-    pub break_target_level: Cell<Option<usize>>,
-
     pub upper: Option<Rc<ENV>>,
     // TODO: using fixed array?
     pub cur_env: HashMap<usize, Rc<ENV>>,
@@ -155,9 +151,6 @@ impl VM {
         let exception = None;
         let flag_preemption = Cell::new(false);
         let fn_table = Vec::new();
-        let break_level = 0;
-        let break_value = RefCell::new(None);
-        let break_target_level = Cell::new(None);
         let upper = None;
         let cur_env = HashMap::new();
         let has_env_ref = HashMap::new();
@@ -180,9 +173,6 @@ impl VM {
             class_object_table,
             globals,
             consts,
-            break_level,
-            break_value,
-            break_target_level,
             upper,
             cur_env,
             has_env_ref,
@@ -263,7 +253,6 @@ impl VM {
                         if let Some(retreg) = retreg
                             && let Error::Break(brkval) = e.error_type.borrow().clone()
                         {
-                            self.break_level -= 1; // handle as return
                             self.current_regs()[retreg].replace(brkval);
                             self.exception.take();
                         } else {
