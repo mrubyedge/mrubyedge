@@ -894,6 +894,14 @@ pub(crate) fn do_op_send(
     b: u8,
     c: u8,
 ) -> Result<(), Error> {
+    let method_id = vm.current_irep.syms[b as usize].clone();
+    if &method_id.name == "__debug__vm_info" {
+        // Special debug method to dump VM info
+        vm.debug_dump_to_stdout(10);
+        vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
+        return Ok(());
+    }
+
     let block_index = (a + c + 1) as usize;
 
     let recv = vm.get_current_regs_cloned(recv_index)?;
@@ -911,7 +919,6 @@ pub(crate) fn do_op_send(
         args.push(Rc::new(RObject::nil()));
     }
 
-    let method_id = vm.current_irep.syms[b as usize].clone();
     let klass = recv.get_class(vm);
     let klass = if klass.is_singleton {
         klass
@@ -923,9 +930,10 @@ pub(crate) fn do_op_send(
     })?;
 
     let upper = vm.current_breadcrumb.take();
-    let new_breadcrumb = Rc::new(BreadCrumb {
+    let new_breadcrumb = Rc::new(Breadcrumb {
         upper,
         event: "do_op_send",
+        caller: Some(method_id.name.clone()),
         return_reg: Some(a as usize),
     });
     //eprintln!("pile on {}", new_breadcrumb.event);
@@ -943,8 +951,6 @@ pub(crate) fn do_op_send(
 
         let res = func(vm, &args);
 
-        // pop_callinfo(vm);
-
         vm.current_regs_offset -= a as usize;
         for i in (a as usize + 1)..block_index {
             vm.current_regs()[i].take();
@@ -953,6 +959,13 @@ pub(crate) fn do_op_send(
         match res {
             Ok(val) => {
                 vm.current_regs()[a as usize].replace(val);
+                let cur = vm
+                    .current_breadcrumb
+                    .take()
+                    .expect("send should push breadcrumb");
+                let upper = cur.upper.clone();
+                vm.current_breadcrumb
+                    .replace(upper.expect("should have upper breadcrumb"));
             }
             Err(e) => {
                 vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
@@ -973,9 +986,10 @@ pub(crate) fn do_op_send(
 
 pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
     let upper = vm.current_breadcrumb.take();
-    let new_breadcrumb = Rc::new(BreadCrumb {
+    let new_breadcrumb = Rc::new(Breadcrumb {
         upper,
         event: "op_call",
+        caller: Some("<tailcall>".into()),
         return_reg: None,
     });
     vm.current_breadcrumb.replace(new_breadcrumb);
@@ -1047,9 +1061,10 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     }
 
     let upper = vm.current_breadcrumb.take();
-    let new_breadcrumb = Rc::new(BreadCrumb {
+    let new_breadcrumb = Rc::new(Breadcrumb {
         upper,
         event: "super",
+        caller: Some(format!("super({})", sym_id)),
         return_reg: None,
     });
     vm.current_breadcrumb.replace(new_breadcrumb);
@@ -1114,6 +1129,7 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 }
 
 pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    dbg!("in op_return");
     let a = operand.as_b()? as usize;
     let old_irep = vm.current_irep.clone();
     let nregs = old_irep.nregs;
@@ -1169,64 +1185,6 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
         eprintln!("returning to {}", upper.event);
-        vm.current_breadcrumb.replace(upper.clone());
-    }
-    Ok(())
-}
-
-// TODO: Dont repeat yourself
-pub(crate) fn return_without_value(vm: &mut VM) -> Result<(), Error> {
-    let old_irep = vm.current_irep.clone();
-    let nregs = old_irep.nregs;
-
-    let regs0_cloned: Vec<_> = vm.current_regs()[0..nregs].to_vec();
-    if let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
-        environ.capture_no_clone(regs0_cloned);
-        environ.as_ref().expire();
-        vm.has_env_ref.remove(&vm.current_irep.__id);
-    }
-
-    let regs0 = vm.current_regs();
-    if nregs > 0 {
-        regs0[1..=nregs].iter_mut().for_each(|reg| {
-            reg.take();
-        });
-    }
-
-    let ci = vm.current_callinfo.take();
-    if ci.is_none() {
-        //dbg!(&vm.current_breadcrumb);
-
-        let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
-        if let Some(upper) = &cur.as_ref().upper {
-            //eprintln!("returning to {}", upper.event);
-            vm.current_breadcrumb.replace(upper.clone());
-        }
-        // When called from mrb_funcall, return error if there's an exception
-        if let Some(e) = &vm.exception {
-            return Err(e.error_type.borrow().clone());
-        }
-        // For normal completion, set preemption flag and terminate
-        vm.flag_preemption.set(true);
-        return Ok(());
-    }
-    vm.break_level -= 1;
-
-    let ci = ci.unwrap();
-    if let Some(prev) = &ci.prev {
-        vm.current_callinfo.replace(prev.clone());
-    }
-    vm.current_irep = ci.pc_irep.clone();
-    vm.pc.set(ci.pc);
-    vm.current_regs_offset = ci.current_regs_offset;
-    vm.target_class = ci.target_class.clone();
-    if vm.current_regs()[0].is_none() {
-        todo!("debug");
-    }
-
-    let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
-    if let Some(upper) = &cur.as_ref().upper {
-        //eprintln!("returning to {}", upper.event);
         vm.current_breadcrumb.replace(upper.clone());
     }
     Ok(())
@@ -1771,9 +1729,10 @@ pub(crate) fn op_exec(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let recv = vm.get_current_regs_cloned(a as usize)?;
 
     let upper = vm.current_breadcrumb.take();
-    let new_breadcrumb = Rc::new(BreadCrumb {
+    let new_breadcrumb = Rc::new(Breadcrumb {
         upper,
         event: "exec",
+        caller: Some("<exec>".into()),
         return_reg: None,
     });
     vm.current_breadcrumb.replace(new_breadcrumb);

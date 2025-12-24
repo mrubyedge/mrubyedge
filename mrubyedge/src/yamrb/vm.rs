@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use crate::Error;
 use crate::rite::{Irep, Rite, insn};
+use crate::yamrb::helpers::mrb_call_inspect;
 
 use super::op::Op;
 use super::prelude::prelude;
@@ -32,10 +33,30 @@ impl TargetContext {
 }
 
 #[derive(Debug)]
-pub struct BreadCrumb {
+pub struct Breadcrumb {
     pub event: &'static str, // TODO: be enum
+    pub caller: Option<String>,
     pub return_reg: Option<usize>,
-    pub upper: Option<Rc<BreadCrumb>>,
+    pub upper: Option<Rc<Breadcrumb>>,
+}
+
+impl Breadcrumb {
+    pub fn display_breadcrumb_for_debug(&self, level: usize, max_level: usize) -> bool {
+        if level > max_level {
+            return false;
+        }
+        eprintln!(
+            "{}- Breadcrumb: event='{}', caller={}, return_reg={:?}",
+            "  ".repeat(level),
+            self.event,
+            self.caller.as_deref().unwrap_or("(none)"),
+            self.return_reg
+        );
+        if let Some(upper) = &self.upper {
+            upper.display_breadcrumb_for_debug(level + 1, max_level);
+        }
+        true
+    }
 }
 
 pub struct VM {
@@ -48,7 +69,7 @@ pub struct VM {
     pub regs: [Option<Rc<RObject>>; MAX_REGS_SIZE],
     pub current_regs_offset: usize,
     pub current_callinfo: Option<Rc<CALLINFO>>,
-    pub current_breadcrumb: Option<Rc<BreadCrumb>>,
+    pub current_breadcrumb: Option<Rc<Breadcrumb>>,
     pub target_class: TargetContext,
     pub exception: Option<Rc<RException>>,
 
@@ -124,9 +145,10 @@ impl VM {
         let regs: [Option<Rc<RObject>>; MAX_REGS_SIZE] = [const { None }; MAX_REGS_SIZE];
         let current_regs_offset = 0;
         let current_callinfo = None;
-        let current_breadcrumb = Some(Rc::new(BreadCrumb {
+        let current_breadcrumb = Some(Rc::new(Breadcrumb {
             upper: None,
             event: "root",
+            caller: None,
             return_reg: None,
         }));
         let target_class = TargetContext::Class(object_class.clone());
@@ -177,13 +199,30 @@ impl VM {
     /// top-level `self` is initialized automatically before evaluation.
     pub fn run(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
         let upper = self.current_breadcrumb.take();
-        let new_breadcrumb = Rc::new(BreadCrumb {
+        let new_breadcrumb = Rc::new(Breadcrumb {
             upper,
             event: "run",
+            caller: None,
             return_reg: None,
         });
         self.current_breadcrumb.replace(new_breadcrumb);
+        self.__run()
+    }
 
+    /// Internal run method that manages breadcrumb stack for internal calls.
+    pub fn run_internal(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
+        let upper = self.current_breadcrumb.take();
+        let new_breadcrumb = Rc::new(Breadcrumb {
+            upper,
+            event: "run_internal",
+            caller: None,
+            return_reg: None,
+        });
+        self.current_breadcrumb.replace(new_breadcrumb);
+        self.__run()
+    }
+
+    fn __run(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
         let class = self.object_class.clone();
         // Insert top_self
         let top_self = RObject {
@@ -211,44 +250,31 @@ impl VM {
                     continue;
                 }
 
-                dbg!("return break val on upper");
-                // dbg!(&self.current_breadcrumb);
                 let retreg = match self.current_breadcrumb.as_ref() {
                     Some(bc) if bc.event == "do_op_send" => {
                         let retreg = bc.as_ref().return_reg.unwrap_or(0);
                         // dbg!(("return to reg {:?}", retreg));
-                        retreg
+                        Some(retreg)
                     }
-                    _ => 0,
+                    _ => None,
                 };
                 match op_return(self, &operand) {
                     Ok(_) => {}
                     Err(_) => {
-                        if self.break_value.borrow_mut().is_some()
-                            && matches!(e.error_type.borrow().clone(), Error::Break(_))
+                        if let Some(retreg) = retreg
+                            && let Error::Break(brkval) = e.error_type.borrow().clone()
                         {
-                            let retval = self.break_value.borrow_mut().take();
-                            // dbg!(&self.current_breadcrumb);
-                            // let retreg = match self.current_breadcrumb.as_ref() {
-                            //     Some(bc) if bc.event == "do_op_send" => {
-                            //         let retreg = bc.as_ref().return_reg.unwrap_or(0);
-                            //         dbg!(("return to reg {:?}", retreg));
-                            //         retreg
-                            //     }
-                            //     _ => retreg,
-                            // };
-
+                            dbg!("return brkval");
                             self.break_level -= 1; // handle as return
-                            self.current_regs()[retreg]
-                                .replace(retval.expect("break value missing"));
+                            self.current_regs()[retreg].replace(brkval);
                             self.exception.take();
 
                             // self.break_level -= 1;
                         } else {
-                            if let Error::Break(brkval) = e.error_type.borrow().clone() {
-                                // dbg!("set break val to VM");
-                                self.break_value.borrow_mut().replace(brkval.clone());
-                            }
+                            // if let Error::Break(brkval) = e.error_type.borrow().clone() {
+                            //     // dbg!("set break val to VM");
+                            //     self.break_value.borrow_mut().replace(brkval.clone());
+                            // }
                             break;
                         }
                     }
@@ -446,6 +472,39 @@ impl VM {
         let class = self.define_class(name, Some(superclass.clone()), Some(parent));
         self.builtin_class_table.insert(name, class.clone());
         class
+    }
+
+    pub fn debug_dump_to_stdout(&mut self, max_breadcrumb_level: usize) {
+        eprintln!("=== VM Dump ===");
+        eprintln!("ID: {}", self.id);
+        eprintln!("PC: {}", self.pc.get());
+        eprintln!("Current IREP ID: {}", self.current_irep.__id);
+        eprintln!("Current Regs Offset: {}", self.current_regs_offset);
+        eprintln!("Current Regs:");
+        let size = self.current_regs().len();
+        for i in 0..size {
+            let reg = &self.get_current_regs_cloned(i).ok();
+            if let Some(obj) = reg {
+                let inspect: String = mrb_call_inspect(self, obj.clone())
+                    .unwrap()
+                    .as_ref()
+                    .try_into()
+                    .unwrap_or_else(|_| "(uninspectable)".into());
+                eprintln!("  R{}: {}", i, inspect);
+            } else {
+                break;
+            }
+        }
+        // eprintln!("Current CallInfo: {:?}", self.current_callinfo);
+        eprintln!("Target Class: {}", self.target_class.name());
+        // eprintln!("Exception: {:?}", self.exception);
+        eprintln!("--- Breadcrumb ---");
+        if let Some(bc) = &self.current_breadcrumb {
+            bc.display_breadcrumb_for_debug(0, max_breadcrumb_level);
+        } else {
+            eprintln!("(none)");
+        }
+        eprintln!("=== End of VM Dump ===");
     }
 }
 
