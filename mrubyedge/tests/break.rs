@@ -154,6 +154,3 @@ fn break_test_toplevel() {
     let result: i32 = vm.run().unwrap().as_ref().try_into().unwrap();
     assert_eq!(result, 10);
 }
-
-#[test]
-fn break_test2() {}
