@@ -116,7 +116,6 @@ pub fn mrb_call_block(
             .clone()
             .ok_or_else(|| Error::RuntimeError("No block self assigned".to_string()))?,
     };
-    //dbg!(&vm.current_breadcrumb);
     let upper = vm.current_breadcrumb.take();
     let new_breadcrumb = Rc::new(Breadcrumb {
         upper,
@@ -124,13 +123,10 @@ pub fn mrb_call_block(
         caller: None,
         return_reg: None,
     });
-    //eprintln!("pile on {}", new_breadcrumb.event);
     vm.current_breadcrumb.replace(new_breadcrumb);
-    //dbg!(&vm.current_breadcrumb);
     let res = call_block(vm, block, recv, args, None, return_register);
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
-        //eprintln!("returning to {}", upper.event);
         vm.current_breadcrumb.replace(upper.clone());
     }
     res
@@ -171,9 +167,7 @@ pub fn mrb_funcall(
         caller: Some(name.to_string()),
         return_reg: None,
     });
-    //("pile on {}", new_breadcrumb.event);
     vm.current_breadcrumb.replace(new_breadcrumb);
-    //dbg!(&vm.current_breadcrumb);
 
     let res = if method.is_rb_func {
         let method_id = method
@@ -203,10 +197,8 @@ pub fn mrb_funcall(
 
         res
     };
-    //dbg!(&vm.current_breadcrumb);
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
-        //eprintln!("returning to {}", upper.event);
         vm.current_breadcrumb.replace(upper.clone());
     }
 

@@ -526,7 +526,6 @@ fn calcurate_pc(irep: &IREP, pc: usize, original_pc: usize) -> usize {
 
 pub(crate) fn op_nop(_vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
     // NOOP
-    // eprintln!("[debug] nop");
     Ok(())
 }
 
@@ -936,9 +935,7 @@ pub(crate) fn do_op_send(
         caller: Some(method_id.name.clone()),
         return_reg: Some(a as usize),
     });
-    //eprintln!("pile on {}", new_breadcrumb.event);
     vm.current_breadcrumb.replace(new_breadcrumb);
-    //dbg!(&vm.current_breadcrumb);
 
     vm.current_regs()[a as usize].replace(recv.clone());
     if !method.is_rb_func {
@@ -946,8 +943,6 @@ pub(crate) fn do_op_send(
             .get_fn(method.func.unwrap())
             .ok_or_else(|| Error::internal("function not found"))?;
         vm.current_regs_offset += a as usize;
-
-        // push_callinfo(vm, method_id, c as usize, Some(owner_module), a as usize);
 
         let res = func(vm, &args);
 
@@ -1129,7 +1124,6 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 }
 
 pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
-    dbg!("in op_return");
     let a = operand.as_b()? as usize;
     let old_irep = vm.current_irep.clone();
     let nregs = old_irep.nregs;
@@ -1155,12 +1149,10 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     if ci.is_none() {
         let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
         if let Some(upper) = &cur.as_ref().upper {
-            eprintln!("returning to {}", upper.event);
             vm.current_breadcrumb.replace(upper.clone());
         }
         // When called from mrb_funcall, return error if there's an exception
         if let Some(e) = &vm.exception {
-            //eprintln!("err...");
             return Err(e.error_type.borrow().clone());
         }
         // For normal completion, set preemption flag and terminate
@@ -1178,13 +1170,11 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     vm.current_regs_offset = ci.current_regs_offset;
     vm.target_class = ci.target_class.clone();
     if vm.current_regs()[0].is_none() {
-        todo!("debug");
+        unreachable!("debug");
     }
 
-    //dbg!(&vm.current_breadcrumb);
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
-        eprintln!("returning to {}", upper.event);
         vm.current_breadcrumb.replace(upper.clone());
     }
     Ok(())

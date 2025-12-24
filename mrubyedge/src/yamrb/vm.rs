@@ -253,7 +253,6 @@ impl VM {
                 let retreg = match self.current_breadcrumb.as_ref() {
                     Some(bc) if bc.event == "do_op_send" => {
                         let retreg = bc.as_ref().return_reg.unwrap_or(0);
-                        // dbg!(("return to reg {:?}", retreg));
                         Some(retreg)
                     }
                     _ => None,
@@ -264,17 +263,10 @@ impl VM {
                         if let Some(retreg) = retreg
                             && let Error::Break(brkval) = e.error_type.borrow().clone()
                         {
-                            dbg!("return brkval");
                             self.break_level -= 1; // handle as return
                             self.current_regs()[retreg].replace(brkval);
                             self.exception.take();
-
-                            // self.break_level -= 1;
                         } else {
-                            // if let Error::Break(brkval) = e.error_type.borrow().clone() {
-                            //     // dbg!("set break val to VM");
-                            //     self.break_value.borrow_mut().replace(brkval.clone());
-                            // }
                             break;
                         }
                     }
@@ -324,7 +316,6 @@ impl VM {
         self.flag_preemption.set(false);
 
         if let Some(e) = self.exception.clone() {
-            //dbg!(&self.current_breadcrumb);
             return Err(e.error_type.borrow().clone().into());
         }
 
@@ -334,7 +325,6 @@ impl VM {
         };
         self.current_regs()[0].replace(top_self.clone());
 
-        //dbg!(&self.current_breadcrumb);
         retval
     }
 
