@@ -1126,6 +1126,7 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
     let old_irep = vm.current_irep.clone();
     let nregs = old_irep.nregs;
+    // let no_return = vm.current_callinfo.is_some();
 
     let regs0_cloned: Vec<_> = vm.current_regs()[0..nregs].to_vec();
     if let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
@@ -1138,11 +1139,12 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     if let Some(regs_a) = regs0[a].take() {
         regs0[0].replace(regs_a);
     }
-    if nregs > 0 {
-        regs0[1..=nregs].iter_mut().for_each(|reg| {
-            reg.take();
-        });
-    }
+    // TODO: inspect if this is needed
+    // if nregs > 0 && no_return {
+    //     regs0[1..=nregs].iter_mut().for_each(|reg| {
+    //         reg.take();
+    //     });
+    // }
 
     let ci = vm.current_callinfo.take();
     if ci.is_none() {
@@ -1151,6 +1153,7 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             vm.current_breadcrumb.replace(upper.clone());
         }
         // When called from mrb_funcall, return error if there's an exception
+
         if let Some(e) = &vm.exception {
             return Err(e.error_type.borrow().clone());
         }
@@ -1181,6 +1184,7 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_break(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
     let val = vm.get_current_regs_cloned(a)?;
+
     Err(Error::Break(val))
 }
 
