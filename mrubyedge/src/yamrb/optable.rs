@@ -1181,11 +1181,7 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_break(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
     let val = vm.get_current_regs_cloned(a)?;
-    // vm.break_value.borrow_mut().replace(val.clone());
-    // vm.break_target_level.set(Some(vm.break_level));
-
     Err(Error::Break(val))
-    // return_without_value(vm)
 }
 
 pub(crate) fn op_blkpush(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
