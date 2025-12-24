@@ -6,7 +6,6 @@ use std::rc::Rc;
 
 use crate::Error;
 use crate::rite::insn::{Fetched, OpCode};
-use crate::yamrb::prelude::class;
 
 use super::prelude::object::mrb_object_is_equal;
 use super::{helpers::mrb_funcall, value::*, vm::*};
@@ -496,6 +495,7 @@ pub(crate) fn push_callinfo(
     vm.current_callinfo = Some(Rc::new(callinfo));
 }
 
+#[allow(dead_code)]
 pub(crate) fn pop_callinfo(vm: &mut VM) {
     let ci = vm.current_callinfo.take();
     if ci.is_none() {
