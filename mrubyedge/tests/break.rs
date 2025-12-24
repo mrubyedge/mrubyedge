@@ -137,6 +137,38 @@ fn break_test_nested() {
 }
 
 #[test]
+fn break_test_nested_with_closure() {
+    let code = "
+    $a = [0, 2, 4, 6, 8]
+
+    def test_break
+      x = 0
+      y = 0
+      3.times do |i|
+        $a.each do |j|
+          y += j
+          break if j >= 5
+        end
+        x += i
+      end
+      [x, y]
+    end
+    ";
+    let binary = mrbc_compile("break_test_nested_with_closure", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+    // Assert
+    let args = vec![];
+    let result: (i32, i32) = mrb_funcall(&mut vm, None, "test_break", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, (3, 36));
+}
+
+#[test]
 fn break_test_toplevel() {
     let code = "
     i = 0
