@@ -459,10 +459,10 @@ impl VM {
         eprintln!("PC: {}", self.pc.get());
         eprintln!("Current IREP ID: {}", self.current_irep.__id);
         eprintln!("Current Regs Offset: {}", self.current_regs_offset);
-        eprintln!("Current Regs:");
-        let size = self.current_regs().len();
+        eprintln!("Regs:");
+        let size = self.regs.len();
         for i in 0..size {
-            let reg = &self.get_current_regs_cloned(i).ok();
+            let reg = self.regs.get(i).unwrap();
             if let Some(obj) = reg {
                 let inspect: String = mrb_call_inspect(self, obj.clone())
                     .unwrap()
