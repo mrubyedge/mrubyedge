@@ -91,7 +91,7 @@ fn mrb_hash_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
             let hash = hash.borrow();
             for (_, (key, value)) in hash.iter() {
                 let args = vec![key.clone(), value.clone()];
-                mrb_call_block(vm, block.clone(), None, &args)?;
+                mrb_call_block(vm, block.clone(), None, &args, 0)?;
             }
         }
         _ => {

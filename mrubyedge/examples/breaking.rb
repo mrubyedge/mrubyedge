@@ -3,7 +3,8 @@ def onetimes
   puts "whoa?"
 end
 
-onetimes do
+p(onetimes do
   puts "dummy"
-  break
-end
+  __debug__vm_info
+  break 42
+end)

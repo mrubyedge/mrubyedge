@@ -147,7 +147,7 @@ fn mrb_array_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
             let a = a.borrow();
             for elem in a.iter() {
                 let args = vec![elem.clone()];
-                mrb_call_block(vm, block.clone(), None, &args)?;
+                mrb_call_block(vm, block.clone(), None, &args, 0)?;
             }
         }
         _ => {

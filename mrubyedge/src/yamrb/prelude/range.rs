@@ -64,7 +64,7 @@ pub fn mrb_range_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
                 }
                 for i in start..=end {
                     let args = vec![Rc::new(RObject::integer(i))];
-                    mrb_call_block(vm, block.clone(), None, &args)?;
+                    mrb_call_block(vm, block.clone(), None, &args, 0)?;
                 }
             }
             _ => {

@@ -38,7 +38,15 @@ fn main() -> Result<(), std::io::Error> {
     let res = vm.run().unwrap();
     remove_file("/tmp/__tmp__.mrb")?;
 
-    eprintln!("return value: {:?}", res);
+    match res.as_ref().tt {
+        mrubyedge::yamrb::value::RType::Instance => {
+            eprintln!(
+                "return value: Instance, object_id = {}",
+                res.as_ref().object_id.get()
+            );
+        }
+        _ => eprintln!("return value: {:?}", res),
+    };
     // dbg!(&vm);
     Ok(())
 }

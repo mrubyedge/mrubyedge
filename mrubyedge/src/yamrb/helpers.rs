@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::Error;
+use crate::{Error, yamrb::vm::Breadcrumb};
 
 use super::{
     optable::push_callinfo,
@@ -14,12 +14,13 @@ fn call_block(
     recv: Rc<RObject>,
     args: &[Rc<RObject>],
     method_info: Option<(RSym, Rc<RModule>)>,
+    return_register: usize,
 ) -> Result<Rc<RObject>, Error> {
     let (method_id, method_owner) = match method_info {
         Some((id, owner)) => (id, Some(owner)),
         None => (RSym::new("<block>".to_string()), None),
     };
-    push_callinfo(vm, method_id, args.len(), method_owner);
+    push_callinfo(vm, method_id, args.len(), method_owner, return_register);
 
     let old_callinfo = vm.current_callinfo.take();
 
@@ -41,7 +42,7 @@ fn call_block(
         .clone();
     vm.upper = block.environ;
 
-    let res = vm.run();
+    let res = vm.run_internal();
 
     if let Some(prev) = prev_self {
         vm.current_regs()[0].replace(prev);
@@ -102,6 +103,7 @@ pub fn mrb_call_block(
     block: Rc<RObject>,
     recv: Option<Rc<RObject>>,
     args: &[Rc<RObject>],
+    return_register: usize,
 ) -> Result<Rc<RObject>, Error> {
     let block = match &block.value {
         RValue::Proc(p) => p.clone(),
@@ -114,7 +116,20 @@ pub fn mrb_call_block(
             .clone()
             .ok_or_else(|| Error::RuntimeError("No block self assigned".to_string()))?,
     };
-    call_block(vm, block, recv, args, None)
+    let upper = vm.current_breadcrumb.take();
+    let new_breadcrumb = Rc::new(Breadcrumb {
+        upper,
+        event: "block_call",
+        caller: None,
+        return_reg: None,
+    });
+    vm.current_breadcrumb.replace(new_breadcrumb);
+    let res = call_block(vm, block, recv, args, None, return_register);
+    let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
+    if let Some(upper) = &cur.as_ref().upper {
+        vm.current_breadcrumb.replace(upper.clone());
+    }
+    res
 }
 
 /// Calls a method on an object by name with the given arguments.
@@ -145,7 +160,16 @@ pub fn mrb_funcall(
     let (owner_module, method) = resolve_method(&binding, name)
         .ok_or_else(|| Error::NoMethodError(format!("{} for {}", name, binding.full_name())))?;
 
-    if method.is_rb_func {
+    let upper = vm.current_breadcrumb.take();
+    let new_breadcrumb = Rc::new(Breadcrumb {
+        upper,
+        event: "funcall",
+        caller: Some(name.to_string()),
+        return_reg: None,
+    });
+    vm.current_breadcrumb.replace(new_breadcrumb);
+
+    let res = if method.is_rb_func {
         let method_id = method
             .sym_id
             .clone()
@@ -156,10 +180,10 @@ pub fn mrb_funcall(
             recv.clone(),
             args,
             Some((method_id, owner_module)),
+            0, // unused
         )
     } else {
         let prev = vm.current_regs()[0].replace(recv.clone());
-
         let func = vm.fn_table[method.func.unwrap()].clone();
         let res = func(vm, args);
         if let Some(prev) = prev {
@@ -169,7 +193,13 @@ pub fn mrb_funcall(
         }
 
         res
+    };
+    let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
+    if let Some(upper) = &cur.as_ref().upper {
+        vm.current_breadcrumb.replace(upper.clone());
     }
+
+    res
 }
 
 pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, Error> {
@@ -187,6 +217,7 @@ pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, E
             recv.clone(),
             &[],
             Some((method_id, owner_module)),
+            0, // unused
         )
     } else {
         vm.current_regs_offset += 2; // FIXME: magick number?

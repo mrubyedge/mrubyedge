@@ -414,11 +414,6 @@ impl RObject {
         ));
 
         self.singleton_class.replace(Some(sclass.clone()));
-        eprintln!(
-            "Created singleton class: {} / {}",
-            class_name,
-            self.object_id.get()
-        );
         sclass
     }
 
@@ -479,6 +474,72 @@ impl TryFrom<&RObject> for i32 {
                 }
             }
             RValue::Float(f) => Ok(f as i32),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+}
+
+impl TryFrom<&RObject> for (i32, i32) {
+    type Error = Error;
+
+    fn try_from(value: &RObject) -> Result<Self, Self::Error> {
+        match &value.value {
+            RValue::Array(ar) => {
+                let vec = ar.borrow();
+                if vec.len() != 2 {
+                    return Err(Error::ArgumentError(
+                        "expected array of length 2".to_string(),
+                    ));
+                }
+                let first: i32 = vec[0].as_ref().try_into()?;
+                let second: i32 = vec[1].as_ref().try_into()?;
+                Ok((first, second))
+            }
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+}
+
+impl TryFrom<&RObject> for (i32, i32, i32) {
+    type Error = Error;
+
+    fn try_from(value: &RObject) -> Result<Self, Self::Error> {
+        match &value.value {
+            RValue::Array(ar) => {
+                let vec = ar.borrow();
+                if vec.len() != 3 {
+                    return Err(Error::ArgumentError(
+                        "expected array of length 3".to_string(),
+                    ));
+                }
+                let first: i32 = vec[0].as_ref().try_into()?;
+                let second: i32 = vec[1].as_ref().try_into()?;
+                let third: i32 = vec[2].as_ref().try_into()?;
+                Ok((first, second, third))
+            }
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+}
+
+impl TryFrom<&RObject> for (i32, i32, i32, i32) {
+    type Error = Error;
+
+    fn try_from(value: &RObject) -> Result<Self, Self::Error> {
+        match &value.value {
+            RValue::Array(ar) => {
+                let vec = ar.borrow();
+                if vec.len() != 4 {
+                    return Err(Error::ArgumentError(
+                        "expected array of length 4".to_string(),
+                    ));
+                }
+                let first: i32 = vec[0].as_ref().try_into()?;
+                let second: i32 = vec[1].as_ref().try_into()?;
+                let third: i32 = vec[2].as_ref().try_into()?;
+                let fourth: i32 = vec[3].as_ref().try_into()?;
+                Ok((first, second, third, fourth))
+            }
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -642,6 +703,12 @@ impl TryFrom<&RObject> for *mut u8 {
             RValue::SharedMemory(sm) => Ok(sm.borrow_mut().as_mut_ptr()),
             _ => Err(Error::TypeMismatch),
         }
+    }
+}
+
+impl PartialEq for RObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.object_id.get() == other.object_id.get()
     }
 }
 
@@ -937,6 +1004,8 @@ impl RClass {
             Error::TypeMismatch => vm.get_class_by_name("LoadError"),
             Error::NoMethodError(_) => vm.get_class_by_name("NoMethodError"),
             Error::NameError(_) => vm.get_class_by_name("NameError"),
+
+            Error::Break(_) => vm.get_class_by_name("_Break"),
         }
     }
 }

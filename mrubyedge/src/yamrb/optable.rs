@@ -322,12 +322,12 @@ pub(crate) fn consume_expr(
         // RETURN_BLK => {
         //     // op_return_blk(vm, &operand)?;
         // }
-        // BREAK => {
-        //     // op_break(vm, &operand)?;
-        // }
-        // BLKPUSH => {
-        //     // op_blkpush(vm, &operand)?;
-        // }
+        BREAK => {
+            op_break(vm, operand)?;
+        }
+        BLKPUSH => {
+            op_blkpush(vm, operand)?;
+        }
         ADD => {
             op_add(vm, operand)?;
         }
@@ -478,6 +478,7 @@ pub(crate) fn push_callinfo(
     method_id: RSym,
     n_args: usize,
     method_owner: Option<Rc<RModule>>,
+    return_reg: usize,
 ) {
     let callinfo = CALLINFO {
         prev: vm.current_callinfo.clone(),
@@ -486,17 +487,34 @@ pub(crate) fn push_callinfo(
         pc: vm.pc.get(),
         current_regs_offset: vm.current_regs_offset,
         n_args,
+        return_reg,
         target_class: vm.target_class.clone(),
         method_owner,
     };
     vm.current_callinfo = Some(Rc::new(callinfo));
 }
 
+#[allow(dead_code)]
+pub(crate) fn pop_callinfo(vm: &mut VM) {
+    let ci = vm.current_callinfo.take();
+    if ci.is_none() {
+        unreachable!("callinfo underflow");
+    }
+
+    let ci = ci.unwrap();
+    if let Some(prev) = &ci.prev {
+        vm.current_callinfo.replace(prev.clone());
+    }
+    vm.current_irep = ci.pc_irep.clone();
+    vm.pc.set(ci.pc);
+    vm.current_regs_offset = ci.current_regs_offset;
+    vm.target_class = ci.target_class.clone();
+}
+
 fn calcurate_pc(irep: &IREP, pc: usize, original_pc: usize) -> usize {
     let mut next_pc = pc;
     loop {
         let op = irep.code.get(next_pc).expect("cannot fetch op anymore");
-        // dbg!((&op, original_pc));
         if op.pos == original_pc {
             break;
         }
@@ -507,7 +525,6 @@ fn calcurate_pc(irep: &IREP, pc: usize, original_pc: usize) -> usize {
 
 pub(crate) fn op_nop(_vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
     // NOOP
-    // eprintln!("[debug] nop");
     Ok(())
 }
 
@@ -875,6 +892,14 @@ pub(crate) fn do_op_send(
     b: u8,
     c: u8,
 ) -> Result<(), Error> {
+    let method_id = vm.current_irep.syms[b as usize].clone();
+    if &method_id.name == "__debug__vm_info" {
+        // Special debug method to dump VM info
+        vm.debug_dump_to_stdout(10);
+        vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
+        return Ok(());
+    }
+
     let block_index = (a + c + 1) as usize;
 
     let recv = vm.get_current_regs_cloned(recv_index)?;
@@ -892,7 +917,6 @@ pub(crate) fn do_op_send(
         args.push(Rc::new(RObject::nil()));
     }
 
-    let method_id = vm.current_irep.syms[b as usize].clone();
     let klass = recv.get_class(vm);
     let klass = if klass.is_singleton {
         klass
@@ -902,6 +926,15 @@ pub(crate) fn do_op_send(
     let (owner_module, method) = resolve_method(&klass, &method_id.name).ok_or_else(|| {
         Error::NoMethodError(format!("{} for {}", method_id.name, klass.full_name()))
     })?;
+
+    let upper = vm.current_breadcrumb.take();
+    let new_breadcrumb = Rc::new(Breadcrumb {
+        upper,
+        event: "do_op_send",
+        caller: Some(method_id.name.clone()),
+        return_reg: Some(a as usize),
+    });
+    vm.current_breadcrumb.replace(new_breadcrumb);
 
     vm.current_regs()[a as usize].replace(recv.clone());
     if !method.is_rb_func {
@@ -920,6 +953,13 @@ pub(crate) fn do_op_send(
         match res {
             Ok(val) => {
                 vm.current_regs()[a as usize].replace(val);
+                let cur = vm
+                    .current_breadcrumb
+                    .take()
+                    .expect("send should push breadcrumb");
+                let upper = cur.upper.clone();
+                vm.current_breadcrumb
+                    .replace(upper.expect("should have upper breadcrumb"));
             }
             Err(e) => {
                 vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
@@ -930,7 +970,7 @@ pub(crate) fn do_op_send(
         return Ok(());
     }
 
-    push_callinfo(vm, method_id, c as usize, Some(owner_module));
+    push_callinfo(vm, method_id, c as usize, Some(owner_module), a as usize);
 
     vm.pc.set(0);
     vm.current_irep = method.irep.ok_or_else(|| Error::internal("empry irep"))?;
@@ -939,7 +979,15 @@ pub(crate) fn do_op_send(
 }
 
 pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
-    push_callinfo(vm, "<tailcall>".into(), 0, None);
+    let upper = vm.current_breadcrumb.take();
+    let new_breadcrumb = Rc::new(Breadcrumb {
+        upper,
+        event: "op_call",
+        caller: Some("<tailcall>".into()),
+        return_reg: None,
+    });
+    vm.current_breadcrumb.replace(new_breadcrumb);
+    push_callinfo(vm, "<tailcall>".into(), 0, None, 0);
 
     vm.pc.set(0);
     let proc = vm.current_regs()[0]
@@ -1006,12 +1054,22 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         return Ok(());
     }
 
+    let upper = vm.current_breadcrumb.take();
+    let new_breadcrumb = Rc::new(Breadcrumb {
+        upper,
+        event: "super",
+        caller: Some(format!("super({})", sym_id)),
+        return_reg: None,
+    });
+    vm.current_breadcrumb.replace(new_breadcrumb);
+
     vm.current_regs()[a as usize].replace(recv.clone());
     push_callinfo(
         vm,
         method.sym_id.clone().unwrap(),
         b as usize,
         Some(next_owner),
+        a as usize,
     );
 
     vm.pc.set(0);
@@ -1088,6 +1146,10 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
     let ci = vm.current_callinfo.take();
     if ci.is_none() {
+        let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
+        if let Some(upper) = &cur.as_ref().upper {
+            vm.current_breadcrumb.replace(upper.clone());
+        }
         // When called from mrb_funcall, return error if there's an exception
         if let Some(e) = &vm.exception {
             return Err(e.error_type.borrow().clone());
@@ -1106,8 +1168,27 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     vm.current_regs_offset = ci.current_regs_offset;
     vm.target_class = ci.target_class.clone();
     if vm.current_regs()[0].is_none() {
-        todo!("debug");
+        unreachable!("debug");
     }
+
+    let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
+    if let Some(upper) = &cur.as_ref().upper {
+        vm.current_breadcrumb.replace(upper.clone());
+    }
+    Ok(())
+}
+
+pub(crate) fn op_break(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let a = operand.as_b()? as usize;
+    let val = vm.get_current_regs_cloned(a)?;
+    Err(Error::Break(val))
+}
+
+pub(crate) fn op_blkpush(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, _s) = operand.as_bs()?;
+    let n = vm.current_callinfo.as_ref().unwrap().n_args;
+    let block = vm.get_current_regs_cloned(n + 1)?;
+    vm.current_regs()[a as usize].replace(block);
     Ok(())
 }
 
@@ -1631,8 +1712,17 @@ pub(crate) fn op_exec(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let recv = vm.get_current_regs_cloned(a as usize)?;
 
+    let upper = vm.current_breadcrumb.take();
+    let new_breadcrumb = Rc::new(Breadcrumb {
+        upper,
+        event: "exec",
+        caller: Some("<exec>".into()),
+        return_reg: None,
+    });
+    vm.current_breadcrumb.replace(new_breadcrumb);
+
     vm.current_regs()[a as usize].replace(recv.clone());
-    push_callinfo(vm, "<exec>".into(), 0, None);
+    push_callinfo(vm, "<exec>".into(), 0, None, a as usize);
 
     vm.pc.set(0);
     let irep = vm.current_irep.reps[b as usize].clone();

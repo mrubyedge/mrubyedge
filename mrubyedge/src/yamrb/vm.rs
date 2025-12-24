@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use crate::Error;
 use crate::rite::{Irep, Rite, insn};
+use crate::yamrb::helpers::mrb_call_inspect;
 
 use super::op::Op;
 use super::prelude::prelude;
@@ -31,6 +32,33 @@ impl TargetContext {
     }
 }
 
+#[derive(Debug)]
+pub struct Breadcrumb {
+    pub event: &'static str, // TODO: be enum
+    pub caller: Option<String>,
+    pub return_reg: Option<usize>,
+    pub upper: Option<Rc<Breadcrumb>>,
+}
+
+impl Breadcrumb {
+    pub fn display_breadcrumb_for_debug(&self, level: usize, max_level: usize) -> bool {
+        if level > max_level {
+            return false;
+        }
+        eprintln!(
+            "{}- Breadcrumb: event='{}', caller={}, return_reg={:?}",
+            "  ".repeat(level),
+            self.event,
+            self.caller.as_deref().unwrap_or("(none)"),
+            self.return_reg
+        );
+        if let Some(upper) = &self.upper {
+            upper.display_breadcrumb_for_debug(level + 1, max_level);
+        }
+        true
+    }
+}
+
 pub struct VM {
     pub irep: Rc<IREP>,
 
@@ -41,6 +69,7 @@ pub struct VM {
     pub regs: [Option<Rc<RObject>>; MAX_REGS_SIZE],
     pub current_regs_offset: usize,
     pub current_callinfo: Option<Rc<CALLINFO>>,
+    pub current_breadcrumb: Option<Rc<Breadcrumb>>,
     pub target_class: TargetContext,
     pub exception: Option<Rc<RException>>,
 
@@ -112,6 +141,12 @@ impl VM {
         let regs: [Option<Rc<RObject>>; MAX_REGS_SIZE] = [const { None }; MAX_REGS_SIZE];
         let current_regs_offset = 0;
         let current_callinfo = None;
+        let current_breadcrumb = Some(Rc::new(Breadcrumb {
+            upper: None,
+            event: "root",
+            caller: None,
+            return_reg: None,
+        }));
         let target_class = TargetContext::Class(object_class.clone());
         let exception = None;
         let flag_preemption = Cell::new(false);
@@ -129,6 +164,7 @@ impl VM {
             regs,
             current_regs_offset,
             current_callinfo,
+            current_breadcrumb,
             target_class,
             exception,
             flag_preemption,
@@ -152,6 +188,31 @@ impl VM {
     /// register 0 or propagating any raised exception as an error. The
     /// top-level `self` is initialized automatically before evaluation.
     pub fn run(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
+        let upper = self.current_breadcrumb.take();
+        let new_breadcrumb = Rc::new(Breadcrumb {
+            upper,
+            event: "run",
+            caller: None,
+            return_reg: None,
+        });
+        self.current_breadcrumb.replace(new_breadcrumb);
+        self.__run()
+    }
+
+    /// Internal run method that manages breadcrumb stack for internal calls.
+    pub fn run_internal(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
+        let upper = self.current_breadcrumb.take();
+        let new_breadcrumb = Rc::new(Breadcrumb {
+            upper,
+            event: "run_internal",
+            caller: None,
+            return_reg: None,
+        });
+        self.current_breadcrumb.replace(new_breadcrumb);
+        self.__run()
+    }
+
+    fn __run(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
         let class = self.object_class.clone();
         // Insert top_self
         let top_self = RObject {
@@ -171,7 +232,7 @@ impl VM {
         let mut rescued = false;
 
         loop {
-            if !rescued && let Some(_e) = self.exception.clone() {
+            if !rescued && let Some(e) = self.exception.clone() {
                 let operand = insn::Fetched::B(0);
                 if let Some(pos) = self.find_next_handler_pos() {
                     self.pc.set(pos);
@@ -179,11 +240,24 @@ impl VM {
                     continue;
                 }
 
+                let retreg = match self.current_breadcrumb.as_ref() {
+                    Some(bc) if bc.event == "do_op_send" => {
+                        let retreg = bc.as_ref().return_reg.unwrap_or(0);
+                        Some(retreg)
+                    }
+                    _ => None,
+                };
                 match op_return(self, &operand) {
                     Ok(_) => {}
                     Err(_) => {
-                        // use assigned expection through
-                        break;
+                        if let Some(retreg) = retreg
+                            && let Error::Break(brkval) = e.error_type.borrow().clone()
+                        {
+                            self.current_regs()[retreg].replace(brkval);
+                            self.exception.take();
+                        } else {
+                            break;
+                        }
                     }
                 }
                 if self.flag_preemption.get() {
@@ -213,6 +287,7 @@ impl VM {
                     &op.code, &op.operand, op.pos, op.len
                 );
             }
+
             match consume_expr(self, op.code, &operand, op.pos, op.len) {
                 Ok(_) => {}
                 Err(e) => {
@@ -377,6 +452,39 @@ impl VM {
         self.builtin_class_table.insert(name, class.clone());
         class
     }
+
+    pub fn debug_dump_to_stdout(&mut self, max_breadcrumb_level: usize) {
+        eprintln!("=== VM Dump ===");
+        eprintln!("ID: {}", self.id);
+        eprintln!("PC: {}", self.pc.get());
+        eprintln!("Current IREP ID: {}", self.current_irep.__id);
+        eprintln!("Current Regs Offset: {}", self.current_regs_offset);
+        eprintln!("Current Regs:");
+        let size = self.current_regs().len();
+        for i in 0..size {
+            let reg = &self.get_current_regs_cloned(i).ok();
+            if let Some(obj) = reg {
+                let inspect: String = mrb_call_inspect(self, obj.clone())
+                    .unwrap()
+                    .as_ref()
+                    .try_into()
+                    .unwrap_or_else(|_| "(uninspectable)".into());
+                eprintln!("  R{}: {}", i, inspect);
+            } else {
+                break;
+            }
+        }
+        // eprintln!("Current CallInfo: {:?}", self.current_callinfo);
+        eprintln!("Target Class: {}", self.target_class.name());
+        // eprintln!("Exception: {:?}", self.exception);
+        eprintln!("--- Breadcrumb ---");
+        if let Some(bc) = &self.current_breadcrumb {
+            bc.display_breadcrumb_for_debug(0, max_breadcrumb_level);
+        } else {
+            eprintln!("(none)");
+        }
+        eprintln!("=== End of VM Dump ===");
+    }
 }
 
 fn interpret_insn(mut insns: &[u8]) -> Vec<Op> {
@@ -471,6 +579,7 @@ pub struct CALLINFO {
     pub current_regs_offset: usize,
     pub target_class: TargetContext,
     pub n_args: usize,
+    pub return_reg: usize,
     pub method_owner: Option<Rc<RModule>>,
 }
 

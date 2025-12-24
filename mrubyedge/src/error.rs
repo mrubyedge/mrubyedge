@@ -3,9 +3,10 @@ use std::fmt;
 use std::rc::Rc;
 
 use crate::yamrb::value::RClass;
+use crate::yamrb::value::RObject;
 use crate::yamrb::vm::VM;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     General,
     Internal(String),
@@ -15,6 +16,8 @@ pub enum Error {
     TypeMismatch,
     NoMethodError(String),
     NameError(String),
+
+    Break(Rc<RObject>),
 }
 
 impl fmt::Display for Error {
@@ -40,6 +43,8 @@ impl Error {
             Error::TypeMismatch => "Type mismatch".to_string(),
             Error::NoMethodError(msg) => format!("Method not found: {}", msg),
             Error::NameError(msg) => format!("Cannot found name: {}", msg),
+
+            Error::Break(_) => "[Break]".to_string(),
         }
     }
 
