@@ -479,6 +479,8 @@ impl VM {
                 } else {
                     eprintln!("  R{}(R{}): {}", i, i - current_regs_offset, inspect);
                 }
+            } else if i < current_regs_offset {
+                eprintln!("  R{}(--): <None>", i);
             } else {
                 break;
             }
