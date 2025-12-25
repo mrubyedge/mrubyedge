@@ -3,7 +3,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     Error,
     yamrb::{
-        helpers::{mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod},
+        helpers::{mrb_call_block, mrb_call_inspect, mrb_define_class_cmethod, mrb_define_cmethod},
         value::{RObject, RValue},
         vm::VM,
     },
@@ -29,6 +29,12 @@ pub(crate) fn initialize_hash(vm: &mut VM) {
     mrb_define_cmethod(vm, hash_class.clone(), "each", Box::new(mrb_hash_each));
     mrb_define_cmethod(vm, hash_class.clone(), "size", Box::new(mrb_hash_size));
     mrb_define_cmethod(vm, hash_class.clone(), "length", Box::new(mrb_hash_size));
+    mrb_define_cmethod(
+        vm,
+        hash_class.clone(),
+        "inspect",
+        Box::new(mrb_hash_inspect),
+    );
 }
 
 pub fn mrb_hash_new(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -101,6 +107,27 @@ fn mrb_hash_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
         }
     };
     Ok(this.clone())
+}
+
+fn mrb_hash_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let hash = match &this.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#inspect must be called on a hash".to_string(),
+            ));
+        }
+    };
+    let hash = hash.borrow();
+    let mut parts: Vec<String> = Vec::new();
+    for (_, (key, value)) in hash.iter() {
+        let key_inspect: String = mrb_call_inspect(vm, key.clone())?.as_ref().try_into()?;
+        let value_inspect: String = mrb_call_inspect(vm, value.clone())?.as_ref().try_into()?;
+        parts.push(format!("{}=>{}", key_inspect, value_inspect));
+    }
+    let inspect = format!("{{{}}}", parts.join(", "));
+    Ok(Rc::new(RObject::string(inspect)))
 }
 
 #[test]

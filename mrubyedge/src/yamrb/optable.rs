@@ -895,7 +895,7 @@ pub(crate) fn do_op_send(
     let method_id = vm.current_irep.syms[b as usize].clone();
     if &method_id.name == "__debug__vm_info" {
         // Special debug method to dump VM info
-        vm.debug_dump_to_stdout(10);
+        vm.debug_dump_to_stdout(32);
         vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
         return Ok(());
     }
