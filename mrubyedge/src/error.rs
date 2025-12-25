@@ -18,6 +18,7 @@ pub enum Error {
     NameError(String),
 
     Break(Rc<RObject>),
+    BlockReturn(Rc<RObject>),
 }
 
 impl fmt::Display for Error {
@@ -45,6 +46,7 @@ impl Error {
             Error::NameError(msg) => format!("Cannot found name: {}", msg),
 
             Error::Break(_) => "[Break]".to_string(),
+            Error::BlockReturn(_) => "[BlockReturn]".to_string(),
         }
     }
 

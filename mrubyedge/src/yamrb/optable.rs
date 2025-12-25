@@ -319,9 +319,9 @@ pub(crate) fn consume_expr(
         RETURN => {
             op_return(vm, operand)?;
         }
-        // RETURN_BLK => {
-        //     // op_return_blk(vm, &operand)?;
-        // }
+        RETURN_BLK => {
+            op_return_blk(vm, operand)?;
+        }
         BREAK => {
             op_break(vm, operand)?;
         }
@@ -1179,6 +1179,13 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         vm.current_breadcrumb.replace(upper.clone());
     }
     Ok(())
+}
+
+pub(crate) fn op_return_blk(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let a = operand.as_b()? as usize;
+    let val = vm.get_current_regs_cloned(a)?;
+
+    Err(Error::BlockReturn(val))
 }
 
 pub(crate) fn op_break(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
