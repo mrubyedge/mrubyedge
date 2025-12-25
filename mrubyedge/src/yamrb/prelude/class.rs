@@ -11,6 +11,13 @@ use crate::{
 
 pub(crate) fn initialize_class(vm: &mut VM) {
     let module_class = vm.get_class_by_name("Module");
+    mrb_define_cmethod(
+        vm,
+        module_class.clone(),
+        "inspect",
+        Box::new(mrb_module_inspect),
+    );
+
     let class_class = vm.define_standard_class_with_superclass("Class", module_class);
 
     // Create singleton class for Object class
@@ -135,6 +142,20 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
 fn mrb_class_attr_acceccor(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     mrb_class_attr_reader(vm, args)?;
     mrb_class_attr_writer(vm, args)
+}
+
+fn mrb_module_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let class = vm.getself()?;
+    let class_name = match &class.value {
+        RValue::Class(c) => c.full_name(),
+        RValue::Module(m) => m.full_name(),
+        _ => {
+            return Err(Error::RuntimeError(
+                "Module#inspect must be called from module or class".to_string(),
+            ));
+        }
+    };
+    Ok(Rc::new(RObject::string(class_name)))
 }
 
 #[test]

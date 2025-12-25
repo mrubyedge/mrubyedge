@@ -273,7 +273,7 @@ impl VM {
                 // reached end of the IREP
                 break;
             }
-            let op = self
+            let op = *self
                 .current_irep
                 .code
                 .get(pc)
@@ -281,10 +281,14 @@ impl VM {
             let operand = op.operand;
             self.pc.set(pc + 1);
 
-            if env::var("MRUBYEDGE_DEBUG").is_ok() {
+            if let Ok(v) = env::var("MRUBYEDGE_DEBUG") {
+                let level: i32 = v.parse().unwrap_or(1);
+                if level >= 2 {
+                    self.debug_dump_to_stdout(32);
+                }
                 eprintln!(
                     "{:?}: {:?} (pos={} len={})",
-                    &op.code, &op.operand, op.pos, op.len
+                    op.code, &operand, op.pos, op.len
                 );
             }
 
@@ -458,18 +462,23 @@ impl VM {
         eprintln!("ID: {}", self.id);
         eprintln!("PC: {}", self.pc.get());
         eprintln!("Current IREP ID: {}", self.current_irep.__id);
-        eprintln!("Current Regs Offset: {}", self.current_regs_offset);
+        let current_regs_offset = self.current_regs_offset;
+        eprintln!("Current Regs Offset: {}", current_regs_offset);
         eprintln!("Regs:");
         let size = self.regs.len();
         for i in 0..size {
-            let reg = self.regs.get(i).unwrap();
+            let reg = self.regs.get(i).unwrap().clone();
             if let Some(obj) = reg {
-                let inspect: String = mrb_call_inspect(self, obj.clone())
+                let inspect: String = mrb_call_inspect(self, obj)
                     .unwrap()
                     .as_ref()
                     .try_into()
                     .unwrap_or_else(|_| "(uninspectable)".into());
-                eprintln!("  R{}: {}", i, inspect);
+                if i < current_regs_offset {
+                    eprintln!("  R{}(--): {}", i, inspect);
+                } else {
+                    eprintln!("  R{}(R{}): {}", i, i - current_regs_offset, inspect);
+                }
             } else {
                 break;
             }

@@ -220,14 +220,10 @@ pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, E
             0, // unused
         )
     } else {
-        vm.current_regs_offset += 2; // FIXME: magick number?
         vm.current_regs()[0].replace(recv.clone());
 
         let func = vm.fn_table[method.func.unwrap()].clone();
-        let res = func(vm, &[]);
-        vm.current_regs_offset -= 2;
-
-        res
+        func(vm, &[])
     }
 }
 

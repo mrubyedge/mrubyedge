@@ -51,7 +51,7 @@ def inner
 end
 
 def main
-  p outer3
+  p outer
 end
 
 main
