@@ -234,19 +234,46 @@ impl VM {
         loop {
             if !rescued && let Some(e) = self.exception.clone() {
                 let operand = insn::Fetched::B(0);
+                let mut retreg = None;
                 if let Some(pos) = self.find_next_handler_pos() {
                     self.pc.set(pos);
                     rescued = true;
                     continue;
                 }
 
-                let retreg = match self.current_breadcrumb.as_ref() {
-                    Some(bc) if bc.event == "do_op_send" => {
-                        let retreg = bc.as_ref().return_reg.unwrap_or(0);
-                        Some(retreg)
-                    }
-                    _ => None,
-                };
+                // if matches!(e.error_type.borrow().clone(), Error::BlockReturn(_)) {
+                //     eprintln!("Still Uncaught BlockReturn:");
+                //     self.debug_dump_to_stdout(16);
+                // }
+
+                if let Error::BlockReturn(v) = e.error_type.borrow().clone()
+                    && let Some(bc) = self.current_breadcrumb.as_ref().cloned()
+                    && bc.event == "do_op_send"
+                    && let Some(upper_bc) = bc.upper.as_ref()
+                    && upper_bc.event == "do_op_send"
+                {
+                    self.debug_dump_to_stdout(16);
+                    // dbg!("Unwind BlockReturn through do_op_send");
+                    op_return(self, &operand).expect("[bug]cannot return");
+                    let retreg = upper_bc
+                        .as_ref()
+                        .return_reg
+                        .expect("upper breadcrumb has return target reg");
+                    self.exception.take();
+                    // self.current_breadcrumb = upper_bc.upper.clone();
+                    self.current_regs()[retreg].replace(v);
+                    continue;
+                }
+
+                if matches!(e.error_type.borrow().clone(), Error::Break(_)) {
+                    retreg = match self.current_breadcrumb.as_ref() {
+                        Some(bc) if bc.event == "do_op_send" => {
+                            let retreg = bc.as_ref().return_reg.unwrap_or(0);
+                            Some(retreg)
+                        }
+                        _ => None,
+                    };
+                }
                 match op_return(self, &operand) {
                     Ok(_) => {}
                     Err(_) => {
@@ -460,9 +487,17 @@ impl VM {
     pub fn debug_dump_to_stdout(&mut self, max_breadcrumb_level: usize) {
         eprintln!("=== VM Dump ===");
         eprintln!("ID: {}", self.id);
-        eprintln!("PC: {}", self.pc.get());
         eprintln!("Current IREP ID: {}", self.current_irep.__id);
+        eprintln!("PC: {}", self.pc.get());
         let current_regs_offset = self.current_regs_offset;
+        eprintln!("IREPs:");
+        self.current_irep
+            .code
+            .iter()
+            .enumerate()
+            .for_each(|(i, op)| {
+                eprintln!("{:04} {:?}: {:?}", i, op.code, op.operand);
+            });
         eprintln!("Current Regs Offset: {}", current_regs_offset);
         eprintln!("Regs:");
         let size = self.regs.len();
