@@ -245,7 +245,7 @@ impl VM {
                     && self.current_irep.__id == id
                 {
                     // reached caller method's IREP, just return
-                    let operand = insn::Fetched::B(16); // FIXME: just very far reg
+                    let operand = insn::Fetched::B(16); // FIXME: just a bit far reg
                     self.current_regs()[16].replace(v);
                     self.exception.take();
                     op_return(self, &operand).expect("[bug]cannot return");
@@ -407,13 +407,20 @@ impl VM {
             Some(c) => c,
             None => self.object_class.clone(),
         };
-        let class = Rc::new(RClass::new(name, Some(superclass), parent_module));
+        let class = Rc::new(RClass::new(name, Some(superclass), parent_module.clone()));
         let object = RObject::class(class.clone(), self);
         self.consts.insert(name.to_string(), object.clone());
-        self.object_class
-            .consts
-            .borrow_mut()
-            .insert(name.to_string(), object);
+        if let Some(parent) = parent_module {
+            parent
+                .consts
+                .borrow_mut()
+                .insert(name.to_string(), object.clone());
+        } else {
+            self.object_class
+                .consts
+                .borrow_mut()
+                .insert(name.to_string(), object);
+        }
         class
     }
 
@@ -496,17 +503,23 @@ impl VM {
             for i in 0..size {
                 let reg = self.regs.get(i).unwrap().clone();
                 if let Some(obj) = reg {
-                    let inspect: String = mrb_call_inspect(self, obj)
+                    let inspect: String = mrb_call_inspect(self, obj.clone())
                         .unwrap()
                         .as_ref()
                         .try_into()
                         .unwrap_or_else(|_| "(uninspectable)".into());
                     if i < current_regs_offset {
-                        eprintln!("  R{}(--): {}", i, inspect);
+                        eprintln!("  R{}(--): {}(oid={})", i, inspect, obj.object_id.get());
                     } else {
-                        eprintln!("  R{}(R{}): {}", i, i - current_regs_offset, inspect);
+                        eprintln!(
+                            "  R{}(R{}): {}(oid={})",
+                            i,
+                            i - current_regs_offset,
+                            inspect,
+                            obj.object_id.get()
+                        );
                     }
-                } else if i < current_regs_offset {
+                } else if i < 16 || i < current_regs_offset {
                     eprintln!("  R{}(--): <None>", i);
                 } else {
                     break;

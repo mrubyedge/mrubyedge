@@ -308,6 +308,10 @@ impl RObject {
         matches!(self.tt, RType::Nil)
     }
 
+    pub fn is_main(&self) -> bool {
+        self.object_id.get() == 0
+    }
+
     pub fn set_ivar(&self, key: &str, value: Rc<RObject>) {
         self.ivar.borrow_mut().insert(key.to_string(), value);
     }

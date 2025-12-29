@@ -220,11 +220,25 @@ pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, E
             0, // unused
         )
     } else {
-        vm.current_regs()[0].replace(recv.clone());
-
+        let old = vm.current_regs()[0].replace(recv.clone());
         let func = vm.fn_table[method.func.unwrap()].clone();
-        func(vm, &[])
+        let res = func(vm, &[]);
+        if let Some(old) = old {
+            vm.current_regs()[0].replace(old);
+        } else {
+            vm.current_regs()[0].take();
+        }
+        res
     }
+}
+
+pub fn mrb_call_p(vm: &mut VM, recv: Rc<RObject>) {
+    let inspect = mrb_call_inspect(vm, recv).expect("failed to call inspect");
+    let inspect: String = inspect
+        .as_ref()
+        .try_into()
+        .expect("failed to convert to string");
+    eprintln!("{}", inspect);
 }
 
 /// Defines a C method (native Rust function) on a Ruby class.
@@ -355,4 +369,27 @@ pub fn mrb_define_module_cmethod(vm: &mut VM, module: Rc<RModule>, name: &str, c
 pub fn mrb_define_module_method(_vm: &mut VM, module: Rc<RModule>, name: &str, method: RProc) {
     let mut procs = module.procs.borrow_mut();
     procs.insert(name.to_string(), method);
+}
+
+#[test]
+fn test_mrb_inspect() -> Result<(), Box<dyn std::error::Error>> {
+    let mut vm = VM::empty();
+    let old_top_self = RObject::integer(1).to_refcount_assigned();
+    vm.current_regs()[0].replace(old_top_self.clone());
+
+    let class_a = vm.define_class("A", None, None);
+    let class_a = RObject::class(class_a, &mut vm);
+    let obj_a = mrb_funcall(&mut vm, Some(class_a), "new", &[])?;
+    let res = mrb_call_inspect(&mut vm, obj_a.clone()).unwrap();
+    let res_str: String = res.as_ref().try_into().unwrap();
+    assert_eq!(
+        res_str,
+        "#<A:0x".to_string() + &format!("{:016x}", obj_a.object_id.get()) + ">"
+    );
+
+    // assert not to brake registers
+    let updated = vm.get_current_regs_cloned(0)?;
+    assert_eq!(updated.object_id.get(), old_top_self.object_id.get());
+
+    Ok(())
 }
