@@ -5,9 +5,7 @@ use mrubyedge_cli::subcommands;
 const LONG_VERSION: &str = concat!(
     env!("CARGO_PKG_VERSION"),
     ", using mruby/edge ",
-    env!("CARGO_PKG_VERSION"),
-    // FIXME: update version macro usage
-    // mrubyedge::version!(),
+    mrubyedge::version!(),
 );
 
 #[derive(Parser)]
