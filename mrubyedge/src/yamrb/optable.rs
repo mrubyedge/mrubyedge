@@ -1763,7 +1763,7 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
     let method_ref = method.as_ref();
 
-    // まずmethodをmatchで取得して定義
+    // First, extract and prepare the method from the Proc
     let method = match &method_ref.value {
         RValue::Proc(proc) => {
             let mut method = proc.clone();
@@ -1776,7 +1776,7 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         )),
     }?;
 
-    // その後でreceiverに定義
+    // Then, define it on the receiver
     let target_ref = target.as_ref();
     match &target_ref.value {
         RValue::Class(klass) => {
