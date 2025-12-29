@@ -5,7 +5,6 @@ use std::rc::Rc;
 
 use crate::Error;
 use crate::rite::{Irep, Rite, insn};
-use crate::yamrb::helpers::mrb_call_inspect;
 
 use super::op::Op;
 use super::prelude::prelude;
@@ -41,6 +40,7 @@ pub struct Breadcrumb {
 }
 
 impl Breadcrumb {
+    #[cfg(feature = "mrubyedge-debug")]
     pub fn display_breadcrumb_for_debug(&self, level: usize, max_level: usize) -> bool {
         if level > max_level {
             return false;
@@ -281,6 +281,7 @@ impl VM {
             let operand = op.operand;
             self.pc.set(pc + 1);
 
+            #[cfg(feature = "mrubyedge-debug")]
             if let Ok(v) = env::var("MRUBYEDGE_DEBUG") {
                 let level: i32 = v.parse().unwrap_or(1);
                 if level >= 2 {
@@ -457,42 +458,48 @@ impl VM {
         class
     }
 
+    #[allow(unused)]
     pub fn debug_dump_to_stdout(&mut self, max_breadcrumb_level: usize) {
-        eprintln!("=== VM Dump ===");
-        eprintln!("ID: {}", self.id);
-        eprintln!("PC: {}", self.pc.get());
-        eprintln!("Current IREP ID: {}", self.current_irep.__id);
-        let current_regs_offset = self.current_regs_offset;
-        eprintln!("Current Regs Offset: {}", current_regs_offset);
-        eprintln!("Regs:");
-        let size = self.regs.len();
-        for i in 0..size {
-            let reg = self.regs.get(i).unwrap().clone();
-            if let Some(obj) = reg {
-                let inspect: String = mrb_call_inspect(self, obj)
-                    .unwrap()
-                    .as_ref()
-                    .try_into()
-                    .unwrap_or_else(|_| "(uninspectable)".into());
-                if i < current_regs_offset {
-                    eprintln!("  R{}(--): {}", i, inspect);
+        #[cfg(feature = "mrubyedge-debug")]
+        {
+            use crate::yamrb::helpers::mrb_call_inspect;
+
+            eprintln!("=== VM Dump ===");
+            eprintln!("ID: {}", self.id);
+            eprintln!("PC: {}", self.pc.get());
+            eprintln!("Current IREP ID: {}", self.current_irep.__id);
+            let current_regs_offset = self.current_regs_offset;
+            eprintln!("Current Regs Offset: {}", current_regs_offset);
+            eprintln!("Regs:");
+            let size = self.regs.len();
+            for i in 0..size {
+                let reg = self.regs.get(i).unwrap().clone();
+                if let Some(obj) = reg {
+                    let inspect: String = mrb_call_inspect(self, obj)
+                        .unwrap()
+                        .as_ref()
+                        .try_into()
+                        .unwrap_or_else(|_| "(uninspectable)".into());
+                    if i < current_regs_offset {
+                        eprintln!("  R{}(--): {}", i, inspect);
+                    } else {
+                        eprintln!("  R{}(R{}): {}", i, i - current_regs_offset, inspect);
+                    }
                 } else {
-                    eprintln!("  R{}(R{}): {}", i, i - current_regs_offset, inspect);
+                    break;
                 }
-            } else {
-                break;
             }
+            // eprintln!("Current CallInfo: {:?}", self.current_callinfo);
+            eprintln!("Target Class: {}", self.target_class.name());
+            // eprintln!("Exception: {:?}", self.exception);
+            eprintln!("--- Breadcrumb ---");
+            if let Some(bc) = &self.current_breadcrumb {
+                bc.display_breadcrumb_for_debug(0, max_breadcrumb_level);
+            } else {
+                eprintln!("(none)");
+            }
+            eprintln!("=== End of VM Dump ===");
         }
-        // eprintln!("Current CallInfo: {:?}", self.current_callinfo);
-        eprintln!("Target Class: {}", self.target_class.name());
-        // eprintln!("Exception: {:?}", self.exception);
-        eprintln!("--- Breadcrumb ---");
-        if let Some(bc) = &self.current_breadcrumb {
-            bc.display_breadcrumb_for_debug(0, max_breadcrumb_level);
-        } else {
-            eprintln!("(none)");
-        }
-        eprintln!("=== End of VM Dump ===");
     }
 }
 
