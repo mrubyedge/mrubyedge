@@ -40,7 +40,10 @@ jobs:
       - name: Run tests for "${{ matrix.BUILD_TARGET }}" profile
         run: |
           set +e
-          cargo test --workspace --exclude mec --features mruby-regexp --profile ${{ matrix.BUILD_TARGET }}
+          cargo test --workspace \
+            --exclude mec \
+            --features "mrubyedge-debug,mruby-regexp" \
+            --profile ${{ matrix.BUILD_TARGET }}
           TEST_RESULT=$?
           if [ $TEST_RESULT != 0 ]; then
             echo "Some tests failed. Debug:"
@@ -48,7 +51,11 @@ jobs:
             exit $TEST_RESULT
           fi
       - name: Build binaries for "${{ matrix.BUILD_TARGET }}" profile
-        run: cargo build --workspace --exclude mec --features mruby-regexp --profile ${{ matrix.BUILD_TARGET }}
+        run: |
+          cargo build --workspace \
+            --exclude mec \
+            --features "mrubyedge-debug,mruby-regexp" \
+            --profile ${{ matrix.BUILD_TARGET }}
 
   lint:
     runs-on: ubuntu-latest
