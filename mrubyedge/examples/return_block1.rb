@@ -13,7 +13,7 @@ def outer2
   1.times do
     inner do
       puts "start inner"
-      return 5471
+      return 5472
     end
     puts "unreachable: after inner"
   end
@@ -38,7 +38,7 @@ def outer4
   inner do
     1.times do
       puts "start times"
-      return 5471
+      return 5474
     end
     puts "unreachable: after times"
   end
@@ -52,7 +52,7 @@ def outer5
       puts "start times"
       1.times do
         puts "start inner inner"
-        return 5471
+        return 5475
         puts "unreachable: after return in inner inner"
       end
     end

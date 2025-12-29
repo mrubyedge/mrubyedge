@@ -241,27 +241,14 @@ impl VM {
                     continue;
                 }
 
-                // if matches!(e.error_type.borrow().clone(), Error::BlockReturn(_)) {
-                //     eprintln!("Still Uncaught BlockReturn:");
-                //     self.debug_dump_to_stdout(16);
-                // }
-
-                if let Error::BlockReturn(v) = e.error_type.borrow().clone()
-                    && let Some(bc) = self.current_breadcrumb.as_ref().cloned()
-                    && bc.event == "do_op_send"
-                    && let Some(upper_bc) = bc.upper.as_ref()
-                    && upper_bc.event == "do_op_send"
+                if let Error::BlockReturn(id, v) = e.error_type.borrow().clone()
+                    && self.current_irep.__id == id
                 {
-                    self.debug_dump_to_stdout(16);
-                    // dbg!("Unwind BlockReturn through do_op_send");
-                    op_return(self, &operand).expect("[bug]cannot return");
-                    let retreg = upper_bc
-                        .as_ref()
-                        .return_reg
-                        .expect("upper breadcrumb has return target reg");
+                    // reached caller method's IREP, just return
+                    let operand = insn::Fetched::B(16); // FIXME: just very far reg
+                    self.current_regs()[16].replace(v);
                     self.exception.take();
-                    // self.current_breadcrumb = upper_bc.upper.clone();
-                    self.current_regs()[retreg].replace(v);
+                    op_return(self, &operand).expect("[bug]cannot return");
                     continue;
                 }
 
@@ -522,7 +509,12 @@ impl VM {
         }
         // eprintln!("Current CallInfo: {:?}", self.current_callinfo);
         eprintln!("Target Class: {}", self.target_class.name());
-        // eprintln!("Exception: {:?}", self.exception);
+        eprintln!(
+            "Exception: {:?}",
+            self.exception
+                .as_deref()
+                .map(|e| e.error_type.borrow().clone())
+        );
         eprintln!("--- Breadcrumb ---");
         if let Some(bc) = &self.current_breadcrumb {
             bc.display_breadcrumb_for_debug(0, max_breadcrumb_level);
@@ -530,6 +522,17 @@ impl VM {
             eprintln!("(none)");
         }
         eprintln!("=== End of VM Dump ===");
+    }
+
+    pub fn get_outermost_env(&self) -> Option<Rc<ENV>> {
+        let mut env = self.upper.clone();
+        while let Some(e) = env.clone() {
+            if e.upper.is_none() {
+                return env;
+            }
+            env = e.upper.clone();
+        }
+        env
     }
 }
 
@@ -631,6 +634,7 @@ pub struct CALLINFO {
 
 #[derive(Debug, Clone)]
 pub struct ENV {
+    pub __irep_id: usize,
     pub upper: Option<Rc<ENV>>,
     pub captured: RefCell<Option<Vec<Option<Rc<RObject>>>>>,
     pub current_regs_offset: usize,

@@ -1184,8 +1184,12 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_return_blk(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
     let val = vm.get_current_regs_cloned(a)?;
+    let target_irep_id = vm
+        .get_outermost_env()
+        .expect("not found outermost env")
+        .__irep_id;
 
-    Err(Error::BlockReturn(val))
+    Err(Error::BlockReturn(target_irep_id, val))
 }
 
 pub(crate) fn op_break(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
@@ -1546,6 +1550,7 @@ pub(crate) fn op_lambda(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let irep = Some(vm.current_irep.reps[b as usize].clone());
     let environ = ENV {
+        __irep_id: vm.current_irep.__id,
         upper: vm.upper.clone(),
         current_regs_offset: vm.current_regs_offset,
         is_expired: Cell::new(false),
@@ -1580,6 +1585,7 @@ pub(crate) fn op_block(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let irep = Some(vm.current_irep.reps[b as usize].clone());
     let environ = ENV {
+        __irep_id: vm.current_irep.__id,
         upper: vm.upper.clone(),
         current_regs_offset: vm.current_regs_offset,
         is_expired: Cell::new(false),
@@ -1755,23 +1761,33 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let method = vm.get_current_regs_cloned(a as usize + 1)?;
     let sym = vm.current_irep.syms[b as usize].clone();
 
-    let target_ref = target.as_ref();
     let method_ref = method.as_ref();
 
-    match (&target_ref.value, &method_ref.value) {
-        (RValue::Class(klass), RValue::Proc(method)) => {
+    // まずmethodをmatchで取得して定義
+    let method = match &method_ref.value {
+        RValue::Proc(proc) => {
+            let mut method = proc.clone();
+            method.environ = None; // method cannot trace the upper environment
+            method.sym_id = Some(sym.clone());
+            Ok(method)
+        }
+        _ => Err(Error::ArgumentError(
+            "def operand 2 must be Proc (method)".to_string(),
+        )),
+    }?;
+
+    // その後でreceiverに定義
+    let target_ref = target.as_ref();
+    match &target_ref.value {
+        RValue::Class(klass) => {
             let mut procs = klass.procs.borrow_mut();
-            let mut method = method.clone();
-            method.sym_id = Some(sym.clone());
             procs.insert(sym.name.clone(), method);
         }
-        (RValue::Module(module), RValue::Proc(method)) => {
+        RValue::Module(module) => {
             let mut procs = module.procs.borrow_mut();
-            let mut method = method.clone();
-            method.sym_id = Some(sym.clone());
             procs.insert(sym.name.clone(), method);
         }
-        (_, RValue::Proc(method)) => {
+        _ => {
             let robject = target.clone();
             let current_class = robject.get_class(vm);
             let sclass = if current_class.is_singleton {
@@ -1780,12 +1796,7 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
                 robject.initialize_or_get_singleton_class(vm)
             };
             let mut procs = sclass.procs.borrow_mut();
-            let mut method = method.clone();
-            method.sym_id = Some(sym.clone());
             procs.insert(sym.name.clone(), method);
-        }
-        _ => {
-            unreachable!("DEF must be called with Proc");
         }
     }
     vm.current_regs()[a as usize].replace(RObject::symbol(sym).to_refcount_assigned());
