@@ -28,4 +28,5 @@ harness = false
 default = ["wasi"]
 wasi = ["dep:getrandom"]
 mruby-regexp = ["dep:regex"]
+mrubyedge-debug = ["wasi"]
 no-wasi = []
