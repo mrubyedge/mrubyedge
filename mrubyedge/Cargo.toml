@@ -25,7 +25,7 @@ name = "benchmark"
 harness = false
 
 [features]
-default = ["wasi"]
+default = ["wasi", "mrubyedge-debug"]
 wasi = ["dep:getrandom"]
 mruby-regexp = ["dep:regex"]
 mrubyedge-debug = ["wasi"]

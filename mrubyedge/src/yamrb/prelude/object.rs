@@ -194,13 +194,12 @@ pub fn mrb_object_object_id(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<ROb
 
 pub fn mrb_object_to_s(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let obj = vm.getself()?;
+    if obj.is_main() {
+        return Ok(RObject::string("main".to_string()).to_refcount_assigned());
+    }
     let class = obj.get_class(vm);
     let addr = format!("{:018p}", Rc::as_ptr(&obj));
-    Ok(Rc::new(RObject::string(format!(
-        "#<{}:{}>",
-        class.full_name(),
-        addr
-    ))))
+    Ok(RObject::string(format!("#<{}:{}>", class.full_name(), addr)).to_refcount_assigned())
 }
 
 pub fn mrb_object_raise(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

@@ -902,7 +902,11 @@ pub(crate) fn do_op_send(
 
     let block_index = (a + c + 1) as usize;
 
-    let recv = vm.get_current_regs_cloned(recv_index)?;
+    let recv = if recv_index == 0 {
+        vm.getself()?
+    } else {
+        vm.get_current_regs_cloned(recv_index)?
+    };
     let mut args = (0..c)
         .map(|i| {
             vm.get_current_regs_cloned((a + i + 1) as usize)
@@ -1694,12 +1698,14 @@ pub(crate) fn op_class(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let class_value = RObject::class(klass.clone(), vm);
     class_value.initialize_or_get_singleton_class_for_class(vm);
     if let Some(parent) = parent_module {
-        parent.consts.borrow_mut().insert(name.clone(), class_value);
+        parent
+            .consts
+            .borrow_mut()
+            .insert(name.clone(), class_value.clone());
     } else {
-        vm.consts.insert(name.clone(), class_value);
+        vm.consts.insert(name.clone(), class_value.clone());
     }
 
-    let class_value = RObject::class(klass.clone(), vm);
     vm.current_regs()[a as usize].replace(class_value);
     Ok(())
 }
@@ -1737,8 +1743,6 @@ pub(crate) fn op_exec(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         return_reg: None,
     });
     vm.current_breadcrumb.replace(new_breadcrumb);
-
-    vm.current_regs()[a as usize].replace(recv.clone());
     push_callinfo(vm, "<exec>".into(), 0, None, a as usize);
 
     vm.pc.set(0);

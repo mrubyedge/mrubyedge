@@ -227,6 +227,15 @@ pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, E
     }
 }
 
+pub fn mrb_call_p(vm: &mut VM, recv: Rc<RObject>) {
+    let inspect = mrb_call_inspect(vm, recv).expect("failed to call inspect");
+    let inspect: String = inspect
+        .as_ref()
+        .try_into()
+        .expect("failed to convert to string");
+    eprintln!("{}", inspect);
+}
+
 /// Defines a C method (native Rust function) on a Ruby class.
 ///
 /// # Arguments
