@@ -234,19 +234,33 @@ impl VM {
         loop {
             if !rescued && let Some(e) = self.exception.clone() {
                 let operand = insn::Fetched::B(0);
+                let mut retreg = None;
                 if let Some(pos) = self.find_next_handler_pos() {
                     self.pc.set(pos);
                     rescued = true;
                     continue;
                 }
 
-                let retreg = match self.current_breadcrumb.as_ref() {
-                    Some(bc) if bc.event == "do_op_send" => {
-                        let retreg = bc.as_ref().return_reg.unwrap_or(0);
-                        Some(retreg)
-                    }
-                    _ => None,
-                };
+                if let Error::BlockReturn(id, v) = e.error_type.borrow().clone()
+                    && self.current_irep.__id == id
+                {
+                    // reached caller method's IREP, just return
+                    let operand = insn::Fetched::B(16); // FIXME: just very far reg
+                    self.current_regs()[16].replace(v);
+                    self.exception.take();
+                    op_return(self, &operand).expect("[bug]cannot return");
+                    continue;
+                }
+
+                if matches!(e.error_type.borrow().clone(), Error::Break(_)) {
+                    retreg = match self.current_breadcrumb.as_ref() {
+                        Some(bc) if bc.event == "do_op_send" => {
+                            let retreg = bc.as_ref().return_reg.unwrap_or(0);
+                            Some(retreg)
+                        }
+                        _ => None,
+                    };
+                }
                 match op_return(self, &operand) {
                     Ok(_) => {}
                     Err(_) => {
@@ -460,9 +474,17 @@ impl VM {
     pub fn debug_dump_to_stdout(&mut self, max_breadcrumb_level: usize) {
         eprintln!("=== VM Dump ===");
         eprintln!("ID: {}", self.id);
-        eprintln!("PC: {}", self.pc.get());
         eprintln!("Current IREP ID: {}", self.current_irep.__id);
+        eprintln!("PC: {}", self.pc.get());
         let current_regs_offset = self.current_regs_offset;
+        eprintln!("IREPs:");
+        self.current_irep
+            .code
+            .iter()
+            .enumerate()
+            .for_each(|(i, op)| {
+                eprintln!("{:04} {:?}: {:?}", i, op.code, op.operand);
+            });
         eprintln!("Current Regs Offset: {}", current_regs_offset);
         eprintln!("Regs:");
         let size = self.regs.len();
@@ -479,13 +501,20 @@ impl VM {
                 } else {
                     eprintln!("  R{}(R{}): {}", i, i - current_regs_offset, inspect);
                 }
+            } else if i < current_regs_offset {
+                eprintln!("  R{}(--): <None>", i);
             } else {
                 break;
             }
         }
         // eprintln!("Current CallInfo: {:?}", self.current_callinfo);
         eprintln!("Target Class: {}", self.target_class.name());
-        // eprintln!("Exception: {:?}", self.exception);
+        eprintln!(
+            "Exception: {:?}",
+            self.exception
+                .as_deref()
+                .map(|e| e.error_type.borrow().clone())
+        );
         eprintln!("--- Breadcrumb ---");
         if let Some(bc) = &self.current_breadcrumb {
             bc.display_breadcrumb_for_debug(0, max_breadcrumb_level);
@@ -493,6 +522,17 @@ impl VM {
             eprintln!("(none)");
         }
         eprintln!("=== End of VM Dump ===");
+    }
+
+    pub fn get_outermost_env(&self) -> Option<Rc<ENV>> {
+        let mut env = self.upper.clone();
+        while let Some(e) = env.clone() {
+            if e.upper.is_none() {
+                return env;
+            }
+            env = e.upper.clone();
+        }
+        env
     }
 }
 
@@ -594,6 +634,7 @@ pub struct CALLINFO {
 
 #[derive(Debug, Clone)]
 pub struct ENV {
+    pub __irep_id: usize,
     pub upper: Option<Rc<ENV>>,
     pub captured: RefCell<Option<Vec<Option<Rc<RObject>>>>>,
     pub current_regs_offset: usize,
