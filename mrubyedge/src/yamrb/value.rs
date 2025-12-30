@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::cell::Cell;
 use std::collections::HashSet;
+use std::rc::Weak;
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
 
 use crate::Error;
@@ -257,6 +258,19 @@ impl RObject {
         }
     }
 
+    pub fn class_or_module(c: Rc<RModule>, vm: &mut VM) -> Rc<Self> {
+        match c.as_ref().underlying.borrow().as_ref() {
+            Some(weak_class) => {
+                if let Some(class) = weak_class.upgrade() {
+                    RObject::class(class, vm)
+                } else {
+                    panic!("[BUG] Class weak reference is dead");
+                }
+            }
+            None => Rc::new(RObject::module(c.clone())),
+        }
+    }
+
     pub fn instance(c: Rc<RClass>) -> Self {
         RObject {
             tt: RType::Instance,
@@ -411,11 +425,13 @@ impl RObject {
             }
         };
 
+        let parent_module = self.get_class(vm).parent.borrow().clone();
         let sclass = Rc::new(RClass::new_singleton(
             &class_name,
             Some(self.get_class(vm).clone()),
-            self.get_class(vm).parent.borrow().clone(),
+            parent_module.clone(),
         ));
+        sclass.update_module_weakref();
 
         self.singleton_class.replace(Some(sclass.clone()));
         sclass
@@ -442,11 +458,13 @@ impl RObject {
             None => vm.get_class_by_name("Class"),
         };
 
+        let parent_module = self.get_class(vm).parent.borrow().clone();
         let sclass = Rc::new(RClass::new_singleton(
             &class_name,
             Some(super_class),
-            self.get_class(vm).parent.borrow().clone(),
+            parent_module.clone(),
         ));
+        sclass.update_module_weakref();
 
         self.singleton_class.replace(Some(sclass.clone()));
         class
@@ -691,6 +709,21 @@ impl TryFrom<&RObject> for Vec<Rc<RObject>> {
     }
 }
 
+impl TryFrom<&RObject> for Vec<(Rc<RObject>, Rc<RObject>)> {
+    type Error = Error;
+
+    fn try_from(value: &RObject) -> Result<Self, Self::Error> {
+        match &value.value {
+            RValue::Hash(h) => Ok(h
+                .borrow()
+                .values()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+}
+
 impl TryFrom<&RObject> for () {
     type Error = Error;
 
@@ -724,6 +757,8 @@ pub struct RModule {
     pub consts: RefCell<HashMap<String, Rc<RObject>>>,
     pub mixed_in_modules: RefCell<Vec<Rc<RModule>>>,
     pub parent: RefCell<Option<Rc<RModule>>>,
+
+    pub underlying: RefCell<Option<Weak<RClass>>>,
 }
 
 impl RModule {
@@ -735,12 +770,18 @@ impl RModule {
             consts: RefCell::new(HashMap::new()),
             mixed_in_modules: RefCell::new(Vec::new()),
             parent: RefCell::new(None),
+            underlying: RefCell::new(None),
         }
     }
 
     pub fn getmcnst(&self, name: &str) -> Option<Rc<RObject>> {
         let consts = self.consts.borrow();
         consts.get(name).cloned()
+    }
+
+    // Alias
+    pub fn get_const_by_name(&self, name: &str) -> Option<Rc<RObject>> {
+        self.getmcnst(name)
     }
 
     pub fn find_method(&self, name: &str) -> Option<RProc> {
@@ -771,6 +812,22 @@ impl RModule {
         }
         names.reverse();
         names.join("::")
+    }
+}
+
+pub trait AsModule {
+    fn as_module(&self) -> Rc<RModule>;
+}
+
+impl AsModule for Rc<RModule> {
+    fn as_module(&self) -> Rc<RModule> {
+        self.clone()
+    }
+}
+
+impl AsModule for Rc<RClass> {
+    fn as_module(&self) -> Rc<RModule> {
+        self.module.clone()
     }
 }
 
@@ -862,6 +919,13 @@ impl RClass {
     pub fn full_name(&self) -> String {
         self.module.full_name()
     }
+
+    pub(crate) fn update_module_weakref(self: &Rc<Self>) {
+        self.module
+            .underlying
+            .borrow_mut()
+            .replace(Rc::downgrade(self));
+    }
 }
 
 fn collect_class_chain(
@@ -875,10 +939,17 @@ fn collect_class_chain(
     }
 }
 
-fn build_lookup_chain(class: &Rc<RClass>) -> Vec<Rc<RModule>> {
+pub(crate) fn build_lookup_chain(class: &Rc<RClass>) -> Vec<Rc<RModule>> {
     let mut chain = Vec::new();
     let mut visited = HashSet::new();
     collect_class_chain(class, &mut chain, &mut visited);
+    chain
+}
+
+pub(crate) fn build_module_lookup_chain(module: &Rc<RModule>) -> Vec<Rc<RModule>> {
+    let mut chain = Vec::new();
+    let mut visited = HashSet::new();
+    collect_module_chain(module, &mut chain, &mut visited);
     chain
 }
 

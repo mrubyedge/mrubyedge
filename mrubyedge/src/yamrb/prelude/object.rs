@@ -84,6 +84,19 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         "proc",
         Box::new(mrb_object_lambda),
     );
+    mrb_define_cmethod(vm, object_class.clone(), "is_a?", Box::new(mrb_object_is_a));
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "kind_of?",
+        Box::new(mrb_object_is_a),
+    );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "class",
+        Box::new(mrb_object_class),
+    );
 
     // define global consts:
     vm.consts.insert(
@@ -227,6 +240,38 @@ pub fn mrb_object_lambda(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObjec
             "Object#lambda expects a Proc as the last argument".to_string(),
         ))
     }
+}
+
+fn mrb_object_is_a(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let obj = vm.getself()?;
+    let class_arg = &args[0];
+    let is_a = match &class_arg.value {
+        RValue::Class(c) => mrb_is_a(vm, obj, c.clone()),
+        RValue::Module(m) => mrb_is_a(vm, obj, m.clone()),
+        _ => {
+            return Err(Error::ArgumentError(
+                "Object#is_a? expects a Class or Module".to_string(),
+            ));
+        }
+    };
+    Ok(Rc::new(RObject::boolean(is_a)))
+}
+
+fn mrb_object_class(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let obj = vm.getself()?;
+    let class = obj.get_class(vm);
+    Ok(RObject::class_or_module(class.as_module(), vm))
+}
+
+pub fn mrb_is_a(vm: &mut VM, obj: Rc<RObject>, class: impl AsModule) -> bool {
+    let obj_class = obj.get_class(vm);
+    let target_module = class.as_module();
+    for module in build_lookup_chain(&obj_class).iter() {
+        if Rc::ptr_eq(module, &target_module) {
+            return true;
+        }
+    }
+    false
 }
 
 fn mrb_is_wasm(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

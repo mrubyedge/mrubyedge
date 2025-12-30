@@ -7,7 +7,18 @@ use crate::{
 
 pub(crate) fn initialize_module(vm: &mut VM) {
     let module_class = vm.define_standard_class("Module");
-    mrb_define_cmethod(vm, module_class, "include", Box::new(mrb_module_include));
+    mrb_define_cmethod(
+        vm,
+        module_class.clone(),
+        "include",
+        Box::new(mrb_module_include),
+    );
+    mrb_define_cmethod(
+        vm,
+        module_class,
+        "ancestors",
+        Box::new(mrb_module_ancestors),
+    );
 }
 
 fn mrb_module_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -58,4 +69,21 @@ fn include_module(target: &Rc<RModule>, mixin: Rc<RModule>) -> Result<(), Error>
 
     target.mixed_in_modules.borrow_mut().insert(0, mixin);
     Ok(())
+}
+
+fn mrb_module_ancestors(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let self_module = vm.getself()?;
+    let target_module = match &self_module.value {
+        RValue::Module(module) => module.clone(),
+        _ => {
+            return Err(Error::RuntimeError(
+                "Module#ancestors must be called on class or module".to_string(),
+            ));
+        }
+    };
+    let ancestors: Vec<Rc<RObject>> = build_module_lookup_chain(&target_module)
+        .iter()
+        .map(|m| RObject::module(m.clone()).to_refcount_assigned())
+        .collect();
+    Ok(RObject::array(ancestors).to_refcount_assigned())
 }

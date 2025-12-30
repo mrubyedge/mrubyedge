@@ -56,6 +56,12 @@ pub(crate) fn initialize_shared_memory(vm: &mut VM) {
     mrb_define_cmethod(
         vm,
         shared_memory_class.clone(),
+        "replace",
+        Box::new(mrb_shared_memory_replace),
+    );
+    mrb_define_cmethod(
+        vm,
+        shared_memory_class.clone(),
         "read_by_size",
         Box::new(mrb_shared_memory_read_by_size),
     );
@@ -172,6 +178,22 @@ fn mrb_shared_memory_index_range(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc
     };
     let range = sm.borrow().memory.as_ref()[(start as usize)..=(end as usize)].to_vec();
     Ok(RObject::string_from_vec(range).to_refcount_assigned())
+}
+
+fn mrb_shared_memory_replace(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let sm = match &this.value {
+        RValue::SharedMemory(s) => s,
+        _ => {
+            return Err(Error::RuntimeError(
+                "SharedMemory#write_all must be called on a SharedMemory".to_string(),
+            ));
+        }
+    };
+    let data: Vec<u8> = args[0].as_ref().try_into()?;
+    let mut sm = sm.borrow_mut();
+    sm.write(0, &data);
+    Ok(this.clone())
 }
 
 // SharedMemory#read_by_size(size: Integer, offset: Integer) -> Integer

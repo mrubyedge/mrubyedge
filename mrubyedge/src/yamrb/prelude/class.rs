@@ -48,6 +48,7 @@ pub(crate) fn initialize_class(vm: &mut VM) {
         "attr",
         Box::new(mrb_class_attr_acceccor),
     );
+    mrb_define_cmethod(vm, class_class, "ancestors", Box::new(mrb_class_ancestors));
 }
 
 fn mrb_class_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -142,6 +143,23 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
 fn mrb_class_attr_acceccor(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     mrb_class_attr_reader(vm, args)?;
     mrb_class_attr_writer(vm, args)
+}
+
+fn mrb_class_ancestors(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let self_module = vm.getself()?;
+    let target_class = match &self_module.value {
+        RValue::Class(class) => class.clone(),
+        _ => {
+            return Err(Error::RuntimeError(
+                "Module#ancestors must be called on class or module".to_string(),
+            ));
+        }
+    };
+    let ancestors: Vec<Rc<RObject>> = build_lookup_chain(&target_class)
+        .iter()
+        .map(|m| RObject::class_or_module(m.clone(), vm))
+        .collect();
+    Ok(RObject::array(ancestors).to_refcount_assigned())
 }
 
 fn mrb_module_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
