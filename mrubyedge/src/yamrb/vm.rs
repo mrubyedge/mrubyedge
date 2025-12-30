@@ -394,6 +394,10 @@ impl VM {
             .unwrap_or_else(|| panic!("Class {} not found", name))
     }
 
+    pub fn get_const_by_name(&self, name: &str) -> Option<Rc<RObject>> {
+        self.consts.get(name).cloned()
+    }
+
     /// Defines a new class under the optional parent module, inheriting from
     /// `superclass` or `Object` by default, and registers it in the constant
     /// table. The resulting class object is returned for further mutation.

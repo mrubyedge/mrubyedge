@@ -743,6 +743,11 @@ impl RModule {
         consts.get(name).cloned()
     }
 
+    // Alias
+    pub fn get_const_by_name(&self, name: &str) -> Option<Rc<RObject>> {
+        self.getmcnst(name)
+    }
+
     pub fn find_method(&self, name: &str) -> Option<RProc> {
         // First check this module's methods
         let procs = self.procs.borrow();
