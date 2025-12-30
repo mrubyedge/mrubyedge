@@ -800,6 +800,22 @@ impl RModule {
     }
 }
 
+pub trait AsModule {
+    fn as_module(&self) -> Rc<RModule>;
+}
+
+impl AsModule for Rc<RModule> {
+    fn as_module(&self) -> Rc<RModule> {
+        self.clone()
+    }
+}
+
+impl AsModule for Rc<RClass> {
+    fn as_module(&self) -> Rc<RModule> {
+        self.module.clone()
+    }
+}
+
 fn collect_module_chain(
     module: &Rc<RModule>,
     chain: &mut Vec<Rc<RModule>>,
@@ -844,13 +860,12 @@ impl RClass {
         if let Some(parent) = parent_module {
             module.parent.replace(Some(parent));
         }
-        let class = RClass {
+        RClass {
             module,
             super_class,
             singleton_class_ref,
             is_singleton: false,
-        };
-        class
+        }
     }
 
     pub fn new_singleton(
@@ -863,13 +878,12 @@ impl RClass {
         if let Some(parent) = parent_module {
             module.parent.replace(Some(parent));
         }
-        let class = RClass {
+        RClass {
             module,
             super_class,
             singleton_class_ref,
             is_singleton: true,
-        };
-        class
+        }
     }
 
     pub fn getmcnst(&self, name: &str) -> Option<Rc<RObject>> {
