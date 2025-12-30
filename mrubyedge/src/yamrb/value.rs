@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::cell::Cell;
 use std::collections::HashSet;
+use std::rc::Weak;
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
 
 use crate::Error;
@@ -257,6 +258,19 @@ impl RObject {
         }
     }
 
+    pub fn class_or_module(c: Rc<RModule>, vm: &mut VM) -> Rc<Self> {
+        match c.as_ref().underlying.borrow().as_ref() {
+            Some(weak_class) => {
+                if let Some(class) = weak_class.upgrade() {
+                    RObject::class(class, vm)
+                } else {
+                    panic!("[BUG] Class weak reference is dead");
+                }
+            }
+            None => Rc::new(RObject::module(c.clone())),
+        }
+    }
+
     pub fn instance(c: Rc<RClass>) -> Self {
         RObject {
             tt: RType::Instance,
@@ -411,11 +425,13 @@ impl RObject {
             }
         };
 
+        let parent_module = self.get_class(vm).parent.borrow().clone();
         let sclass = Rc::new(RClass::new_singleton(
             &class_name,
             Some(self.get_class(vm).clone()),
-            self.get_class(vm).parent.borrow().clone(),
+            parent_module.clone(),
         ));
+        sclass.update_module_weakref();
 
         self.singleton_class.replace(Some(sclass.clone()));
         sclass
@@ -442,11 +458,13 @@ impl RObject {
             None => vm.get_class_by_name("Class"),
         };
 
+        let parent_module = self.get_class(vm).parent.borrow().clone();
         let sclass = Rc::new(RClass::new_singleton(
             &class_name,
             Some(super_class),
-            self.get_class(vm).parent.borrow().clone(),
+            parent_module.clone(),
         ));
+        sclass.update_module_weakref();
 
         self.singleton_class.replace(Some(sclass.clone()));
         class
@@ -724,6 +742,8 @@ pub struct RModule {
     pub consts: RefCell<HashMap<String, Rc<RObject>>>,
     pub mixed_in_modules: RefCell<Vec<Rc<RModule>>>,
     pub parent: RefCell<Option<Rc<RModule>>>,
+
+    pub underlying: RefCell<Option<Weak<RClass>>>,
 }
 
 impl RModule {
@@ -735,6 +755,7 @@ impl RModule {
             consts: RefCell::new(HashMap::new()),
             mixed_in_modules: RefCell::new(Vec::new()),
             parent: RefCell::new(None),
+            underlying: RefCell::new(None),
         }
     }
 
@@ -823,12 +844,13 @@ impl RClass {
         if let Some(parent) = parent_module {
             module.parent.replace(Some(parent));
         }
-        RClass {
+        let class = RClass {
             module,
             super_class,
             singleton_class_ref,
             is_singleton: false,
-        }
+        };
+        class
     }
 
     pub fn new_singleton(
@@ -841,12 +863,13 @@ impl RClass {
         if let Some(parent) = parent_module {
             module.parent.replace(Some(parent));
         }
-        RClass {
+        let class = RClass {
             module,
             super_class,
             singleton_class_ref,
             is_singleton: true,
-        }
+        };
+        class
     }
 
     pub fn getmcnst(&self, name: &str) -> Option<Rc<RObject>> {
@@ -867,6 +890,13 @@ impl RClass {
     pub fn full_name(&self) -> String {
         self.module.full_name()
     }
+
+    pub(crate) fn update_module_weakref(self: &Rc<Self>) {
+        self.module
+            .underlying
+            .borrow_mut()
+            .replace(Rc::downgrade(self));
+    }
 }
 
 fn collect_class_chain(
@@ -880,10 +910,17 @@ fn collect_class_chain(
     }
 }
 
-fn build_lookup_chain(class: &Rc<RClass>) -> Vec<Rc<RModule>> {
+pub(crate) fn build_lookup_chain(class: &Rc<RClass>) -> Vec<Rc<RModule>> {
     let mut chain = Vec::new();
     let mut visited = HashSet::new();
     collect_class_chain(class, &mut chain, &mut visited);
+    chain
+}
+
+pub(crate) fn build_module_lookup_chain(module: &Rc<RModule>) -> Vec<Rc<RModule>> {
+    let mut chain = Vec::new();
+    let mut visited = HashSet::new();
+    collect_module_chain(module, &mut chain, &mut visited);
     chain
 }
 

@@ -133,6 +133,7 @@ impl VM {
         let class_object_table = HashMap::new();
 
         let object_class = Rc::new(RClass::new("Object", None, None));
+        object_class.update_module_weakref();
 
         let id = 1; // TODO generator
         let bytecode = Vec::new();
@@ -412,6 +413,8 @@ impl VM {
             None => self.object_class.clone(),
         };
         let class = Rc::new(RClass::new(name, Some(superclass), parent_module.clone()));
+        class.update_module_weakref();
+
         let object = RObject::class(class.clone(), self);
         self.consts.insert(name.to_string(), object.clone());
         if let Some(parent) = parent_module {
