@@ -709,6 +709,21 @@ impl TryFrom<&RObject> for Vec<Rc<RObject>> {
     }
 }
 
+impl TryFrom<&RObject> for Vec<(Rc<RObject>, Rc<RObject>)> {
+    type Error = Error;
+
+    fn try_from(value: &RObject) -> Result<Self, Self::Error> {
+        match &value.value {
+            RValue::Hash(h) => Ok(h
+                .borrow()
+                .values()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+}
+
 impl TryFrom<&RObject> for () {
     type Error = Error;
 

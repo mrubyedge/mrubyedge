@@ -91,6 +91,12 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         "kind_of?",
         Box::new(mrb_object_is_a),
     );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "class",
+        Box::new(mrb_object_class),
+    );
 
     // define global consts:
     vm.consts.insert(
@@ -249,6 +255,12 @@ fn mrb_object_is_a(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
         }
     };
     Ok(Rc::new(RObject::boolean(is_a)))
+}
+
+fn mrb_object_class(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let obj = vm.getself()?;
+    let class = obj.get_class(vm);
+    Ok(RObject::class_or_module(class.as_module(), vm))
 }
 
 pub fn mrb_is_a(vm: &mut VM, obj: Rc<RObject>, class: impl AsModule) -> bool {
