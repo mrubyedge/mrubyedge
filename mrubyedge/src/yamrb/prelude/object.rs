@@ -85,6 +85,12 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         Box::new(mrb_object_lambda),
     );
     mrb_define_cmethod(vm, object_class.clone(), "is_a?", Box::new(mrb_object_is_a));
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "kind_of?",
+        Box::new(mrb_object_is_a),
+    );
 
     // define global consts:
     vm.consts.insert(
