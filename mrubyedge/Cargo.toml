@@ -1,6 +1,6 @@
 [package]
 name = "mrubyedge"
-version = "1.0.14"
+version = "1.0.15"
 edition = "2024"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
 description = "mruby/edge is yet another mruby that is specialized for running on WASM"
@@ -9,12 +9,12 @@ license = "BSD-3-Clause"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-getrandom = { version = "0.2.14", optional = true }
+getrandom = { version = "0.3.4", optional = true }
 plain = "0.2.3"
 regex = { version = "1.12.2", default-features = false, features = [
     "std",
 ], optional = true }
-simple_endian = "0.3"
+simple_endian = "0.3.3"
 
 [dev-dependencies]
 criterion = "0.5.1"
