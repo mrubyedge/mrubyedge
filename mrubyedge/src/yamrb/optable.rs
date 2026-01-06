@@ -307,15 +307,15 @@ pub(crate) fn consume_expr(
         ENTER => {
             op_enter(vm, operand)?;
         }
-        // KEY_P => {
-        //     // op_key_p(vm, &operand)?;
-        // }
-        // KEYEND => {
-        //     // op_keyend(vm, &operand)?;
-        // }
-        // KARG => {
-        //     // op_karg(vm, &operand)?;
-        // }
+        KEY_P => {
+            op_key_p(vm, &operand)?;
+        }
+        KEYEND => {
+            op_keyend(vm, &operand)?;
+        }
+        KARG => {
+            op_karg(vm, &operand)?;
+        }
         RETURN => {
             op_return(vm, operand)?;
         }
@@ -871,7 +871,9 @@ pub(crate) fn op_ssend(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_ssendb(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b, c) = operand.as_bbb()?;
-    do_op_send(vm, 0, Some(a as usize + c as usize + 1), a, b, c)
+    let n: usize = (c & 0x0f) as usize;
+    let k: usize = (c >> 4) as usize;
+    do_op_send(vm, 0, Some(a as usize + n + k * 2 + 1), a, b, c)
 }
 
 pub(crate) fn op_send(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
@@ -881,7 +883,9 @@ pub(crate) fn op_send(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_sendb(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b, c) = operand.as_bbb()?;
-    do_op_send(vm, a as usize, Some(a as usize + c as usize + 1), a, b, c)
+    let n: usize = (c & 0x0f) as usize;
+    let k: usize = (c >> 4) as usize;
+    do_op_send(vm, a as usize, Some(a as usize + n + k * 2 + 1), a, b, c)
 }
 
 pub(crate) fn do_op_send(
@@ -892,6 +896,9 @@ pub(crate) fn do_op_send(
     b: u8,
     c: u8,
 ) -> Result<(), Error> {
+    let n: usize = (c & 0x0f) as usize;
+    let k: usize = (c >> 4) as usize;
+
     let method_id = vm.current_irep.syms[b as usize].clone();
     if &method_id.name == "__debug__vm_info" {
         // Special debug method to dump VM info
@@ -900,7 +907,7 @@ pub(crate) fn do_op_send(
         return Ok(());
     }
 
-    let block_index = (a + c + 1) as usize;
+    let block_index = a as usize + n + k * 2 + 1;
 
     let recv = if recv_index == 0 {
         vm.getself()?
@@ -1124,6 +1131,18 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+pub(crate) fn op_key_p(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    todo!()
+}
+
+pub(crate) fn op_keyend(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    todo!()
+}
+
+pub(crate) fn op_karg(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    todo!()
 }
 
 pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
