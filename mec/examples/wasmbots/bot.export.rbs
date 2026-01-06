@@ -1,7 +1,0 @@
-def clientInitialize: () -> void
-
-def setup: (Integer) -> SharedMemory
-
-def receiveGameParams: (Integer) -> bool
-
-def tick: (Integer) -> void
