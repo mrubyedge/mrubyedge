@@ -1,3 +1,0 @@
-def countup: () -> void
-
-def current_count: () -> Integer
