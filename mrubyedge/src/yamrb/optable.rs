@@ -307,15 +307,15 @@ pub(crate) fn consume_expr(
         ENTER => {
             op_enter(vm, operand)?;
         }
-        // KEY_P => {
-        //     // op_key_p(vm, &operand)?;
-        // }
-        // KEYEND => {
-        //     // op_keyend(vm, &operand)?;
-        // }
-        // KARG => {
-        //     // op_karg(vm, &operand)?;
-        // }
+        KEY_P => {
+            op_key_p(vm, operand)?;
+        }
+        KEYEND => {
+            op_keyend(vm, operand)?;
+        }
+        KARG => {
+            op_karg(vm, operand)?;
+        }
         RETURN => {
             op_return(vm, operand)?;
         }
@@ -871,7 +871,9 @@ pub(crate) fn op_ssend(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_ssendb(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b, c) = operand.as_bbb()?;
-    do_op_send(vm, 0, Some(a as usize + c as usize + 1), a, b, c)
+    let n: usize = (c & 0x0f) as usize;
+    let k: usize = (c >> 4) as usize;
+    do_op_send(vm, 0, Some(a as usize + n + k * 2 + 1), a, b, c)
 }
 
 pub(crate) fn op_send(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
@@ -881,7 +883,9 @@ pub(crate) fn op_send(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_sendb(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b, c) = operand.as_bbb()?;
-    do_op_send(vm, a as usize, Some(a as usize + c as usize + 1), a, b, c)
+    let n: usize = (c & 0x0f) as usize;
+    let k: usize = (c >> 4) as usize;
+    do_op_send(vm, a as usize, Some(a as usize + n + k * 2 + 1), a, b, c)
 }
 
 pub(crate) fn do_op_send(
@@ -892,6 +896,9 @@ pub(crate) fn do_op_send(
     b: u8,
     c: u8,
 ) -> Result<(), Error> {
+    let n: usize = (c & 0x0f) as usize;
+    let k: usize = (c >> 4) as usize;
+
     let method_id = vm.current_irep.syms[b as usize].clone();
     if &method_id.name == "__debug__vm_info" {
         // Special debug method to dump VM info
@@ -900,19 +907,32 @@ pub(crate) fn do_op_send(
         return Ok(());
     }
 
-    let block_index = (a + c + 1) as usize;
+    let block_index = a as usize + n + k * 2 + 1;
 
     let recv = if recv_index == 0 {
         vm.getself()?
     } else {
         vm.get_current_regs_cloned(recv_index)?
     };
-    let mut args = (0..c)
+    let mut args = (0..n)
         .map(|i| {
-            vm.get_current_regs_cloned((a + i + 1) as usize)
+            vm.get_current_regs_cloned(a as usize + i + 1)
                 .expect("args too short for required")
         })
         .collect::<Vec<_>>();
+
+    let mut map = HashMap::new();
+    for i in 0..k {
+        let key = vm
+            .get_current_regs_cloned(a as usize + n + i * 2 + 1)?
+            .intern()?;
+        let val = vm
+            .get_current_regs_cloned(a as usize + n + i * 2 + 2)?
+            .clone();
+        map.insert(key, val);
+    }
+    vm.kargs.borrow_mut().replace(map);
+
     if let Some(blk_index) = blk_index {
         args.push(vm.get_current_regs_cloned(blk_index)?);
     } else {
@@ -942,12 +962,16 @@ pub(crate) fn do_op_send(
 
     vm.current_regs()[a as usize].replace(recv.clone());
     if !method.is_rb_func {
+        kwarg_op_enter(vm);
+
         let func = vm
             .get_fn(method.func.unwrap())
             .ok_or_else(|| Error::internal("function not found"))?;
         vm.current_regs_offset += a as usize;
 
         let res = func(vm, &args);
+
+        kwarg_op_return(vm);
 
         vm.current_regs_offset -= a as usize;
         for i in (a as usize + 1)..block_index {
@@ -974,12 +998,35 @@ pub(crate) fn do_op_send(
         return Ok(());
     }
 
-    push_callinfo(vm, method_id, c as usize, Some(owner_module), a as usize);
+    push_callinfo(vm, method_id, n, Some(owner_module), a as usize);
 
     vm.pc.set(0);
     vm.current_irep = method.irep.ok_or_else(|| Error::internal("empry irep"))?;
     vm.current_regs_offset += a as usize;
     Ok(())
+}
+
+fn kwarg_op_enter(vm: &mut VM) {
+    let current_arg = if let Some(args) = vm.kargs.borrow_mut().take() {
+        let upper = vm.current_kargs.borrow_mut().take();
+        KArgs {
+            args: RefCell::new(args),
+            upper,
+        }
+    } else {
+        KArgs {
+            args: RefCell::new(HashMap::new()),
+            upper: None,
+        }
+    };
+    vm.current_kargs.borrow_mut().replace(Rc::new(current_arg));
+}
+
+fn kwarg_op_return(vm: &mut VM) {
+    let old_kargs = vm.current_kargs.borrow_mut().take();
+    if let Some(upper) = old_kargs.as_ref().and_then(|kargs| kargs.upper.clone()) {
+        vm.current_kargs.borrow_mut().replace(upper);
+    }
 }
 
 pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
@@ -1087,6 +1134,7 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 struct EnterArgInfo {
     m1: u32,
     o: u32,
@@ -1119,10 +1167,63 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         match vm.current_regs()[i + 1].as_ref() {
             Some(_) => {}
             None => {
-                unreachable!("argument {} not passed", i + 1);
+                return Err(Error::ArgumentError(format!(
+                    "argument {} not passed",
+                    i + 1
+                )));
             }
         }
     }
+    kwarg_op_enter(vm);
+
+    Ok(())
+}
+
+pub(crate) fn op_key_p(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bb()?;
+    let val = {
+        let key = vm.current_irep.syms[b as usize].clone();
+        let kargs = vm.current_kargs.borrow();
+        let kargs = kargs
+            .as_ref()
+            .ok_or_else(|| Error::internal("no kargs found"))?;
+        RObject::boolean(kargs.args.borrow().contains_key(&key))
+    };
+    vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
+    Ok(())
+}
+
+pub(crate) fn op_keyend(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
+    match vm.current_kargs.borrow().as_deref() {
+        Some(kargs) => {
+            let is_empty = kargs.args.borrow().is_empty();
+            if is_empty {
+                Ok(())
+            } else {
+                Err(Error::ArgumentError(
+                    "unexpected keyword arguments".to_string(),
+                ))
+            }
+        }
+        None => Err(Error::internal("no kargs found")),
+    }
+}
+
+pub(crate) fn op_karg(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bb()?;
+    let val = {
+        let key = vm.current_irep.syms[b as usize].clone();
+        let kargs = vm.current_kargs.borrow();
+        let kargs = kargs
+            .as_ref()
+            .ok_or_else(|| Error::internal("no kargs found"))?;
+
+        let mut args = kargs.args.borrow_mut();
+        args.remove(&key).ok_or_else(|| {
+            Error::ArgumentError(format!("keyword argument '{}' not found", key.name))
+        })?
+    };
+    vm.current_regs()[a as usize].replace(val);
     Ok(())
 }
 
@@ -1177,6 +1278,8 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     if vm.current_regs()[0].is_none() {
         unreachable!("debug");
     }
+
+    kwarg_op_return(vm);
 
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
