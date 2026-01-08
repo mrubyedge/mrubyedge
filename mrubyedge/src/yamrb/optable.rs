@@ -1107,6 +1107,7 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 struct EnterArgInfo {
     m1: u32,
     o: u32,
@@ -1146,17 +1147,17 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             }
         }
     }
-    let args = vm.kargs.borrow_mut().take();
-    if args.is_none() {
-        return Err(Error::ArgumentError(
-            "keyword arguments not passed".to_string(),
-        ));
-    }
-    let upper = vm.current_kargs.borrow_mut().take();
-
-    let current_arg = KArgs {
-        args: RefCell::new(args.unwrap()),
-        upper,
+    let current_arg = if let Some(args) = vm.kargs.borrow_mut().take() {
+        let upper = vm.current_kargs.borrow_mut().take();
+        KArgs {
+            args: RefCell::new(args),
+            upper,
+        }
+    } else {
+        KArgs {
+            args: RefCell::new(HashMap::new()),
+            upper: None,
+        }
     };
     vm.current_kargs.borrow_mut().replace(Rc::new(current_arg));
 
