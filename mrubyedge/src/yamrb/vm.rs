@@ -39,6 +39,12 @@ pub struct Breadcrumb {
     pub upper: Option<Rc<Breadcrumb>>,
 }
 
+#[derive(Debug)]
+pub struct KArgs {
+    pub args: RefCell<HashMap<RSym, Rc<RObject>>>,
+    pub upper: Option<Rc<KArgs>>,
+}
+
 impl Breadcrumb {
     #[cfg(feature = "mrubyedge-debug")]
     pub fn display_breadcrumb_for_debug(&self, level: usize, max_level: usize) -> bool {
@@ -70,6 +76,8 @@ pub struct VM {
     pub current_regs_offset: usize,
     pub current_callinfo: Option<Rc<CALLINFO>>,
     pub current_breadcrumb: Option<Rc<Breadcrumb>>,
+    pub kargs: RefCell<Option<HashMap<RSym, Rc<RObject>>>>,
+    pub current_kargs: RefCell<Option<Rc<KArgs>>>,
     pub target_class: TargetContext,
     pub exception: Option<Rc<RException>>,
 
@@ -148,6 +156,8 @@ impl VM {
             caller: None,
             return_reg: None,
         }));
+        let kargs = RefCell::new(None);
+        let current_kargs = RefCell::new(None);
         let target_class = TargetContext::Class(object_class.clone());
         let exception = None;
         let flag_preemption = Cell::new(false);
@@ -166,6 +176,8 @@ impl VM {
             current_regs_offset,
             current_callinfo,
             current_breadcrumb,
+            kargs,
+            current_kargs,
             target_class,
             exception,
             flag_preemption,

@@ -480,6 +480,14 @@ impl RObject {
         }
         self.get_class(vm)
     }
+
+    pub fn intern(&self) -> Result<RSym, Error> {
+        match &self.value {
+            RValue::String(s) => Ok(RSym::new(String::from_utf8_lossy(&s.borrow()).to_string())),
+            RValue::Symbol(s) => Ok(s.clone()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
 }
 
 impl TryFrom<&RObject> for i32 {
@@ -1023,7 +1031,7 @@ pub struct RProc {
 pub type RFn = Box<dyn Fn(&mut VM, &[Rc<RObject>]) -> Result<Rc<RObject>, Error>>;
 
 /// Interned symbol name used across the VM to identify methods and constants.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RSym {
     pub name: String,
 }
