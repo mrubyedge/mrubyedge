@@ -389,6 +389,18 @@ impl VM {
             .expect("self is not assigned")
     }
 
+    pub fn get_kwargs(&self) -> Option<HashMap<String, Rc<RObject>>> {
+        let kwargs = self.current_kargs.borrow().clone();
+        kwargs.map(|kargs| {
+            kargs
+                .args
+                .borrow()
+                .iter()
+                .map(|(k, v)| (k.name.clone(), v.clone()))
+                .collect()
+        })
+    }
+
     pub(crate) fn register_fn(&mut self, f: RFn) -> usize {
         self.fn_table.push(Rc::new(f));
         self.fn_table.len() - 1

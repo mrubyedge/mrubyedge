@@ -962,12 +962,16 @@ pub(crate) fn do_op_send(
 
     vm.current_regs()[a as usize].replace(recv.clone());
     if !method.is_rb_func {
+        kwarg_op_enter(vm);
+
         let func = vm
             .get_fn(method.func.unwrap())
             .ok_or_else(|| Error::internal("function not found"))?;
         vm.current_regs_offset += a as usize;
 
         let res = func(vm, &args);
+
+        kwarg_op_return(vm);
 
         vm.current_regs_offset -= a as usize;
         for i in (a as usize + 1)..block_index {
@@ -1000,6 +1004,29 @@ pub(crate) fn do_op_send(
     vm.current_irep = method.irep.ok_or_else(|| Error::internal("empry irep"))?;
     vm.current_regs_offset += a as usize;
     Ok(())
+}
+
+fn kwarg_op_enter(vm: &mut VM) {
+    let current_arg = if let Some(args) = vm.kargs.borrow_mut().take() {
+        let upper = vm.current_kargs.borrow_mut().take();
+        KArgs {
+            args: RefCell::new(args),
+            upper,
+        }
+    } else {
+        KArgs {
+            args: RefCell::new(HashMap::new()),
+            upper: None,
+        }
+    };
+    vm.current_kargs.borrow_mut().replace(Rc::new(current_arg));
+}
+
+fn kwarg_op_return(vm: &mut VM) {
+    let old_kargs = vm.current_kargs.borrow_mut().take();
+    if let Some(upper) = old_kargs.as_ref().and_then(|kargs| kargs.upper.clone()) {
+        vm.current_kargs.borrow_mut().replace(upper);
+    }
 }
 
 pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
@@ -1147,19 +1174,7 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             }
         }
     }
-    let current_arg = if let Some(args) = vm.kargs.borrow_mut().take() {
-        let upper = vm.current_kargs.borrow_mut().take();
-        KArgs {
-            args: RefCell::new(args),
-            upper,
-        }
-    } else {
-        KArgs {
-            args: RefCell::new(HashMap::new()),
-            upper: None,
-        }
-    };
-    vm.current_kargs.borrow_mut().replace(Rc::new(current_arg));
+    kwarg_op_enter(vm);
 
     Ok(())
 }
@@ -1264,10 +1279,7 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         unreachable!("debug");
     }
 
-    let old_kargs = vm.current_kargs.borrow_mut().take();
-    if let Some(upper) = old_kargs.as_ref().and_then(|kargs| kargs.upper.clone()) {
-        vm.current_kargs.borrow_mut().replace(upper);
-    }
+    kwarg_op_return(vm);
 
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
