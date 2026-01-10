@@ -77,3 +77,38 @@ impl Error {
         false
     }
 }
+
+/// Used for asynchronous or multithreaded context
+#[derive(Debug, Clone, PartialEq)]
+pub enum StaticError {
+    General(String),
+}
+
+impl fmt::Display for StaticError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "error nr {:?}", self)
+    }
+}
+
+impl error::Error for StaticError {}
+
+unsafe impl Sync for StaticError {}
+unsafe impl Send for StaticError {}
+
+impl From<Error> for StaticError {
+    fn from(err: Error) -> StaticError {
+        match err {
+            Error::General => StaticError::General("General error".to_string()),
+            Error::Internal(msg) => StaticError::General(format!("[Internal Error] {}", msg)),
+            Error::InvalidOpCode => StaticError::General("Invalid opcode".to_string()),
+            Error::RuntimeError(msg) => StaticError::General(msg),
+            Error::ArgumentError(msg) => StaticError::General(format!("Invalid argument: {}", msg)),
+            Error::TypeMismatch => StaticError::General("Type mismatch".to_string()),
+            Error::NoMethodError(msg) => StaticError::General(format!("Method not found: {}", msg)),
+            Error::NameError(msg) => StaticError::General(format!("Cannot found name: {}", msg)),
+
+            Error::Break(_) => StaticError::General("[Break]".to_string()),
+            Error::BlockReturn(_, _) => StaticError::General("[BlockReturn]".to_string()),
+        }
+    }
+}
