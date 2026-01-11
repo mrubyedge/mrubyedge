@@ -743,12 +743,9 @@ impl TryFrom<&RObject> for () {
 impl TryFrom<&RObject> for *mut u8 {
     type Error = Error;
 
-    /// HINT: SharedMemory's memory region cannot be cleared when the reference count drops to zero.
-    /// Even if it leaks, Cloudflare Workers deallocate memory on a per-Wasm instance basis
-    /// every time the request is done; so it does not cause memory leaks.
     fn try_from(value: &RObject) -> Result<Self, Self::Error> {
         match &value.value {
-            RValue::SharedMemory(sm) => Ok(sm.borrow_mut().leak()),
+            RValue::SharedMemory(sm) => Ok(sm.borrow_mut().as_mut_ptr()),
             _ => Err(Error::TypeMismatch),
         }
     }

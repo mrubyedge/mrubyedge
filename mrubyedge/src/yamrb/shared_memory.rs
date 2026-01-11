@@ -33,6 +33,9 @@ impl SharedMemory {
         self.memory[offset]
     }
 
+    /// HINT: SharedMemory's memory region cannot be cleared when the reference count drops to zero.
+    /// Even if it leaks, Cloudflare Workers deallocate memory on a per-Wasm instance basis
+    /// every time the request is done; so it does not cause memory leaks.
     pub fn leak(&mut self) -> *mut u8 {
         let data = self.memory.as_ref().to_vec();
         let prt = Vec::leak(data);
