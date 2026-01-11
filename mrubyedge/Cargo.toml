@@ -1,6 +1,6 @@
 [package]
 name = "mrubyedge"
-version = "1.0.17-rc1"
+version = "1.0.17"
 edition = "2024"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
 description = "mruby/edge is yet another mruby that is specialized for running on WASM"
@@ -26,7 +26,8 @@ harness = false
 
 [features]
 default = ["wasi", "mrubyedge-debug"]
-wasi = ["dep:getrandom"]
+wasi = []
 mruby-regexp = ["dep:regex"]
 mrubyedge-debug = ["wasi"]
+mruby-random = ["wasi", "dep:getrandom"]
 no-wasi = []
