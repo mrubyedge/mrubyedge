@@ -32,4 +32,10 @@ impl SharedMemory {
     pub fn read_u8(&self, offset: usize) -> u8 {
         self.memory[offset]
     }
+
+    pub fn leak(&mut self) -> *mut u8 {
+        let data = self.memory.as_ref().to_vec();
+        let prt = Vec::leak(data);
+        prt.as_mut_ptr()
+    }
 }
