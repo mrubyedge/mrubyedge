@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::yamrb::helpers::mrb_define_class_cmethod;
@@ -9,7 +8,7 @@ use crate::{
     Error,
     yamrb::{
         helpers::mrb_define_cmethod,
-        value::{RObject, RType, RValue},
+        value::{RHashMap, RObject, RType, RValue},
     },
 };
 
@@ -74,7 +73,7 @@ pub fn mrb_shared_memory_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RO
         value: RValue::SharedMemory(Rc::new(RefCell::new(SharedMemory::new(size as usize)))),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
-        ivar: RefCell::new(HashMap::new()),
+        ivar: RefCell::new(RHashMap::default()),
     };
     Ok(obj.to_refcount_assigned())
 }

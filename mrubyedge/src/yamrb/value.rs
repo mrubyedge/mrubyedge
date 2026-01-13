@@ -1,8 +1,7 @@
 use std::any::Any;
 use std::cell::Cell;
-use std::collections::HashSet;
 use std::rc::Weak;
-use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::Error;
 use crate::yamrb::helpers::mrb_call_inspect;
@@ -31,7 +30,18 @@ pub enum RType {
     Nil,
 }
 
-type RHash = HashMap<ValueHasher, (Rc<RObject>, Rc<RObject>)>;
+#[cfg(feature = "mruby-hash-fnv")]
+pub type RHashMap<K, V> = fnv::FnvHashMap<K, V>;
+#[cfg(feature = "mruby-hash-fnv")]
+pub type RHashSet<K> = fnv::FnvHashSet<K>;
+#[cfg(feature = "mruby-hash-fnv")]
+pub type RHash = fnv::FnvHashMap<ValueHasher, (Rc<RObject>, Rc<RObject>)>;
+#[cfg(not(feature = "mruby-hash-fnv"))]
+pub type RHashMap<K, V> = std::collections::HashMap<K, V>;
+#[cfg(not(feature = "mruby-hash-fnv"))]
+pub type RHashSet<K> = std::collections::HashSet<K>;
+#[cfg(not(feature = "mruby-hash-fnv"))]
+pub type RHash = std::collections::HashMap<ValueHasher, (Rc<RObject>, Rc<RObject>)>;
 
 /// Actual storage for Ruby values, including boxed objects and immediates.
 #[derive(Debug, Clone)]
@@ -84,7 +94,7 @@ pub enum ValueEquality {
 
 /// Key-value specific equality helper storing both keys and resolved values.
 #[derive(Debug, Clone)]
-pub struct ValueEqualityForKeyValue(HashSet<ValueHasher>, HashMap<ValueHasher, ValueEquality>);
+pub struct ValueEqualityForKeyValue(RHashSet<ValueHasher>, RHashMap<ValueHasher, ValueEquality>);
 
 impl PartialEq for ValueEqualityForKeyValue {
     fn eq(&self, other: &Self) -> bool {
@@ -109,7 +119,7 @@ pub struct RObject {
 
     pub singleton_class: RefCell<Option<Rc<RClass>>>,
 
-    pub ivar: RefCell<HashMap<String, Rc<RObject>>>,
+    pub ivar: RefCell<RHashMap<String, Rc<RObject>>>,
 }
 
 const UNSET_OBJECT_ID: u64 = u64::MAX;
@@ -121,7 +131,7 @@ impl RObject {
             value: RValue::Nil,
             object_id: 4.into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -131,7 +141,7 @@ impl RObject {
             value: RValue::Bool(b),
             object_id: (if b { 20 } else { 0 }).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -141,7 +151,7 @@ impl RObject {
             value: RValue::Symbol(sym),
             object_id: 2.into(), // TODO: calc the same id for the same symbol
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -157,7 +167,7 @@ impl RObject {
             value: RValue::Integer(n),
             object_id: object_id.into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -167,7 +177,7 @@ impl RObject {
             value: RValue::Float(f),
             object_id: f.to_bits().into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -177,7 +187,7 @@ impl RObject {
             value: RValue::String(RefCell::new(s.into_bytes())),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -187,7 +197,7 @@ impl RObject {
             value: RValue::String(RefCell::new(v)),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -197,17 +207,17 @@ impl RObject {
             value: RValue::Array(RefCell::new(v)),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
-    pub fn hash(h: HashMap<ValueHasher, (Rc<RObject>, Rc<RObject>)>) -> Self {
+    pub fn hash(h: RHash) -> Self {
         RObject {
             tt: RType::Hash,
             value: RValue::Hash(RefCell::new(h)),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -217,7 +227,7 @@ impl RObject {
             value: RValue::Range(start, end, exclusive),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -238,7 +248,7 @@ impl RObject {
             value: RValue::Class(c),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
         .to_refcount_assigned()
     }
@@ -254,7 +264,7 @@ impl RObject {
             value: RValue::Module(m),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -280,7 +290,7 @@ impl RObject {
             }),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -290,7 +300,7 @@ impl RObject {
             value: RValue::Exception(e),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
     }
 
@@ -368,7 +378,7 @@ impl RObject {
                 ValueEquality::Array(arr)
             }
             RValue::Hash(ha) => {
-                let keys: HashSet<_> = ha.borrow().keys().cloned().collect();
+                let keys: RHashSet<_> = ha.borrow().keys().cloned().collect();
                 ValueEquality::KeyValue(ValueEqualityForKeyValue(
                     keys,
                     ha.borrow()
@@ -761,8 +771,8 @@ impl PartialEq for RObject {
 #[derive(Debug, Clone)]
 pub struct RModule {
     pub sym_id: RSym,
-    pub procs: RefCell<HashMap<String, RProc>>,
-    pub consts: RefCell<HashMap<String, Rc<RObject>>>,
+    pub procs: RefCell<RHashMap<String, RProc>>,
+    pub consts: RefCell<RHashMap<String, Rc<RObject>>>,
     pub mixed_in_modules: RefCell<Vec<Rc<RModule>>>,
     pub parent: RefCell<Option<Rc<RModule>>>,
 
@@ -774,8 +784,8 @@ impl RModule {
         let name = name.to_string();
         RModule {
             sym_id: RSym::new(name),
-            procs: RefCell::new(HashMap::new()),
-            consts: RefCell::new(HashMap::new()),
+            procs: RefCell::new(RHashMap::default()),
+            consts: RefCell::new(RHashMap::default()),
             mixed_in_modules: RefCell::new(Vec::new()),
             parent: RefCell::new(None),
             underlying: RefCell::new(None),
@@ -842,7 +852,7 @@ impl AsModule for Rc<RClass> {
 fn collect_module_chain(
     module: &Rc<RModule>,
     chain: &mut Vec<Rc<RModule>>,
-    visited: &mut HashSet<usize>,
+    visited: &mut RHashSet<usize>,
 ) {
     let key = Rc::as_ptr(module) as usize;
     if !visited.insert(key) {
@@ -939,7 +949,7 @@ impl RClass {
 fn collect_class_chain(
     class: &Rc<RClass>,
     chain: &mut Vec<Rc<RModule>>,
-    visited: &mut HashSet<usize>,
+    visited: &mut RHashSet<usize>,
 ) {
     collect_module_chain(&class.module, chain, visited);
     if let Some(super_class) = &class.super_class {
@@ -949,14 +959,14 @@ fn collect_class_chain(
 
 pub(crate) fn build_lookup_chain(class: &Rc<RClass>) -> Vec<Rc<RModule>> {
     let mut chain = Vec::new();
-    let mut visited = HashSet::new();
+    let mut visited = RHashSet::default();
     collect_class_chain(class, &mut chain, &mut visited);
     chain
 }
 
 pub(crate) fn build_module_lookup_chain(module: &Rc<RModule>) -> Vec<Rc<RModule>> {
     let mut chain = Vec::new();
-    let mut visited = HashSet::new();
+    let mut visited = RHashSet::default();
     collect_module_chain(module, &mut chain, &mut visited);
     chain
 }

@@ -1,5 +1,4 @@
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
 use std::env;
 use std::rc::Rc;
 
@@ -8,6 +7,7 @@ use crate::rite::{Irep, Rite, insn};
 
 use super::op::Op;
 use super::prelude::prelude;
+use super::value::RHashMap;
 use super::value::*;
 use super::{op, optable::*};
 
@@ -41,7 +41,7 @@ pub struct Breadcrumb {
 
 #[derive(Debug)]
 pub struct KArgs {
-    pub args: RefCell<HashMap<RSym, Rc<RObject>>>,
+    pub args: RefCell<RHashMap<RSym, Rc<RObject>>>,
     pub upper: Option<Rc<KArgs>>,
 }
 
@@ -76,7 +76,7 @@ pub struct VM {
     pub current_regs_offset: usize,
     pub current_callinfo: Option<Rc<CALLINFO>>,
     pub current_breadcrumb: Option<Rc<Breadcrumb>>,
-    pub kargs: RefCell<Option<HashMap<RSym, Rc<RObject>>>>,
+    pub kargs: RefCell<Option<RHashMap<RSym, Rc<RObject>>>>,
     pub current_kargs: RefCell<Option<Rc<KArgs>>>,
     pub target_class: TargetContext,
     pub exception: Option<Rc<RException>>,
@@ -85,16 +85,16 @@ pub struct VM {
 
     // common class
     pub object_class: Rc<RClass>,
-    pub builtin_class_table: HashMap<&'static str, Rc<RClass>>,
-    pub class_object_table: HashMap<String, Rc<RObject>>,
+    pub builtin_class_table: RHashMap<&'static str, Rc<RClass>>,
+    pub class_object_table: RHashMap<String, Rc<RObject>>,
 
-    pub globals: HashMap<String, Rc<RObject>>,
-    pub consts: HashMap<String, Rc<RObject>>,
+    pub globals: RHashMap<String, Rc<RObject>>,
+    pub consts: RHashMap<String, Rc<RObject>>,
 
     pub upper: Option<Rc<ENV>>,
     // TODO: using fixed array?
-    pub cur_env: HashMap<usize, Rc<ENV>>,
-    pub has_env_ref: HashMap<usize, bool>,
+    pub cur_env: RHashMap<usize, Rc<ENV>>,
+    pub has_env_ref: RHashMap<usize, bool>,
 
     pub fn_table: Vec<Rc<RFn>>,
 }
@@ -135,10 +135,10 @@ impl VM {
     /// tables and runs the prelude to seed standard classes.
     pub fn new_by_raw_irep(irep: IREP) -> VM {
         let irep = Rc::new(irep);
-        let globals = HashMap::new();
-        let consts = HashMap::new();
-        let builtin_class_table = HashMap::new();
-        let class_object_table = HashMap::new();
+        let globals = RHashMap::default();
+        let consts = RHashMap::default();
+        let builtin_class_table = RHashMap::default();
+        let class_object_table = RHashMap::default();
 
         let object_class = Rc::new(RClass::new("Object", None, None));
         object_class.update_module_weakref();
@@ -163,8 +163,8 @@ impl VM {
         let flag_preemption = Cell::new(false);
         let fn_table = Vec::new();
         let upper = None;
-        let cur_env = HashMap::new();
-        let has_env_ref = HashMap::new();
+        let cur_env = RHashMap::default();
+        let has_env_ref = RHashMap::default();
 
         let mut vm = VM {
             id,
@@ -236,7 +236,7 @@ impl VM {
             }),
             object_id: 0.into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(HashMap::new()),
+            ivar: RefCell::new(RHashMap::default()),
         }
         .to_refcount_assigned();
         if self.current_regs()[0].is_none() {
@@ -389,7 +389,7 @@ impl VM {
             .expect("self is not assigned")
     }
 
-    pub fn get_kwargs(&self) -> Option<HashMap<String, Rc<RObject>>> {
+    pub fn get_kwargs(&self) -> Option<RHashMap<String, Rc<RObject>>> {
         let kwargs = self.current_kargs.borrow().clone();
         kwargs.map(|kargs| {
             kargs

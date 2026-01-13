@@ -505,19 +505,18 @@ fn test_mrb_object_is_equal_array() {
 #[test]
 fn test_mrb_object_is_equal_hash() {
     use crate::yamrb::prelude::hash::*;
-    use std::collections::HashMap;
 
     let mut vm = VM::empty();
 
-    let lhs = RObject::hash(HashMap::new()).to_refcount_assigned();
-    let rhs = RObject::hash(HashMap::new()).to_refcount_assigned();
+    let lhs = RObject::hash(RHashMap::default()).to_refcount_assigned();
+    let rhs = RObject::hash(RHashMap::default()).to_refcount_assigned();
     let ret: bool = mrb_object_is_equal(&mut vm, lhs, rhs)
         .as_ref()
         .try_into()
         .expect("must return bool");
     assert!(ret);
 
-    let lhs = RObject::hash(HashMap::new()).to_refcount_assigned();
+    let lhs = RObject::hash(RHashMap::default()).to_refcount_assigned();
     mrb_hash_set_index(
         lhs.clone(),
         RObject::symbol("key1".into()).to_refcount_assigned(),
@@ -531,7 +530,7 @@ fn test_mrb_object_is_equal_hash() {
     )
     .expect("set index failed");
 
-    let rhs = RObject::hash(HashMap::new()).to_refcount_assigned();
+    let rhs = RObject::hash(RHashMap::default()).to_refcount_assigned();
     mrb_hash_set_index(
         rhs.clone(),
         RObject::symbol("key2".into()).to_refcount_assigned(),
@@ -551,7 +550,7 @@ fn test_mrb_object_is_equal_hash() {
         .expect("must return bool");
     assert!(ret);
 
-    let lhs = RObject::hash(HashMap::new()).to_refcount_assigned();
+    let lhs = RObject::hash(RHashMap::default()).to_refcount_assigned();
     mrb_hash_set_index(
         lhs.clone(),
         RObject::symbol("key1".into()).to_refcount_assigned(),
@@ -565,7 +564,7 @@ fn test_mrb_object_is_equal_hash() {
     )
     .expect("set index failed");
 
-    let rhs = RObject::hash(HashMap::new()).to_refcount_assigned();
+    let rhs = RObject::hash(RHashMap::default()).to_refcount_assigned();
     mrb_hash_set_index(
         rhs.clone(),
         RObject::symbol("key2".into()).to_refcount_assigned(),
@@ -585,7 +584,7 @@ fn test_mrb_object_is_equal_hash() {
         .expect("must return bool");
     assert!(!ret);
 
-    let lhs = RObject::hash(HashMap::new()).to_refcount_assigned();
+    let lhs = RObject::hash(RHashMap::default()).to_refcount_assigned();
     mrb_hash_set_index(
         lhs.clone(),
         RObject::symbol("key1".into()).to_refcount_assigned(),
@@ -599,7 +598,7 @@ fn test_mrb_object_is_equal_hash() {
     )
     .expect("set index failed");
 
-    let rhs = RObject::hash(HashMap::new()).to_refcount_assigned();
+    let rhs = RObject::hash(RHashMap::default()).to_refcount_assigned();
     mrb_hash_set_index(
         rhs.clone(),
         RObject::symbol("key2".into()).to_refcount_assigned(),

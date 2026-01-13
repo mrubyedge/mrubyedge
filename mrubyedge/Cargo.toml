@@ -9,6 +9,7 @@ license = "BSD-3-Clause"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+fnv = { version = "1.0.7", optional = true }
 getrandom = { version = "0.3.4", optional = true }
 plain = "0.2.3"
 regex = { version = "1.12.2", default-features = false, features = [
@@ -19,14 +20,21 @@ simple_endian = "0.3.3"
 [dev-dependencies]
 criterion = "0.5.1"
 mec-mrbc-sys = "3.3.1"
+fnv = "1.0.7"
+once_cell = "1.20.2"
+
+# [[bench]]
+# name = "benchmark"
+# harness = false
 
 [[bench]]
-name = "benchmark"
+name = "hashmap_comparison"
 harness = false
 
 [features]
 default = ["wasi", "mrubyedge-debug"]
 wasi = []
+mruby-hash-fnv = ["dep:fnv"]
 mruby-regexp = ["dep:regex"]
 mrubyedge-debug = ["wasi"]
 mruby-random = ["wasi", "dep:getrandom"]

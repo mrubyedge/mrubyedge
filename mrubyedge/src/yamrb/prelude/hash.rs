@@ -1,10 +1,10 @@
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
     Error,
     yamrb::{
         helpers::{mrb_call_block, mrb_call_inspect, mrb_define_class_cmethod, mrb_define_cmethod},
-        value::{RObject, RValue},
+        value::{RHashMap, RObject, RValue},
         vm::VM,
     },
 };
@@ -38,7 +38,7 @@ pub(crate) fn initialize_hash(vm: &mut VM) {
 }
 
 pub fn mrb_hash_new(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    Ok(Rc::new(RObject::hash(HashMap::new())))
+    Ok(Rc::new(RObject::hash(RHashMap::default())))
 }
 
 fn mrb_hash_get_index_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -140,11 +140,10 @@ fn test_hashing() {
 #[test]
 fn test_mrb_hash_set_and_index() {
     use crate::yamrb::*;
-    use std::collections::HashMap;
     let mut vm = VM::empty();
     prelude::prelude(&mut vm);
 
-    let hash = Rc::new(RObject::hash(HashMap::new()));
+    let hash = Rc::new(RObject::hash(RHashMap::default()));
     let keys = [
         Rc::new(RObject::string("key".to_string())),
         Rc::new(RObject::integer(1234)),
@@ -175,11 +174,10 @@ fn test_mrb_hash_set_and_index() {
 #[test]
 fn test_mrb_hash_set_and_index_not_found() {
     use crate::yamrb::*;
-    use std::collections::HashMap;
     let mut vm = VM::empty();
     prelude::prelude(&mut vm);
 
-    let hash = Rc::new(RObject::hash(HashMap::new()));
+    let hash = Rc::new(RObject::hash(RHashMap::default()));
     let key = Rc::new(RObject::string("key".to_string()));
     let value = Rc::new(RObject::integer(42));
 
@@ -207,10 +205,9 @@ fn mrb_hash_size(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
 
 #[test]
 fn test_mrb_hash_size() {
-    use std::collections::HashMap;
     let mut vm = VM::empty();
 
-    let hash = Rc::new(RObject::hash(HashMap::new()));
+    let hash = Rc::new(RObject::hash(RHashMap::default()));
     let key = Rc::new(RObject::string("key".to_string()));
     let value = Rc::new(RObject::integer(42));
     vm.current_regs()[0].replace(hash.clone());
