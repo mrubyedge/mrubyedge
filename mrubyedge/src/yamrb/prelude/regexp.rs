@@ -1,9 +1,6 @@
 #![cfg(feature = "mruby-regexp")]
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use std::{
-    cell::{Cell, RefCell},
-    collections::HashMap,
-};
 
 use regex::Regex;
 
@@ -11,7 +8,7 @@ use crate::{
     Error,
     yamrb::{
         helpers::{mrb_define_class_cmethod, mrb_define_cmethod, mrb_funcall},
-        value::{RData, RObject, RValue},
+        value::{RData, RHashMap, RObject, RValue},
         vm::VM,
     },
 };
@@ -131,7 +128,7 @@ pub fn mrb_regexp_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
                 value: RValue::Data(regexp_data),
                 object_id: Cell::new(0),
                 singleton_class: RefCell::new(None),
-                ivar: RefCell::new(HashMap::new()),
+                ivar: RefCell::new(RHashMap::default()),
             }
             .to_refcount_assigned())
         }
@@ -216,7 +213,7 @@ fn mrb_regexp_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
                 value: RValue::Data(matchdata_data),
                 object_id: Cell::new(0),
                 singleton_class: RefCell::new(None),
-                ivar: RefCell::new(HashMap::new()),
+                ivar: RefCell::new(RHashMap::default()),
             }
             .to_refcount_assigned())
         }

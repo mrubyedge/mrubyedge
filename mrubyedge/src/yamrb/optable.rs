@@ -1,11 +1,11 @@
 use std::cell::Cell;
 use std::cell::RefCell;
 
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::Error;
 use crate::rite::insn::{Fetched, OpCode};
+use crate::yamrb::value::RHashMap;
 
 use super::prelude::object::mrb_object_is_equal;
 use super::{helpers::mrb_funcall, value::*, vm::*};
@@ -921,7 +921,7 @@ pub(crate) fn do_op_send(
         })
         .collect::<Vec<_>>();
 
-    let mut map = HashMap::new();
+    let mut map = RHashMap::default();
     for i in 0..k {
         let key = vm
             .get_current_regs_cloned(a as usize + n + i * 2 + 1)?
@@ -1015,7 +1015,7 @@ fn kwarg_op_enter(vm: &mut VM) {
         }
     } else {
         KArgs {
-            args: RefCell::new(HashMap::new()),
+            args: RefCell::new(RHashMap::default()),
             upper: None,
         }
     };
@@ -1642,7 +1642,7 @@ pub(crate) fn op_hash(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let a = a as usize;
     let b = b as usize;
-    let mut hash = HashMap::new();
+    let mut hash = RHashMap::default();
     for i in 0..b {
         let key = vm.get_current_regs_cloned(a + i * 2)?;
         let val = vm.get_current_regs_cloned(a + i * 2 + 1)?;
@@ -1682,7 +1682,7 @@ pub(crate) fn op_lambda(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
-        ivar: RefCell::new(HashMap::new()),
+        ivar: RefCell::new(RHashMap::default()),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -1715,7 +1715,7 @@ pub(crate) fn op_block(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
-        ivar: RefCell::new(HashMap::new()),
+        ivar: RefCell::new(RHashMap::default()),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -1737,7 +1737,7 @@ pub(crate) fn op_method(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
-        ivar: RefCell::new(HashMap::new()),
+        ivar: RefCell::new(RHashMap::default()),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
