@@ -577,6 +577,7 @@ dependencies = [
  "fnv",
  "getrandom 0.3.4",
  "mec-mrbc-sys",
+ "mruby-compiler2-sys",
  "once_cell",
  "plain",
  "regex",
