@@ -20,6 +20,7 @@ jobs:
     strategy:
       matrix:
         BUILD_TARGET: [release] # refers to a cargo profile
+        ENABLE_FNV_HASH: ["", ",mruby-hash-fnv"]
     steps:
       - uses: actions/checkout@v5
       - name: Cache
@@ -37,12 +38,12 @@ jobs:
           set -e
           cargo fmt -p mrubyedge --check
           cargo fmt -p mrubyedge-cli --check
-      - name: Run tests for "${{ matrix.BUILD_TARGET }}" profile
+      - name: Run tests for "${{ matrix.BUILD_TARGET }}${{ matrix.ENABLE_FNV_HASH }}" profile
         run: |
           set +e
           cargo test --workspace \
             --exclude mec \
-            --features "mrubyedge-debug,mruby-regexp" \
+            --features "mrubyedge-debug,mruby-regexp${{ matrix.ENABLE_FNV_HASH }}" \
             --profile ${{ matrix.BUILD_TARGET }}
           TEST_RESULT=$?
           if [ $TEST_RESULT != 0 ]; then
@@ -50,11 +51,11 @@ jobs:
             git diff
             exit $TEST_RESULT
           fi
-      - name: Build binaries for "${{ matrix.BUILD_TARGET }}" profile
+      - name: Build binaries for "${{ matrix.BUILD_TARGET }}${{ matrix.ENABLE_FNV_HASH }}" profile
         run: |
           cargo build --workspace \
             --exclude mec \
-            --features "mrubyedge-debug,mruby-regexp" \
+            --features "mrubyedge-debug,mruby-regexp${{ matrix.ENABLE_FNV_HASH }}" \
             --profile ${{ matrix.BUILD_TARGET }}
 
   lint:
