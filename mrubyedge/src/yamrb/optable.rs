@@ -5,9 +5,10 @@ use std::rc::Rc;
 
 use crate::Error;
 use crate::rite::insn::{Fetched, OpCode};
-use crate::yamrb::value::RHashMap;
 
+use super::prelude::hash::mrb_hash_delete;
 use super::prelude::object::mrb_object_is_equal;
+use super::value::RHashMap;
 use super::{helpers::mrb_funcall, value::*, vm::*};
 
 // OpCodes of mruby 3.2.0 from mruby/op.h:
@@ -962,7 +963,7 @@ pub(crate) fn do_op_send(
 
     vm.current_regs()[a as usize].replace(recv.clone());
     if !method.is_rb_func {
-        kwarg_op_enter(vm);
+        kwarg_op_enter(vm, 0);
 
         let func = vm
             .get_fn(method.func.unwrap())
@@ -1006,16 +1007,19 @@ pub(crate) fn do_op_send(
     Ok(())
 }
 
-fn kwarg_op_enter(vm: &mut VM) {
+fn kwarg_op_enter(vm: &mut VM, rest_pos: usize) {
+    let kwrest_reg = Cell::new(rest_pos);
     let current_arg = if let Some(args) = vm.kargs.borrow_mut().take() {
         let upper = vm.current_kargs.borrow_mut().take();
         KArgs {
             args: RefCell::new(args),
+            kwrest_reg,
             upper,
         }
     } else {
         KArgs {
             args: RefCell::new(RHashMap::default()),
+            kwrest_reg,
             upper: None,
         }
     };
@@ -1185,23 +1189,57 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             }
         }
         let splat = RObject::array(array);
-        vm.current_regs()[m1_argc + 1].replace(splat.to_refcount_assigned());
+        vm.current_regs()[m1_argc + splat_arg].replace(splat.to_refcount_assigned());
     }
-    kwarg_op_enter(vm);
+    let kwrest_arg = arg_info.d as usize;
+    let kwrest_pos = if kwrest_arg == 1 {
+        m1_argc + splat_arg + kwrest_arg
+    } else {
+        0
+    };
+    kwarg_op_enter(vm, kwrest_pos);
+    if kwrest_arg == 1 {
+        let mut map = RHashMap::default();
+        for (k, v) in vm
+            .get_kwargs()
+            .ok_or_else(|| Error::RuntimeError("kwargs not defined".to_string()))?
+            .iter()
+        {
+            let k = RObject::symbol(RSym::new(k.clone())).to_refcount_assigned();
+            map.insert(k.as_hash_key()?, (k, v.clone()));
+        }
+
+        let kwrest = RObject::hash(map);
+        vm.current_regs()[kwrest_pos].replace(kwrest.to_refcount_assigned());
+    }
 
     Ok(())
 }
 
 pub(crate) fn op_key_p(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let val = {
-        let key = vm.current_irep.syms[b as usize].clone();
+    let key = vm.current_irep.syms[b as usize].clone();
+    let key_robj = RObject::symbol(key.clone()).to_refcount_assigned();
+
+    let (val, kwrest_pos) = {
         let kargs = vm.current_kargs.borrow();
         let kargs = kargs
             .as_ref()
             .ok_or_else(|| Error::internal("no kargs found"))?;
-        RObject::boolean(kargs.args.borrow().contains_key(&key))
+
+        let kwrest_pos = kargs.kwrest_reg.get();
+
+        (
+            RObject::boolean(kargs.args.borrow().contains_key(&key)),
+            kwrest_pos,
+        )
     };
+
+    if kwrest_pos != 0 {
+        let kwrest = vm.get_current_regs_cloned(kwrest_pos)?;
+        mrb_hash_delete(kwrest, key_robj)?;
+    }
+
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
 }

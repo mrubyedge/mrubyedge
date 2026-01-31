@@ -42,6 +42,7 @@ pub struct Breadcrumb {
 #[derive(Debug)]
 pub struct KArgs {
     pub args: RefCell<RHashMap<RSym, Rc<RObject>>>,
+    pub kwrest_reg: Cell<usize>,
     pub upper: Option<Rc<KArgs>>,
 }
 
