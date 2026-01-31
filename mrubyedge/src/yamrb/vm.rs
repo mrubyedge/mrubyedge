@@ -1,7 +1,7 @@
 use std::cell::{Cell, RefCell};
-use std::env;
 use std::mem::MaybeUninit;
 use std::rc::Rc;
+use std::{array, env};
 
 use crate::Error;
 use crate::rite::{Irep, Rite, insn};
@@ -111,7 +111,7 @@ impl RFnTable {
     pub fn new() -> RFnTable {
         RFnTable {
             size: Cell::new(0),
-            table: MaybeUninit::uninit().transpose(),
+            table: array::from_fn(|_| MaybeUninit::uninit()),
         }
     }
 

@@ -1,4 +1,3 @@
-#![feature(maybe_uninit_uninit_array_transpose)]
 //! mruby/edge is a pure-Rust reimplementation of the mruby VM that keeps its
 //! core execution engine `no_std`-friendly while striving for behavioral
 //! compatibility with upstream mruby. It primarily targets WebAssembly
