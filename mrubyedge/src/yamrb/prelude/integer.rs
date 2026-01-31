@@ -21,6 +21,12 @@ pub(crate) fn initialize_integer(vm: &mut VM) {
         "inspect",
         Box::new(mrb_integer_inspect),
     );
+    mrb_define_cmethod(
+        vm,
+        integer_class.clone(),
+        "to_s",
+        Box::new(mrb_integer_inspect),
+    );
 }
 
 fn mrb_integer_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

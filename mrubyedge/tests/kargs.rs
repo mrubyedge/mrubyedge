@@ -135,3 +135,97 @@ fn keyword_args_c_definition_test() {
     let result_int: i32 = result.as_ref().try_into().unwrap();
     assert_eq!(result_int, 7 * 3 * 11);
 }
+
+#[test]
+fn keyword_splat_basic_test() {
+    let code = "
+def process_options(**options)
+  options.length
+end
+
+process_options(foo: 1, bar: 2, baz: 3)
+    ";
+    let binary = mrbc_compile("kwsplat_basic", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let result_int: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(result_int, 3);
+}
+
+#[test]
+fn keyword_splat_empty_test() {
+    let code = "
+def process_options(**options)
+  options.length
+end
+
+process_options()
+    ";
+    let binary = mrbc_compile("kwsplat_empty", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let result_int: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(result_int, 0);
+}
+
+#[test]
+fn keyword_splat_access_test() {
+    let code = "
+def get_value(**options)
+  options[:name]
+end
+
+get_value(name: 'Alice', age: 30)
+    ";
+    let binary = mrbc_compile("kwsplat_access", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let result_str: String = result.as_ref().try_into().unwrap();
+    assert_eq!(&result_str, "Alice");
+}
+
+#[test]
+fn keyword_splat_with_regular_kwargs_test() {
+    let code = "
+def configure(mode: 'default', **options)
+  result = mode + ':'
+  options.each do |key, value|
+    result = result + ' ' + key.to_s + '=' + value.to_s
+  end
+  result
+end
+
+configure(mode: 'production', host: 'localhost', port: 8080)
+    ";
+    let binary = mrbc_compile("kwsplat_mixed", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let result_str: String = result.as_ref().try_into().unwrap();
+    assert!(result_str.starts_with("production:"));
+    assert!(result_str.contains("host=localhost"));
+    assert!(result_str.contains("port=8080"));
+}
+
+#[test]
+fn keyword_splat_with_positional_and_splat_args_test() {
+    let code = "
+def complex_method(x, *args, required: 100, **kwargs)
+  sum = x + required
+  args.each { |a| sum = sum + a * 10 }
+  kwargs.each { |k, v| sum = sum + v * 15 }
+  sum
+end
+
+complex_method(10, 20, 30, required: 5, foo: 15, bar: 25)
+    ";
+    let binary = mrbc_compile("kwsplat_complex", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let result_int: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(result_int, 10 + 5 + 20 * 10 + 30 * 10 + 15 * 15 + 25 * 15); // 1050
+}
