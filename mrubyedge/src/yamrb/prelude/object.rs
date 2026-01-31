@@ -97,6 +97,12 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         "class",
         Box::new(mrb_object_class),
     );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "method_missing",
+        Box::new(mrb_object_method_missing),
+    );
 
     // define global consts:
     vm.consts.insert(
@@ -261,6 +267,18 @@ fn mrb_object_class(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
     let obj = vm.getself()?;
     let class = obj.get_class(vm);
     Ok(RObject::class_or_module(class.as_module(), vm))
+}
+
+fn mrb_object_method_missing(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let method_name_obj = &args
+        .first()
+        .ok_or_else(|| Error::Internal("[BUG] method_missing without any args".to_string()))?;
+    let method_name: String = method_name_obj.as_ref().try_into()?;
+    Err(Error::NoMethodError(format!(
+        "undefined method `{}` for {}",
+        method_name,
+        vm.getself()?.get_class(vm).full_name()
+    )))
 }
 
 pub fn mrb_is_a(vm: &mut VM, obj: Rc<RObject>, class: impl AsModule) -> bool {
