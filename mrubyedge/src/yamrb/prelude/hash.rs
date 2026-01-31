@@ -26,6 +26,12 @@ pub(crate) fn initialize_hash(vm: &mut VM) {
         "[]=",
         Box::new(mrb_hash_set_index_self),
     );
+    mrb_define_cmethod(
+        vm,
+        hash_class.clone(),
+        "delete",
+        Box::new(mrb_hash_delete_self),
+    );
     mrb_define_cmethod(vm, hash_class.clone(), "each", Box::new(mrb_hash_each));
     mrb_define_cmethod(vm, hash_class.clone(), "size", Box::new(mrb_hash_size));
     mrb_define_cmethod(vm, hash_class.clone(), "length", Box::new(mrb_hash_size));
@@ -87,6 +93,29 @@ pub fn mrb_hash_set_index(
     let hashed = key.as_hash_key()?;
     hash.insert(hashed, (key.clone(), value.clone()));
     Ok(value.clone())
+}
+
+pub fn mrb_hash_delete(this: Rc<RObject>, key: Rc<RObject>) -> Result<Rc<RObject>, Error> {
+    let hash = match &this.value {
+        RValue::Hash(a) => a,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#delete must called on a hash".to_string(),
+            ));
+        }
+    };
+    let mut hash = hash.borrow_mut();
+    let hashed = key.as_hash_key()?;
+    match hash.remove(&hashed) {
+        Some((_, value)) => Ok(value.clone()),
+        None => Ok(Rc::new(RObject::nil())),
+    }
+}
+
+fn mrb_hash_delete_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let key = args[0].clone();
+    mrb_hash_delete(this, key)
 }
 
 fn mrb_hash_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
