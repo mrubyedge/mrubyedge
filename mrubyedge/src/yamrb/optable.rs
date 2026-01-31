@@ -951,12 +951,16 @@ pub(crate) fn do_op_send(
     };
     let (owner_module, method) = resolve_method(&klass, &method_id.name)
         .or_else(|| {
-            unshift_method_name(vm, &method_id, a as usize, n + k * 2 + 1);
+            unshift_method_name(vm, &mut args, &method_id, a as usize, n + k * 2 + 1);
             n += 1;
             resolve_method(&klass, "method_missing")
         })
         .ok_or_else(|| {
-            Error::NoMethodError(format!("{} for {}", method_id.name, klass.full_name()))
+            Error::Internal(format!(
+                "[BUG] method_missing not defined. {} for {}",
+                method_id.name,
+                klass.full_name()
+            ))
         })?;
 
     let upper = vm.current_breadcrumb.take();
@@ -1014,13 +1018,20 @@ pub(crate) fn do_op_send(
     Ok(())
 }
 
-fn unshift_method_name(vm: &mut VM, method_id: &RSym, a: usize, total_args: usize) {
+fn unshift_method_name(
+    vm: &mut VM,
+    args: &mut Vec<Rc<RObject>>,
+    method_id: &RSym,
+    a: usize,
+    total_args: usize,
+) {
     let method_name = RObject::symbol(method_id.clone()).to_refcount_assigned();
     for i in (a + 1..=a + total_args).rev() {
         let val = vm.current_regs().get(i).and_then(|r| r.as_ref().cloned());
         val.as_ref().cloned().map(|v| mrb_call_inspect(vm, v));
         vm.current_regs()[i + 1].replace(val.unwrap_or_else(|| Rc::new(RObject::nil())));
     }
+    args.insert(0, method_name.clone());
     vm.current_regs()[a + 1].replace(method_name);
 }
 
