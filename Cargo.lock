@@ -582,7 +582,7 @@ dependencies = [
 
 [[package]]
 name = "mrubyedge"
-version = "1.0.20-rc1"
+version = "1.0.20"
 dependencies = [
  "criterion",
  "fnv",

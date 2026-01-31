@@ -3,6 +3,7 @@ extern crate rand;
 
 use clap::Args;
 use std::{
+    env,
     fs::{File, rename},
     io::Read,
     path::{Path, PathBuf},
@@ -124,8 +125,11 @@ pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
         .join(", ");
 
     if args.debug_mruby_edge {
+        let mruby_edge_crate_path = env::var("MRUBYEDGE_LOCAL_CRATE_PATH").unwrap_or_else(|_| {
+            "/Users/udzura/ghq/github.com/mrubyedge/mrubyedge/mrubyedge".to_string()
+        });
         let cargo_toml = template::cargo_toml::CargoTomlDebug {
-            mruby_edge_crate_path: "/Users/udzura/ghq/github.com/udzura/mrubyedge/mrubyedge",
+            mruby_edge_crate_path: &mruby_edge_crate_path,
             mrubyedge_feature: &mrubyedge_feature,
         };
         std::fs::write("Cargo.toml", cargo_toml.render()?)?;
