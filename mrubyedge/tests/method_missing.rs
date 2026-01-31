@@ -162,7 +162,6 @@ end
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     vm.run().unwrap();
 
-    // method_missingが定義されていないので、NoMethodErrorが発生する
     let args = vec![];
     let result = mrb_funcall(&mut vm, None, "call_nonexistent", &args).err();
     let error = result.unwrap();
@@ -172,4 +171,26 @@ end
             && error_msg.contains("Bar")
             && error_msg.contains("nonexistent_method")
     );
+}
+
+#[test]
+fn method_missing_from_funcall_test() {
+    let code = "
+class Bar
+  def method_missing(name, *args)
+    \"handled by method_missing: #{name}\"
+  end
+end
+
+Bar.new
+    ";
+    let binary = mrbc_compile("funcall_method_missing", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let target = vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, Some(target), "call_nonexistent", &args).unwrap();
+    let msg: String = result.as_ref().try_into().unwrap();
+    assert_eq!(msg, "handled by method_missing: call_nonexistent");
 }

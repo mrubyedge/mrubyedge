@@ -152,13 +152,25 @@ pub fn mrb_funcall(
     name: &str,
     args: &[Rc<RObject>],
 ) -> Result<Rc<RObject>, Error> {
-    let recv: Rc<RObject> = match top_self {
-        Some(obj) => obj,
+    let recv: Rc<RObject> = match &top_self {
+        Some(obj) => obj.clone(),
         None => vm.getself()?,
     };
     let binding = recv.singleton_or_this_class(vm);
-    let (owner_module, method) = resolve_method(&binding, name)
-        .ok_or_else(|| Error::NoMethodError(format!("{} for {}", name, binding.full_name())))?;
+    let (owner_module, method) = match resolve_method(&binding, name) {
+        Some((owner, method)) => (owner, method),
+        None => {
+            if name == "method_missing" {
+                return Err(Error::Internal(
+                    "[BUG] method_missing not defined".to_string(),
+                ));
+            }
+
+            let mut mm_args = vec![Rc::new(RObject::symbol(RSym::new(name.to_string())))];
+            mm_args.extend_from_slice(args);
+            return mrb_funcall(vm, top_self, "method_missing", &mm_args);
+        }
+    };
 
     let upper = vm.current_breadcrumb.take();
     let new_breadcrumb = Rc::new(Breadcrumb {
@@ -184,7 +196,7 @@ pub fn mrb_funcall(
         )
     } else {
         let prev = vm.current_regs()[0].replace(recv.clone());
-        let func = vm.fn_table[method.func.unwrap()].clone();
+        let func = vm.fn_table.get(method.func.unwrap()).unwrap();
         let res = func(vm, args);
         if let Some(prev) = prev {
             vm.current_regs()[0].replace(prev);
@@ -221,7 +233,7 @@ pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, E
         )
     } else {
         let old = vm.current_regs()[0].replace(recv.clone());
-        let func = vm.fn_table[method.func.unwrap()].clone();
+        let func = vm.fn_table.get(method.func.unwrap()).unwrap();
         let res = func(vm, &[]);
         if let Some(old) = old {
             vm.current_regs()[0].replace(old);
