@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use crate::Error;
 use crate::rite::insn::{Fetched, OpCode};
+use crate::yamrb::helpers::mrb_call_inspect;
 
 use super::prelude::hash::mrb_hash_delete;
 use super::prelude::object::mrb_object_is_equal;
@@ -897,7 +898,7 @@ pub(crate) fn do_op_send(
     b: u8,
     c: u8,
 ) -> Result<(), Error> {
-    let n: usize = (c & 0x0f) as usize;
+    let mut n: usize = (c & 0x0f) as usize;
     let k: usize = (c >> 4) as usize;
 
     let method_id = vm.current_irep.syms[b as usize].clone();
@@ -948,9 +949,15 @@ pub(crate) fn do_op_send(
     } else {
         recv.singleton_or_this_class(vm)
     };
-    let (owner_module, method) = resolve_method(&klass, &method_id.name).ok_or_else(|| {
-        Error::NoMethodError(format!("{} for {}", method_id.name, klass.full_name()))
-    })?;
+    let (owner_module, method) = resolve_method(&klass, &method_id.name)
+        .or_else(|| {
+            unshift_method_name(vm, &method_id, a as usize, n + k * 2 + 1);
+            n += 1;
+            resolve_method(&klass, "method_missing")
+        })
+        .ok_or_else(|| {
+            Error::NoMethodError(format!("{} for {}", method_id.name, klass.full_name()))
+        })?;
 
     let upper = vm.current_breadcrumb.take();
     let new_breadcrumb = Rc::new(Breadcrumb {
@@ -1005,6 +1012,16 @@ pub(crate) fn do_op_send(
     vm.current_irep = method.irep.ok_or_else(|| Error::internal("empry irep"))?;
     vm.current_regs_offset += a as usize;
     Ok(())
+}
+
+fn unshift_method_name(vm: &mut VM, method_id: &RSym, a: usize, total_args: usize) {
+    let method_name = RObject::symbol(method_id.clone()).to_refcount_assigned();
+    for i in (a + 1..=a + total_args).rev() {
+        let val = vm.current_regs().get(i).and_then(|r| r.as_ref().cloned());
+        val.as_ref().cloned().map(|v| mrb_call_inspect(vm, v));
+        vm.current_regs()[i + 1].replace(val.unwrap_or_else(|| Rc::new(RObject::nil())));
+    }
+    vm.current_regs()[a + 1].replace(method_name);
 }
 
 fn kwarg_op_enter(vm: &mut VM, rest_pos: usize) {
