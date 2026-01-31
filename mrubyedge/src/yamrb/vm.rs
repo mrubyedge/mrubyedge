@@ -1,5 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::env;
+use std::mem::MaybeUninit;
 use std::rc::Rc;
 
 use crate::Error;
@@ -97,7 +98,51 @@ pub struct VM {
     pub cur_env: RHashMap<usize, Rc<ENV>>,
     pub has_env_ref: RHashMap<usize, bool>,
 
-    pub fn_table: Vec<Rc<RFn>>,
+    pub fn_table: RFnTable,
+}
+
+pub struct RFnTable {
+    pub size: Cell<usize>,
+    pub table: [MaybeUninit<Rc<RFn>>; 4096],
+}
+
+impl RFnTable {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> RFnTable {
+        RFnTable {
+            size: Cell::new(0),
+            table: MaybeUninit::uninit().transpose(),
+        }
+    }
+
+    pub fn set(&mut self, f: Rc<RFn>) {
+        let i = self.size.get();
+        if i >= self.table.len() {
+            panic!("RFnTable overflow");
+        }
+
+        self.table[i].write(f);
+        let size = self.size.get();
+        if i >= size {
+            self.size.set(i + 1);
+        }
+    }
+
+    pub fn get(&self, i: usize) -> Option<Rc<RFn>> {
+        if i >= self.size.get() {
+            return None;
+        }
+
+        unsafe { self.table[i].assume_init_ref() }.clone().into()
+    }
+
+    pub fn len(&self) -> usize {
+        self.size.get()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size.get() == 0
+    }
 }
 
 impl VM {
@@ -162,7 +207,7 @@ impl VM {
         let target_class = TargetContext::Class(object_class.clone());
         let exception = None;
         let flag_preemption = Cell::new(false);
-        let fn_table = Vec::new();
+        let fn_table = RFnTable::new();
         let upper = None;
         let cur_env = RHashMap::default();
         let has_env_ref = RHashMap::default();
@@ -403,12 +448,12 @@ impl VM {
     }
 
     pub(crate) fn register_fn(&mut self, f: RFn) -> usize {
-        self.fn_table.push(Rc::new(f));
+        self.fn_table.set(Rc::new(f));
         self.fn_table.len() - 1
     }
 
     pub(crate) fn get_fn(&self, i: usize) -> Option<Rc<RFn>> {
-        self.fn_table.get(i).cloned()
+        self.fn_table.get(i)
     }
 
     /// Looks up a previously defined builtin class by name. Panics if the

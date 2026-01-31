@@ -184,7 +184,7 @@ pub fn mrb_funcall(
         )
     } else {
         let prev = vm.current_regs()[0].replace(recv.clone());
-        let func = vm.fn_table[method.func.unwrap()].clone();
+        let func = vm.fn_table.get(method.func.unwrap()).unwrap();
         let res = func(vm, args);
         if let Some(prev) = prev {
             vm.current_regs()[0].replace(prev);
@@ -221,7 +221,7 @@ pub fn mrb_call_inspect(vm: &mut VM, recv: Rc<RObject>) -> Result<Rc<RObject>, E
         )
     } else {
         let old = vm.current_regs()[0].replace(recv.clone());
-        let func = vm.fn_table[method.func.unwrap()].clone();
+        let func = vm.fn_table.get(method.func.unwrap()).unwrap();
         let res = func(vm, &[]);
         if let Some(old) = old {
             vm.current_regs()[0].replace(old);
