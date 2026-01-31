@@ -1174,6 +1174,19 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             }
         }
     }
+    let splat_arg = arg_info.r as usize;
+    if splat_arg == 1 {
+        let total_args = vm.current_callinfo.as_ref().map_or(0, |ci| ci.n_args);
+        let passed_args = total_args.saturating_sub(m1_argc);
+        let mut array = Vec::new();
+        for i in 0..passed_args {
+            if let Some(val) = vm.current_regs()[m1_argc + i + 1].take() {
+                array.push(val);
+            }
+        }
+        let splat = RObject::array(array);
+        vm.current_regs()[m1_argc + 1].replace(splat.to_refcount_assigned());
+    }
     kwarg_op_enter(vm);
 
     Ok(())
