@@ -26,21 +26,49 @@ pub(crate) fn initialize_hash(vm: &mut VM) {
         "[]=",
         Box::new(mrb_hash_set_index_self),
     );
+    mrb_define_cmethod(vm, hash_class.clone(), "clear", Box::new(mrb_hash_clear));
+    mrb_define_cmethod(vm, hash_class.clone(), "dup", Box::new(mrb_hash_dup));
     mrb_define_cmethod(
         vm,
         hash_class.clone(),
         "delete",
         Box::new(mrb_hash_delete_self),
     );
+    mrb_define_cmethod(vm, hash_class.clone(), "empty?", Box::new(mrb_hash_empty));
+    mrb_define_cmethod(
+        vm,
+        hash_class.clone(),
+        "has_key?",
+        Box::new(mrb_hash_has_key),
+    );
+    mrb_define_cmethod(
+        vm,
+        hash_class.clone(),
+        "has_value?",
+        Box::new(mrb_hash_has_value),
+    );
+    mrb_define_cmethod(vm, hash_class.clone(), "key", Box::new(mrb_hash_key));
+    mrb_define_cmethod(vm, hash_class.clone(), "keys", Box::new(mrb_hash_keys));
     mrb_define_cmethod(vm, hash_class.clone(), "each", Box::new(mrb_hash_each));
     mrb_define_cmethod(vm, hash_class.clone(), "size", Box::new(mrb_hash_size));
     mrb_define_cmethod(vm, hash_class.clone(), "length", Box::new(mrb_hash_size));
+    mrb_define_cmethod(vm, hash_class.clone(), "count", Box::new(mrb_hash_size));
+    mrb_define_cmethod(vm, hash_class.clone(), "merge", Box::new(mrb_hash_merge));
+    mrb_define_cmethod(
+        vm,
+        hash_class.clone(),
+        "merge!",
+        Box::new(mrb_hash_merge_self),
+    );
+    mrb_define_cmethod(vm, hash_class.clone(), "to_h", Box::new(mrb_hash_to_h));
+    mrb_define_cmethod(vm, hash_class.clone(), "values", Box::new(mrb_hash_values));
     mrb_define_cmethod(
         vm,
         hash_class.clone(),
         "inspect",
         Box::new(mrb_hash_inspect),
     );
+    mrb_define_cmethod(vm, hash_class.clone(), "to_s", Box::new(mrb_hash_inspect));
 }
 
 pub fn mrb_hash_new(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -230,6 +258,187 @@ fn mrb_hash_size(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
     };
     let hash = hash.borrow();
     Ok(Rc::new(RObject::integer(hash.len() as i64)))
+}
+
+// Hash#clear: Removes all key-value pairs from the hash (destructive)
+fn mrb_hash_clear(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    this.hash_borrow_mut()?.clear();
+    Ok(this)
+}
+
+// Hash#dup: Returns a shallow copy of the hash
+fn mrb_hash_dup(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let hash = match &this.value {
+        RValue::Hash(h) => h.borrow().clone(),
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#dup must be called on a hash".to_string(),
+            ));
+        }
+    };
+    Ok(Rc::new(RObject::hash(hash)))
+}
+
+// Hash#empty?: Returns true if the hash contains no key-value pairs
+fn mrb_hash_empty(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let hash = match &this.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#empty? must be called on a hash".to_string(),
+            ));
+        }
+    };
+    Ok(Rc::new(RObject::boolean(hash.borrow().is_empty())))
+}
+
+// Hash#has_key?: Returns true if the given key is present in the hash
+fn mrb_hash_has_key(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let key = args[0].as_hash_key()?;
+    let hash = match &this.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#has_key? must be called on a hash".to_string(),
+            ));
+        }
+    };
+    Ok(Rc::new(RObject::boolean(hash.borrow().contains_key(&key))))
+}
+
+// Hash#has_value?: Returns true if the given value is present for some key in the hash
+fn mrb_hash_has_value(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let search_value = &args[0];
+    let hash = match &this.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#has_value? must be called on a hash".to_string(),
+            ));
+        }
+    };
+
+    let search_eq = search_value.as_eq_value();
+    for (_, (_, value)) in hash.borrow().iter() {
+        if value.as_eq_value() == search_eq {
+            return Ok(Rc::new(RObject::boolean(true)));
+        }
+    }
+    Ok(Rc::new(RObject::boolean(false)))
+}
+
+// Hash#key: Returns the key of an occurrence of a given value
+fn mrb_hash_key(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let search_value = &args[0];
+    let hash = match &this.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#key must be called on a hash".to_string(),
+            ));
+        }
+    };
+
+    let search_eq = search_value.as_eq_value();
+    for (_, (key, value)) in hash.borrow().iter() {
+        if value.as_eq_value() == search_eq {
+            return Ok(key.clone());
+        }
+    }
+    Ok(Rc::new(RObject::nil()))
+}
+
+// Hash#keys: Returns a new array populated with the keys from this hash
+fn mrb_hash_keys(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let hash = match &this.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#keys must be called on a hash".to_string(),
+            ));
+        }
+    };
+
+    let keys: Vec<Rc<RObject>> = hash.borrow().values().map(|(k, _)| k.clone()).collect();
+    Ok(RObject::array(keys).to_refcount_assigned())
+}
+
+// Hash#values: Returns a new array populated with the values from this hash
+fn mrb_hash_values(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let hash = match &this.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#values must be called on a hash".to_string(),
+            ));
+        }
+    };
+
+    let values: Vec<Rc<RObject>> = hash.borrow().values().map(|(_, v)| v.clone()).collect();
+    Ok(RObject::array(values).to_refcount_assigned())
+}
+
+// Hash#merge: Returns a new hash containing the contents of other_hash and the contents of self
+fn mrb_hash_merge(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let other = &args[0];
+
+    let this_hash = match &this.value {
+        RValue::Hash(h) => h.borrow().clone(),
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#merge must be called on a hash".to_string(),
+            ));
+        }
+    };
+
+    let other_hash = match &other.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::ArgumentError("argument must be a hash".to_string()));
+        }
+    };
+
+    let mut result = this_hash;
+    for (key_hash, (key, value)) in other_hash.borrow().iter() {
+        result.insert(key_hash.clone(), (key.clone(), value.clone()));
+    }
+
+    Ok(RObject::hash(result).to_refcount_assigned())
+}
+
+// Hash#merge!: Adds the contents of other_hash to self (destructive)
+fn mrb_hash_merge_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let other = &args[0];
+
+    let other_hash = match &other.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::ArgumentError("argument must be a hash".to_string()));
+        }
+    };
+
+    let mut this_hash = this.hash_borrow_mut()?;
+    for (key_hash, (key, value)) in other_hash.borrow().iter() {
+        this_hash.insert(key_hash.clone(), (key.clone(), value.clone()));
+    }
+    drop(this_hash);
+
+    Ok(this)
+}
+
+// Hash#to_h: Returns self
+fn mrb_hash_to_h(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    vm.getself()
 }
 
 #[test]
