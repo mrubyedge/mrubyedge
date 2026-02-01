@@ -1411,7 +1411,7 @@ pub(crate) fn op_add(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         (RValue::Float(n1), RValue::Float(n2)) => Rc::new(RObject::float(n1 + n2)),
         (RValue::Integer(n1), RValue::Float(n2)) => Rc::new(RObject::float(*n1 as f64 + n2)),
         (RValue::Float(n1), RValue::Integer(n2)) => Rc::new(RObject::float(n1 + *n2 as f64)),
-        (RValue::String(n1), RValue::String(n2)) => {
+        (RValue::String(n1, _), RValue::String(n2, _)) => {
             let mut n1 = n1.borrow_mut();
             let n2 = n2.borrow();
             for c in n2.iter() {
@@ -1693,25 +1693,25 @@ pub(crate) fn op_strcat(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.get_current_regs_cloned(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     match (&val1.value, &val2.value) {
-        (RValue::String(s1), RValue::String(s2)) => {
+        (RValue::String(s1, _), RValue::String(s2, _)) => {
             let mut s1 = s1.borrow_mut();
             let s2 = s2.borrow();
             for c in s2.iter() {
                 s1.push(*c);
             }
         }
-        (RValue::String(s1), RValue::Integer(s2)) => {
+        (RValue::String(s1, _), RValue::Integer(s2)) => {
             let mut s1 = s1.borrow_mut();
             let s2 = s2.to_string();
             for c in s2.as_bytes() {
                 s1.push(*c);
             }
         }
-        (RValue::String(s1), _) => {
+        (RValue::String(s1, _), _) => {
             let mut s1 = s1.borrow_mut();
             let s2 = mrb_funcall(vm, Some(val2.clone()), "to_s", &[])?;
             let s2 = match &s2.value {
-                RValue::String(s) => s.borrow(),
+                RValue::String(s, _) => s.borrow(),
                 _ => unreachable!("to_s must return string"),
             };
             for c in s2.to_vec().iter() {
