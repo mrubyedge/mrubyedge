@@ -133,6 +133,11 @@ pub fn mrb_array_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
 
 fn mrb_array_push_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
+    let args = if args[args.len() - 1].as_ref().is_nil() {
+        &args[..args.len() - 1]
+    } else {
+        args
+    };
     mrb_array_push(this, args)
 }
 
@@ -452,6 +457,11 @@ fn mrb_array_or(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error>
 // Array#first: Returns the first element, or the first n elements
 fn mrb_array_first(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
+    let args = if args[args.len() - 1].as_ref().is_nil() {
+        &args[..args.len() - 1]
+    } else {
+        args
+    };
 
     if args.is_empty() {
         Ok(this
@@ -471,6 +481,11 @@ fn mrb_array_first(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
 // Array#last: Returns the last element, or the last n elements
 fn mrb_array_last(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
+    let args = if args[args.len() - 1].as_ref().is_nil() {
+        &args[..args.len() - 1]
+    } else {
+        args
+    };
 
     if args.is_empty() {
         Ok(this
@@ -510,6 +525,11 @@ fn mrb_array_shift(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
 fn mrb_array_unshift(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
     let mut arr = this.array_borrow_mut()?;
+    let args = if args[args.len() - 1].as_ref().is_nil() {
+        &args[..args.len() - 1]
+    } else {
+        args
+    };
     for (i, arg) in args.iter().enumerate() {
         arr.insert(i, arg.clone());
     }
