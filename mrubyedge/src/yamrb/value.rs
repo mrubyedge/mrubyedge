@@ -508,6 +508,22 @@ impl RObject {
         }
     }
 
+    pub(crate) fn array_borrow_mut(
+        &self,
+    ) -> Result<std::cell::RefMut<'_, Vec<Rc<RObject>>>, Error> {
+        match &self.value {
+            RValue::Array(arr) => Ok(arr.borrow_mut()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+
+    pub(crate) fn hash_borrow_mut(&self) -> Result<std::cell::RefMut<'_, RHash>, Error> {
+        match &self.value {
+            RValue::Hash(h) => Ok(h.borrow_mut()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+
     pub(crate) fn string_is_utf8(&self) -> Result<bool, Error> {
         match &self.value {
             RValue::String(_, is_utf8) => Ok(is_utf8.get()),
