@@ -680,6 +680,25 @@ impl TryFrom<&RObject> for f32 {
     }
 }
 
+impl TryFrom<&RObject> for f64 {
+    type Error = Error;
+
+    fn try_from(value: &RObject) -> Result<Self, Self::Error> {
+        match value.value {
+            RValue::Integer(i) => Ok(i as f64),
+            RValue::Bool(b) => {
+                if b {
+                    Ok(1.0)
+                } else {
+                    Ok(0.0)
+                }
+            }
+            RValue::Float(f) => Ok(f),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+}
+
 impl TryFrom<&RObject> for bool {
     type Error = Error;
 
@@ -1094,6 +1113,7 @@ impl RClass {
             Error::InvalidOpCode => vm.get_class_by_name("LoadError"),
             Error::RuntimeError(_) => vm.get_class_by_name("RuntimeError"),
             Error::ArgumentError(_) => vm.get_class_by_name("ArgumentError"),
+            Error::RangeError(_) => vm.get_class_by_name("RangeError"),
             Error::TypeMismatch => vm.get_class_by_name("LoadError"),
             Error::NoMethodError(_) => vm.get_class_by_name("NoMethodError"),
             Error::NameError(_) => vm.get_class_by_name("NameError"),

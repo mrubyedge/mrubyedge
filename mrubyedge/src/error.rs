@@ -13,6 +13,7 @@ pub enum Error {
     InvalidOpCode,
     RuntimeError(String),
     ArgumentError(String),
+    RangeError(String),
     TypeMismatch,
     NoMethodError(String),
     NameError(String),
@@ -41,6 +42,7 @@ impl Error {
             Error::InvalidOpCode => "Invalid opcode".to_string(),
             Error::RuntimeError(msg) => msg.clone(),
             Error::ArgumentError(msg) => format!("Invalid argument: {}", msg),
+            Error::RangeError(msg) => format!("Out of range: {}", msg),
             Error::TypeMismatch => "Type mismatch".to_string(),
             Error::NoMethodError(msg) => format!("Method not found: {}", msg),
             Error::NameError(msg) => format!("Cannot found name: {}", msg),
@@ -58,6 +60,7 @@ impl Error {
                 | (Error::InvalidOpCode, "StandardError")
                 | (Error::RuntimeError(_), "RuntimeError")
                 | (Error::ArgumentError(_), "ArgumentError")
+                | (Error::RangeError(_), "RangeError")
                 | (Error::TypeMismatch, "StandardError")
                 | (Error::NoMethodError(_), "NoMethodError")
                 | (Error::NameError(_), "NameError")
@@ -103,6 +106,7 @@ impl From<Error> for StaticError {
             Error::InvalidOpCode => StaticError::General("Invalid opcode".to_string()),
             Error::RuntimeError(msg) => StaticError::General(msg),
             Error::ArgumentError(msg) => StaticError::General(format!("Invalid argument: {}", msg)),
+            Error::RangeError(msg) => StaticError::General(format!("Out of range: {}", msg)),
             Error::TypeMismatch => StaticError::General("Type mismatch".to_string()),
             Error::NoMethodError(msg) => StaticError::General(format!("Method not found: {}", msg)),
             Error::NameError(msg) => StaticError::General(format!("Cannot found name: {}", msg)),

@@ -15,6 +15,7 @@ pub(crate) fn initialize_exception(vm: &mut VM) {
     let _ = vm.define_standard_class_with_superclass("RuntimeError", std_exp_class.clone());
     let _ = vm.define_standard_class_with_superclass("TypeError", std_exp_class.clone());
     let _ = vm.define_standard_class_with_superclass("ArgumentError", std_exp_class.clone());
+    let _ = vm.define_standard_class_with_superclass("RangeError", std_exp_class.clone());
     let _ = vm.define_standard_class_with_superclass("NoMemoryError", exp_class.clone());
     let _ = vm.define_standard_class_with_superclass("ScriptError", exp_class.clone());
     let _ = vm.define_standard_class_with_superclass("LoadError", exp_class.clone());
