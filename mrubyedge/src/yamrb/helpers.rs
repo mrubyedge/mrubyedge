@@ -124,7 +124,12 @@ pub fn mrb_call_block(
         return_reg: None,
     });
     vm.current_breadcrumb.replace(new_breadcrumb);
-    let res = call_block(vm, block, recv, args, None, return_register);
+    let res = if block.is_rb_func {
+        call_block(vm, block, recv, args, None, return_register)
+    } else {
+        let func = vm.fn_table.get(block.func.unwrap()).unwrap();
+        func(vm, args)
+    };
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
         vm.current_breadcrumb.replace(upper.clone());
