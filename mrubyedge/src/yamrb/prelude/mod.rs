@@ -8,6 +8,7 @@ pub mod array;
 pub mod class;
 pub mod exception;
 pub mod falseclass;
+pub mod float;
 pub mod hash;
 pub mod integer;
 pub mod module;
@@ -39,7 +40,7 @@ pub fn prelude(vm: &mut VM) {
     hash::initialize_hash(vm);
     range::initialize_range(vm);
     shared_memory::initialize_shared_memory(vm);
-
+    float::initialize_float(vm);
     #[cfg(feature = "mruby-regexp")]
     regexp::initialize_regexp(vm);
 }
