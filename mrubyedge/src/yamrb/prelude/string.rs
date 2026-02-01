@@ -5,7 +5,7 @@ use crate::{
     yamrb::{
         helpers::{mrb_define_class_cmethod, mrb_define_cmethod},
         prelude::object,
-        value::{RObject, RSym},
+        value::{RObject, RSym, RValue},
         vm::VM,
     },
 };
@@ -22,7 +22,7 @@ pub(crate) fn initialize_string(vm: &mut VM) {
     mrb_define_cmethod(vm, string_class.clone(), "*", Box::new(mrb_string_mul));
     mrb_define_cmethod(vm, string_class.clone(), "<<", Box::new(mrb_string_append));
     mrb_define_cmethod(vm, string_class.clone(), "[]", Box::new(mrb_string_slice));
-    mrb_define_cmethod(vm, string_class.clone(), "b", Box::new(object::mrb_self));
+    mrb_define_cmethod(vm, string_class.clone(), "b", Box::new(mrb_string_b));
     mrb_define_cmethod(
         vm,
         string_class.clone(),
@@ -34,6 +34,12 @@ pub(crate) fn initialize_string(vm: &mut VM) {
         string_class.clone(),
         "chomp",
         Box::new(mrb_string_chomp),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
+        "chomp!",
+        Box::new(mrb_string_chomp_self),
     );
     mrb_define_cmethod(vm, string_class.clone(), "dup", Box::new(mrb_string_dup));
     mrb_define_cmethod(
@@ -51,6 +57,12 @@ pub(crate) fn initialize_string(vm: &mut VM) {
     mrb_define_cmethod(
         vm,
         string_class.clone(),
+        "setbyte",
+        Box::new(mrb_string_setbyte),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
         "index",
         Box::new(mrb_string_index),
     );
@@ -60,6 +72,12 @@ pub(crate) fn initialize_string(vm: &mut VM) {
         string_class.clone(),
         "slice",
         Box::new(mrb_string_slice),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
+        "slice!",
+        Box::new(mrb_string_slice_self),
     );
     mrb_define_cmethod(
         vm,
@@ -76,14 +94,32 @@ pub(crate) fn initialize_string(vm: &mut VM) {
     mrb_define_cmethod(
         vm,
         string_class.clone(),
+        "lstrip!",
+        Box::new(mrb_string_lstrip_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
         "rstrip",
         Box::new(mrb_string_rstrip),
     );
     mrb_define_cmethod(
         vm,
         string_class.clone(),
+        "rstrip!",
+        Box::new(mrb_string_rstrip_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
         "strip",
         Box::new(mrb_string_strip),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
+        "strip!",
+        Box::new(mrb_string_strip_self),
     );
     mrb_define_cmethod(
         vm,
@@ -130,8 +166,20 @@ pub(crate) fn initialize_string(vm: &mut VM) {
     mrb_define_cmethod(
         vm,
         string_class.clone(),
+        "upcase!",
+        Box::new(mrb_string_upcase_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
         "downcase",
         Box::new(mrb_string_downcase),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
+        "downcase!",
+        Box::new(mrb_string_downcase_self),
     );
     mrb_define_cmethod(vm, string_class.clone(), "to_i", Box::new(mrb_string_to_i));
     mrb_define_cmethod(vm, string_class.clone(), "to_f", Box::new(mrb_string_to_f));
@@ -142,6 +190,12 @@ pub(crate) fn initialize_string(vm: &mut VM) {
         Box::new(mrb_string_unpack),
     );
     mrb_define_cmethod(vm, string_class.clone(), "size", Box::new(mrb_string_size));
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
+        "bytesize",
+        Box::new(mrb_string_size),
+    );
     mrb_define_cmethod(
         vm,
         string_class.clone(),
@@ -311,12 +365,12 @@ fn mrb_string_mul(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
     Ok(Rc::new(RObject::string(this.repeat(times as usize))))
 }
 
-// FIXME: destructive method
 fn mrb_string_append(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let mut this: String = vm.getself()?.as_ref().try_into()?;
+    let this = vm.getself()?;
     let other: String = args[0].as_ref().try_into()?;
-    this.push_str(&other);
-    Ok(Rc::new(RObject::string(this)))
+    this.string_borrow_mut()?
+        .extend_from_slice(other.as_bytes());
+    Ok(this)
 }
 
 fn mrb_string_slice(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -350,6 +404,65 @@ fn mrb_string_slice(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
     }
 }
 
+fn mrb_string_slice_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let s: String = this.as_ref().try_into()?;
+    let chars: Vec<char> = s.chars().collect();
+
+    if args.is_empty() {
+        return Err(Error::ArgumentError(
+            "wrong number of arguments".to_string(),
+        ));
+    }
+
+    let args = if args[args.len() - 1].is_nil() {
+        &args[..args.len() - 1]
+    } else {
+        args
+    };
+
+    let index: i64 = args[0].as_ref().try_into()?;
+    let len = chars.len() as i64;
+    let idx = if index < 0 { len + index } else { index };
+
+    if idx < 0 || idx >= len {
+        return Ok(Rc::new(RObject::nil()));
+    }
+
+    let (removed, remaining) = if args.len() == 1 {
+        let removed = chars[idx as usize].to_string();
+        let mut remaining_chars = chars.clone();
+        remaining_chars.remove(idx as usize);
+        let remaining: String = remaining_chars.iter().collect();
+        (removed, remaining)
+    } else {
+        let length: i64 = args[1].as_ref().try_into()?;
+        if length < 0 {
+            return Ok(Rc::new(RObject::nil()));
+        }
+        let end = (idx + length).min(len);
+        let removed: String = chars[idx as usize..end as usize].iter().collect();
+        let mut remaining_chars = chars.clone();
+        remaining_chars.drain(idx as usize..end as usize);
+        let remaining: String = remaining_chars.iter().collect();
+        (removed, remaining)
+    };
+
+    *this.string_borrow_mut()? = remaining.as_bytes().to_vec();
+    Ok(Rc::new(RObject::string(removed)))
+}
+
+// Returns self with UTF-8 flag set to false (binary encoding).
+fn mrb_string_b(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+
+    if let RValue::String(value, _) = &this.value {
+        Ok(RObject::string_from_vec(value.borrow().to_owned()).to_refcount_assigned())
+    } else {
+        Err(Error::TypeMismatch)
+    }
+}
+
 fn mrb_string_clear(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     Ok(Rc::new(RObject::string(String::new())))
 }
@@ -362,6 +475,23 @@ fn mrb_string_chomp(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
         .or_else(|| this.strip_suffix('\r'))
         .unwrap_or(&this);
     Ok(Rc::new(RObject::string(result.to_string())))
+}
+
+fn mrb_string_chomp_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let s: String = this.as_ref().try_into()?;
+    let result = s
+        .strip_suffix("\r\n")
+        .or_else(|| s.strip_suffix('\n'))
+        .or_else(|| s.strip_suffix('\r'))
+        .unwrap_or(&s);
+
+    if result.len() != s.len() {
+        *this.string_borrow_mut()? = result.as_bytes().to_vec();
+        Ok(this)
+    } else {
+        Ok(Rc::new(RObject::nil()))
+    }
 }
 
 fn mrb_string_dup(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -384,6 +514,32 @@ fn mrb_string_getbyte(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
         return Ok(Rc::new(RObject::nil()));
     }
     Ok(Rc::new(RObject::integer(this[idx as usize] as i64)))
+}
+
+fn mrb_string_setbyte(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let mut bytes: Vec<u8> = this.as_ref().try_into()?;
+    let index: i64 = args[0].as_ref().try_into()?;
+    let value: i64 = args[1].as_ref().try_into()?;
+
+    let len = bytes.len() as i64;
+    let idx = if index < 0 { len + index } else { index };
+
+    if idx < 0 || idx >= len {
+        return Err(Error::ArgumentError(format!(
+            "index {} out of string",
+            index
+        )));
+    }
+
+    if !(0..=255).contains(&value) {
+        return Err(Error::ArgumentError(format!("{} out of char range", value)));
+    }
+
+    bytes[idx as usize] = value as u8;
+    *this.string_borrow_mut()? = bytes;
+
+    Ok(Rc::new(RObject::integer(value)))
 }
 
 fn mrb_string_index(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -428,14 +584,53 @@ fn mrb_string_lstrip(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     Ok(Rc::new(RObject::string(this.trim_start().to_string())))
 }
 
+fn mrb_string_lstrip_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let s: String = this.as_ref().try_into()?;
+    let result = s.trim_start();
+
+    if result.len() != s.len() {
+        *this.string_borrow_mut()? = result.as_bytes().to_vec();
+        Ok(this)
+    } else {
+        Ok(Rc::new(RObject::nil()))
+    }
+}
+
 fn mrb_string_rstrip(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: String = vm.getself()?.as_ref().try_into()?;
     Ok(Rc::new(RObject::string(this.trim_end().to_string())))
 }
 
+fn mrb_string_rstrip_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let s: String = this.as_ref().try_into()?;
+    let result = s.trim_end();
+
+    if result.len() != s.len() {
+        *this.string_borrow_mut()? = result.as_bytes().to_vec();
+        Ok(this)
+    } else {
+        Ok(Rc::new(RObject::nil()))
+    }
+}
+
 fn mrb_string_strip(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: String = vm.getself()?.as_ref().try_into()?;
     Ok(Rc::new(RObject::string(this.trim().to_string())))
+}
+
+fn mrb_string_strip_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let s: String = this.as_ref().try_into()?;
+    let result = s.trim();
+
+    if result.len() != s.len() {
+        *this.string_borrow_mut()? = result.as_bytes().to_vec();
+        Ok(this)
+    } else {
+        Ok(Rc::new(RObject::nil()))
+    }
 }
 
 fn mrb_string_to_sym(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -475,9 +670,35 @@ fn mrb_string_upcase(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     Ok(Rc::new(RObject::string(this.to_uppercase())))
 }
 
+fn mrb_string_upcase_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let s: String = this.as_ref().try_into()?;
+    let result = s.to_uppercase();
+
+    if result != s {
+        *this.string_borrow_mut()? = result.as_bytes().to_vec();
+        Ok(this)
+    } else {
+        Ok(Rc::new(RObject::nil()))
+    }
+}
+
 fn mrb_string_downcase(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: String = vm.getself()?.as_ref().try_into()?;
     Ok(Rc::new(RObject::string(this.to_lowercase())))
+}
+
+fn mrb_string_downcase_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let s: String = this.as_ref().try_into()?;
+    let result = s.to_lowercase();
+
+    if result != s {
+        *this.string_borrow_mut()? = result.as_bytes().to_vec();
+        Ok(this)
+    } else {
+        Ok(Rc::new(RObject::nil()))
+    }
 }
 
 fn mrb_string_to_i(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

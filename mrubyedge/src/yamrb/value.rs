@@ -500,6 +500,13 @@ impl RObject {
             _ => Err(Error::TypeMismatch),
         }
     }
+
+    pub(crate) fn string_borrow_mut(&self) -> Result<std::cell::RefMut<'_, Vec<u8>>, Error> {
+        match &self.value {
+            RValue::String(s, _) => Ok(s.borrow_mut()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
 }
 
 impl TryFrom<&RObject> for i32 {
