@@ -1477,12 +1477,12 @@ pub(crate) fn op_mul(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::integer(n1 * n2),
-        _ => {
-            unreachable!("mul supports only integer")
+        (RValue::Integer(n1), RValue::Integer(n2)) => {
+            RObject::integer(n1 * n2).to_refcount_assigned()
         }
+        _ => mrb_funcall(vm, Some(val1), "*", &[val2])?,
     };
-    vm.current_regs()[a].replace(Rc::new(result));
+    vm.current_regs()[a].replace(result);
     Ok(())
 }
 
@@ -1492,12 +1492,12 @@ pub(crate) fn op_div(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::integer(n1 / n2),
-        _ => {
-            unreachable!("div supports only integer")
+        (RValue::Integer(n1), RValue::Integer(n2)) => {
+            RObject::integer(n1 / n2).to_refcount_assigned()
         }
+        _ => mrb_funcall(vm, Some(val1), "/", &[val2])?,
     };
-    vm.current_regs()[a].replace(Rc::new(result));
+    vm.current_regs()[a].replace(result);
     Ok(())
 }
 

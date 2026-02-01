@@ -514,6 +514,13 @@ impl RObject {
             _ => Err(Error::TypeMismatch),
         }
     }
+
+    pub fn as_vec_owned(&self) -> Result<Vec<Rc<RObject>>, Error> {
+        match &self.value {
+            RValue::Array(arr) => Ok(arr.borrow().to_owned()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
 }
 
 impl TryFrom<&RObject> for i32 {

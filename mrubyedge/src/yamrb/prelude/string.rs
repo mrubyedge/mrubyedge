@@ -469,8 +469,10 @@ fn mrb_string_b(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
     }
 }
 
-fn mrb_string_clear(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    Ok(Rc::new(RObject::string(String::new())))
+fn mrb_string_clear(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    this.string_borrow_mut()?.clear();
+    Ok(this)
 }
 
 fn mrb_string_chomp(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
