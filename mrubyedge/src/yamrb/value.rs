@@ -507,6 +507,13 @@ impl RObject {
             _ => Err(Error::TypeMismatch),
         }
     }
+
+    pub(crate) fn string_is_utf8(&self) -> Result<bool, Error> {
+        match &self.value {
+            RValue::String(_, is_utf8) => Ok(is_utf8.get()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
 }
 
 impl TryFrom<&RObject> for i32 {

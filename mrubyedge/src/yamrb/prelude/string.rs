@@ -160,6 +160,12 @@ pub(crate) fn initialize_string(vm: &mut VM) {
     mrb_define_cmethod(
         vm,
         string_class.clone(),
+        "chars",
+        Box::new(mrb_string_chars),
+    );
+    mrb_define_cmethod(
+        vm,
+        string_class.clone(),
         "upcase",
         Box::new(mrb_string_upcase),
     );
@@ -662,6 +668,33 @@ fn mrb_string_bytes(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
         .into_iter()
         .map(|b| Rc::new(RObject::integer(b as i64)))
         .collect();
+    Ok(Rc::new(RObject::array(result)))
+}
+
+/// Returns an array of characters.
+/// If UTF-8 flag is true, splits by runes (UTF-8 characters).
+/// If UTF-8 flag is false, splits by bytes.
+fn mrb_string_chars(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+
+    let is_utf8 = this.string_is_utf8()?;
+
+    let bytes: Vec<u8> = this.as_ref().try_into()?;
+
+    let result: Vec<Rc<RObject>> = if is_utf8 {
+        // Split by UTF-8 characters (runes)
+        let s = String::from_utf8_lossy(&bytes);
+        s.chars()
+            .map(|c| Rc::new(RObject::string(c.to_string())))
+            .collect()
+    } else {
+        // Split by bytes
+        bytes
+            .into_iter()
+            .map(|b| Rc::new(RObject::string_from_vec(vec![b])))
+            .collect()
+    };
+
     Ok(Rc::new(RObject::array(result)))
 }
 
