@@ -100,6 +100,12 @@ pub(crate) fn initialize_object(vm: &mut VM) {
     mrb_define_cmethod(
         vm,
         object_class.clone(),
+        "<=>",
+        Box::new(mrb_object_compare),
+    );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
         "method_missing",
         Box::new(mrb_object_method_missing),
     );
@@ -201,6 +207,83 @@ pub fn mrb_object_triple_eq(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
         // TODO: Implement object id for generic instance
         _ => Ok(Rc::new(RObject::boolean(false))),
     }
+}
+
+// Object#<=>: Comparison operator (returns -1, 0, or 1)
+pub fn mrb_object_compare(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let lhs = vm.getself()?;
+    let rhs = &args[0];
+
+    // Use as_eq_value for comparison
+    let lhs_val = lhs.as_eq_value();
+    let rhs_val = rhs.as_eq_value();
+
+    use ValueEquality::*;
+    let result = match (&lhs_val, &rhs_val) {
+        (Integer(a), Integer(b)) => {
+            if a < b {
+                -1
+            } else if a > b {
+                1
+            } else {
+                0
+            }
+        }
+        (Float(a), Float(b)) => {
+            if a < b {
+                -1
+            } else if a > b {
+                1
+            } else {
+                0
+            }
+        }
+        (String(a), String(b)) => {
+            if a < b {
+                -1
+            } else if a > b {
+                1
+            } else {
+                0
+            }
+        }
+        (Integer(a), Float(b)) => {
+            let a_float = *a as f64;
+            if a_float < *b {
+                -1
+            } else if a_float > *b {
+                1
+            } else {
+                0
+            }
+        }
+        (Float(a), Integer(b)) => {
+            let b_float = *b as f64;
+            if a < &b_float {
+                -1
+            } else if a > &b_float {
+                1
+            } else {
+                0
+            }
+        }
+        (Symbol(a), Symbol(b)) => {
+            if a < b {
+                -1
+            } else if a > b {
+                1
+            } else {
+                0
+            }
+        }
+        _ => {
+            return Err(Error::ArgumentError(
+                "comparison of incompatible types".to_string(),
+            ));
+        }
+    };
+
+    Ok(Rc::new(RObject::integer(result)))
 }
 
 pub fn mrb_object_object_id(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
