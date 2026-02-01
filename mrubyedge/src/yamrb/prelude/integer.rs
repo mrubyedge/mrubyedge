@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::Error;
 use crate::yamrb::helpers::mrb_define_cmethod;
 
+use crate::yamrb::value::RValue;
 use crate::yamrb::{helpers::mrb_call_block, value::RObject, vm::VM};
 
 pub(crate) fn initialize_integer(vm: &mut VM) {
@@ -113,29 +114,26 @@ fn mrb_integer_negative(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject
 
 fn mrb_integer_power(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let base: i64 = vm.getself()?.as_ref().try_into()?;
-
-    // Try to get exponent as integer first, then as float
     let exponent_obj = &args[0];
-    let exponent_int: Result<i64, _> = exponent_obj.as_ref().try_into();
-    let exponent_float: Result<f64, _> = exponent_obj.as_ref().try_into();
 
-    match (exponent_int, exponent_float) {
-        (Ok(exp), _) if exp >= 0 => {
-            // Positive integer exponent
-            let result = base.pow(exp as u32);
-            Ok(Rc::new(RObject::integer(result)))
+    match &exponent_obj.as_ref().value {
+        RValue::Integer(exp) => {
+            if *exp >= 0 {
+                // Positive integer exponent
+                let result = base.pow(*exp as u32);
+                Ok(Rc::new(RObject::integer(result)))
+            } else {
+                // Negative integer exponent - return float
+                let result = (base as f64).powf(*exp as f64);
+                Ok(Rc::new(RObject::float(result)))
+            }
         }
-        (Ok(exp), _) if exp < 0 => {
-            // Negative integer exponent - return float
-            let result = (base as f64).powf(exp as f64);
-            Ok(Rc::new(RObject::float(result)))
-        }
-        (_, Ok(exp)) => {
+        RValue::Float(exp) => {
             // Float exponent - return float
-            let result = (base as f64).powf(exp);
+            let result = (base as f64).powf(*exp);
             Ok(Rc::new(RObject::float(result)))
         }
-        _ => Err(Error::ArgumentError("exponent must be numeric".to_string())),
+        _ => Err(Error::TypeMismatch),
     }
 }
 

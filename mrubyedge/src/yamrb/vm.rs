@@ -663,10 +663,25 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
             .syms
             .push(RSym::new(sym.to_string_lossy().to_string()));
     }
-    for str in irep.strvals.iter() {
-        irep1
-            .pool
-            .push(RPool::Str(str.to_string_lossy().to_string()));
+    for val in irep.pool.iter() {
+        match val {
+            crate::rite::PoolValue::Str(s) | crate::rite::PoolValue::SStr(s) => {
+                irep1.pool.push(RPool::Str(s.to_string_lossy().to_string()));
+            }
+            crate::rite::PoolValue::Int32(i) => {
+                irep1.pool.push(RPool::Int(*i as i64));
+            }
+            crate::rite::PoolValue::Int64(i) => {
+                irep1.pool.push(RPool::Int(*i));
+            }
+            crate::rite::PoolValue::Float(f) => {
+                irep1.pool.push(RPool::Float(*f));
+            }
+            crate::rite::PoolValue::BigInt(_) => {
+                // BigInt not yet supported, store as 0 for now
+                irep1.pool.push(RPool::Int(0));
+            }
+        }
     }
     let code = interpret_insn(irep.insn);
     for ch in irep.catch_handlers.iter() {

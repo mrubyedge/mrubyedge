@@ -11,6 +11,16 @@ use super::marker::*;
 
 use simple_endian::{u16be, u32be};
 
+#[derive(Debug, Clone)]
+pub enum PoolValue {
+    Str(CString),    // IREP_TT_STR = 0 (need free)
+    Int32(i32),      // IREP_TT_INT32 = 1
+    SStr(CString),   // IREP_TT_SSTR = 2 (static)
+    Int64(i64),      // IREP_TT_INT64 = 3
+    Float(f64),      // IREP_TT_FLOAT = 5
+    BigInt(Vec<u8>), // IREP_TT_BIGINT = 7 (not yet fully supported)
+}
+
 #[derive(Debug, Default)]
 pub struct Rite<'a> {
     pub binary_header: RiteBinaryHeader,
@@ -24,7 +34,7 @@ pub struct Irep<'a> {
     pub header: IrepRecord,
     pub insn: &'a [u8],
     pub plen: usize,
-    pub strvals: Vec<CString>,
+    pub pool: Vec<PoolValue>,
     pub slen: usize,
     pub syms: Vec<CString>,
     pub catch_handlers: Vec<CatchHandler>,
@@ -131,7 +141,7 @@ pub fn section_irep_1(head: &[u8]) -> Result<(usize, SectionIrepHeader, Vec<Irep
     let mut ireps: Vec<Irep> = Vec::new();
 
     while cur < irep_size {
-        let mut strvals = Vec::<CString>::new();
+        let mut pool = Vec::<PoolValue>::new();
         let mut syms = Vec::<CString>::new();
 
         let start_cur = cur;
@@ -175,19 +185,66 @@ pub fn section_irep_1(head: &[u8]) -> Result<(usize, SectionIrepHeader, Vec<Irep
 
         for _ in 0..plen {
             let typ = head[cur];
+            cur += 1;
             match typ {
                 0 => {
-                    cur += 1;
+                    // IREP_TT_STR: String (need free)
                     let data = &head[cur..cur + 2];
                     let strlen = be16_to_u16([data[0], data[1]]) as usize + 1;
                     cur += 2;
                     let strval = CStr::from_bytes_with_nul(&head[cur..cur + strlen])
                         .or(Err(Error::InvalidFormat))?;
-                    strvals.push(strval.to_owned());
+                    pool.push(PoolValue::Str(strval.to_owned()));
                     cur += strlen;
                 }
+                1 => {
+                    // IREP_TT_INT32: 32-bit integer
+                    let data = &head[cur..cur + 4];
+                    let mut bytes = [0u8; 4];
+                    bytes.copy_from_slice(data);
+                    let intval = i32::from_be_bytes(bytes);
+                    pool.push(PoolValue::Int32(intval));
+                    cur += 4;
+                }
+                2 => {
+                    // IREP_TT_SSTR: Static string
+                    let data = &head[cur..cur + 2];
+                    let strlen = be16_to_u16([data[0], data[1]]) as usize + 1;
+                    cur += 2;
+                    let strval = CStr::from_bytes_with_nul(&head[cur..cur + strlen])
+                        .or(Err(Error::InvalidFormat))?;
+                    pool.push(PoolValue::SStr(strval.to_owned()));
+                    cur += strlen;
+                }
+                3 => {
+                    // IREP_TT_INT64: 64-bit integer
+                    let data = &head[cur..cur + 8];
+                    let mut bytes = [0u8; 8];
+                    bytes.copy_from_slice(data);
+                    let intval = i64::from_le_bytes(bytes);
+                    pool.push(PoolValue::Int64(intval));
+                    cur += 8;
+                }
+                5 => {
+                    // IREP_TT_FLOAT: Float (double/float)
+                    let data = &head[cur..cur + 8];
+                    let mut bytes = [0u8; 8];
+                    bytes.copy_from_slice(data);
+                    let floatval = f64::from_le_bytes(bytes);
+                    pool.push(PoolValue::Float(floatval));
+                    cur += 8;
+                }
+                7 => {
+                    // IREP_TT_BIGINT: Big integer (not yet fully supported)
+                    let data = &head[cur..cur + 2];
+                    let bigint_len = be16_to_u16([data[0], data[1]]) as usize;
+                    cur += 2;
+                    let bigint_data = head[cur..cur + bigint_len].to_vec();
+                    pool.push(PoolValue::BigInt(bigint_data));
+                    cur += bigint_len;
+                }
                 v => {
-                    unimplemented!("require more support pool type {}", v);
+                    return Err(Error::UnknownPoolType(v));
                 }
             }
         }
@@ -212,7 +269,7 @@ pub fn section_irep_1(head: &[u8]) -> Result<(usize, SectionIrepHeader, Vec<Irep
             header: irep_record,
             insn: insns,
             plen,
-            strvals,
+            pool,
             slen,
             syms,
             catch_handlers,

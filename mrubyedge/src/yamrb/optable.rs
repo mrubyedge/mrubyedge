@@ -539,9 +539,17 @@ pub(crate) fn op_loadi_n(vm: &mut VM, n: i32, operand: &Fetched) -> Result<(), E
 
 pub(crate) fn op_loadl(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let val = vm.current_irep.pool[b as usize].clone();
-    // TODO: support other rpool types?
-    let val = Rc::new(RObject::string(val.as_str().to_string()));
+    let pool_val = vm.current_irep.pool[b as usize].clone();
+    let val = match pool_val {
+        RPool::Str(s) => Rc::new(RObject::string(s)),
+        RPool::Int(i) => Rc::new(RObject::integer(i)),
+        RPool::Float(f) => Rc::new(RObject::float(f)),
+        RPool::Data(_) => {
+            return Err(Error::Internal(
+                "Binary data in pool not supported yet".to_string(),
+            ));
+        }
+    };
     vm.current_regs()[a as usize].replace(val);
     Ok(())
 }

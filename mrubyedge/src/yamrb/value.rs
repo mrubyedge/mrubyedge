@@ -1085,6 +1085,8 @@ impl From<&'static str> for RSym {
 pub enum RPool {
     Str(String),
     Data(Vec<u8>),
+    Int(i64),
+    Float(f64),
 }
 
 impl RPool {

@@ -21,6 +21,7 @@ pub enum Error {
     TypeMismatch,
     InvalidOperand,
     NoMethod,
+    UnknownPoolType(u8),
 }
 
 impl fmt::Display for Error {
