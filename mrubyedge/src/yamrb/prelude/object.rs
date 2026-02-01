@@ -132,7 +132,7 @@ pub fn mrb_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
 pub fn mrb_kernel_puts(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let msg = args[0].clone();
     match &msg.value {
-        RValue::String(s) => {
+        RValue::String(s, _) => {
             println!("{}", String::from_utf8_lossy(&s.borrow()));
         }
         RValue::Integer(i) => {
@@ -186,7 +186,7 @@ pub fn mrb_object_triple_eq(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
         (RValue::Integer(i1), RValue::Integer(i2)) => Ok(Rc::new(RObject::boolean(*i1 == *i2))),
         (RValue::Float(f1), RValue::Float(f2)) => Ok(Rc::new(RObject::boolean(*f1 == *f2))),
         (RValue::Symbol(sym1), RValue::Symbol(sym2)) => Ok(Rc::new(RObject::boolean(sym1 == sym2))),
-        (RValue::String(s1), RValue::String(s2)) => Ok(Rc::new(RObject::boolean(s1 == s2))),
+        (RValue::String(s1, _), RValue::String(s2, _)) => Ok(Rc::new(RObject::boolean(s1 == s2))),
         (RValue::Class(c1), _) => match &lhs.value {
             RValue::Class(c2) => Ok(Rc::new(RObject::boolean(c1.sym_id == c2.sym_id))),
             _ => {

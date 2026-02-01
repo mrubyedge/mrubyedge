@@ -110,7 +110,7 @@ fn get_regexp_from_object(obj: &Rc<RObject>) -> Result<Regex, Error> {
 pub fn mrb_regexp_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let pattern_obj = args[0].clone();
     match &pattern_obj.value {
-        RValue::String(pattern) => {
+        RValue::String(pattern, _) => {
             // For simplicity, we only support literal patterns without options.
             let pattern_str = pattern.clone().borrow().to_owned();
             let regexp = RRegexp {
@@ -145,7 +145,7 @@ fn mrb_regexp_match_tilda(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObjec
     let regexp = get_regexp_from_object(&regexp_obj)?;
 
     let target_str = match &target_obj.value {
-        RValue::String(s) => s.clone().borrow().to_owned(),
+        RValue::String(s, _) => s.clone().borrow().to_owned(),
         _ => {
             return Err(Error::RuntimeError(
                 "Regexp#=~ requires a string argument".to_string(),
@@ -177,7 +177,7 @@ fn mrb_regexp_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
     let regexp = get_regexp_from_object(&regexp_obj)?;
 
     let target_str = match &target_obj.value {
-        RValue::String(s) => s.clone().borrow().to_owned(),
+        RValue::String(s, _) => s.clone().borrow().to_owned(),
         _ => {
             return Err(Error::RuntimeError(
                 "Regexp#match requires a string argument".to_string(),

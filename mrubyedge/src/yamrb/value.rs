@@ -56,7 +56,9 @@ pub enum RValue {
     Proc(RProc),
     Array(RefCell<Vec<Rc<RObject>>>),
     Hash(RefCell<RHash>),
-    String(RefCell<Vec<u8>>),
+    /// (bytes, is_utf8)
+    /// FIXME: currently, we compare strings by bytes only, so is_utf8 is unused.
+    String(RefCell<Vec<u8>>, Cell<bool>),
     Range(Rc<RObject>, Rc<RObject>, bool),
     SharedMemory(Rc<RefCell<SharedMemory>>),
     Data(Rc<RData>),
@@ -184,7 +186,7 @@ impl RObject {
     pub fn string(s: String) -> Self {
         RObject {
             tt: RType::String,
-            value: RValue::String(RefCell::new(s.into_bytes())),
+            value: RValue::String(RefCell::new(s.into_bytes()), Cell::new(true)),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
             ivar: RefCell::new(RHashMap::default()),
@@ -194,7 +196,7 @@ impl RObject {
     pub fn string_from_vec(v: Vec<u8>) -> Self {
         RObject {
             tt: RType::String,
-            value: RValue::String(RefCell::new(v)),
+            value: RValue::String(RefCell::new(v), Cell::new(false)),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
             ivar: RefCell::new(RHashMap::default()),
@@ -356,7 +358,7 @@ impl RObject {
             RValue::Integer(i) => Ok(ValueHasher::Integer(*i)),
             RValue::Float(f) => Ok(ValueHasher::Float(f.to_be_bytes().to_vec())),
             RValue::Symbol(s) => Ok(ValueHasher::Symbol(s.name.clone())),
-            RValue::String(s) => Ok(ValueHasher::String(s.borrow().clone())),
+            RValue::String(s, _) => Ok(ValueHasher::String(s.borrow().clone())),
             RValue::Class(c) => Ok(ValueHasher::Class(c.sym_id.name.clone())),
             _ => Err(Error::TypeMismatch),
         }
@@ -368,7 +370,7 @@ impl RObject {
             RValue::Integer(i) => ValueEquality::Integer(*i),
             RValue::Float(f) => ValueEquality::Float(*f),
             RValue::Symbol(s) => ValueEquality::Symbol(s.name.clone()),
-            RValue::String(s) => ValueEquality::String(s.borrow().clone()),
+            RValue::String(s, _) => ValueEquality::String(s.borrow().clone()),
             RValue::Class(c) => ValueEquality::Class(c.sym_id.name.clone()),
             RValue::Range(s, e, ex) => {
                 ValueEquality::Range(Box::new(s.as_eq_value()), Box::new(e.as_eq_value()), *ex)
@@ -410,7 +412,7 @@ impl RObject {
             RValue::Proc(_) => vm.get_class_by_name("Proc"),
             RValue::Array(_) => vm.get_class_by_name("Array"),
             RValue::Hash(_) => vm.get_class_by_name("Hash"),
-            RValue::String(_) => vm.get_class_by_name("String"),
+            RValue::String(_, _) => vm.get_class_by_name("String"),
             RValue::Range(_, _, _) => vm.get_class_by_name("Range"),
             RValue::SharedMemory(_) => vm.get_class_by_name("SharedMemory"),
             RValue::Data(d) => d.class.clone(),
@@ -493,8 +495,29 @@ impl RObject {
 
     pub fn intern(&self) -> Result<RSym, Error> {
         match &self.value {
-            RValue::String(s) => Ok(RSym::new(String::from_utf8_lossy(&s.borrow()).to_string())),
+            RValue::String(s, _) => Ok(RSym::new(String::from_utf8_lossy(&s.borrow()).to_string())),
             RValue::Symbol(s) => Ok(s.clone()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+
+    pub(crate) fn string_borrow_mut(&self) -> Result<std::cell::RefMut<'_, Vec<u8>>, Error> {
+        match &self.value {
+            RValue::String(s, _) => Ok(s.borrow_mut()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+
+    pub(crate) fn string_is_utf8(&self) -> Result<bool, Error> {
+        match &self.value {
+            RValue::String(_, is_utf8) => Ok(is_utf8.get()),
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+
+    pub fn as_vec_owned(&self) -> Result<Vec<Rc<RObject>>, Error> {
+        match &self.value {
+            RValue::Array(arr) => Ok(arr.borrow().to_owned()),
             _ => Err(Error::TypeMismatch),
         }
     }
@@ -717,7 +740,7 @@ impl TryFrom<&RObject> for String {
 
     fn try_from(value: &RObject) -> Result<Self, Self::Error> {
         match &value.value {
-            RValue::String(s) => Ok(String::from_utf8_lossy(&s.borrow()).to_string()),
+            RValue::String(s, _) => Ok(String::from_utf8_lossy(&s.borrow()).to_string()),
             RValue::Symbol(sym) => Ok(sym.name.clone()),
             v => Ok(format!("{:?}", v)),
         }
@@ -729,7 +752,7 @@ impl TryFrom<&RObject> for Vec<u8> {
 
     fn try_from(value: &RObject) -> Result<Self, Self::Error> {
         match &value.value {
-            RValue::String(s) => Ok(s.borrow().clone()),
+            RValue::String(s, _) => Ok(s.borrow().clone()),
             _ => Err(Error::TypeMismatch),
         }
     }
