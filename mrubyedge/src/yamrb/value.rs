@@ -57,6 +57,7 @@ pub enum RValue {
     Array(RefCell<Vec<Rc<RObject>>>),
     Hash(RefCell<RHash>),
     /// (bytes, is_utf8)
+    /// FIXME: currently, we compare strings by bytes only, so is_utf8 is unused.
     String(RefCell<Vec<u8>>, Cell<bool>),
     Range(Rc<RObject>, Rc<RObject>, bool),
     SharedMemory(Rc<RefCell<SharedMemory>>),
