@@ -99,6 +99,7 @@ pub struct VM {
     pub has_env_ref: RHashMap<usize, bool>,
 
     pub fn_table: RFnTable,
+    pub fnmut_buf: Option<RFnMut>,
 }
 
 pub struct RFnTable {
@@ -208,6 +209,7 @@ impl VM {
         let exception = None;
         let flag_preemption = Cell::new(false);
         let fn_table = RFnTable::new();
+        let fnmut_buf = None;
         let upper = None;
         let cur_env = RHashMap::default();
         let has_env_ref = RHashMap::default();
@@ -236,6 +238,7 @@ impl VM {
             cur_env,
             has_env_ref,
             fn_table,
+            fnmut_buf,
         };
 
         prelude(&mut vm);
@@ -450,6 +453,15 @@ impl VM {
     pub(crate) fn register_fn(&mut self, f: RFn) -> usize {
         self.fn_table.set(Rc::new(f));
         self.fn_table.len() - 1
+    }
+
+    pub(crate) fn push_fnmut(&mut self, f: RFnMut) {
+        self.fnmut_buf = Some(f);
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn pop_fnmut(&mut self) {
+        self.fnmut_buf.take();
     }
 
     pub(crate) fn get_fn(&self, i: usize) -> Option<Rc<RFn>> {

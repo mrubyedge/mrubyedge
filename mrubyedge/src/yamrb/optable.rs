@@ -1761,6 +1761,7 @@ pub(crate) fn op_lambda(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         value: RValue::Proc(RProc {
             irep,
             is_rb_func: true,
+            is_fnmut: false,
             sym_id: Some("<lambda>".into()),
             next: None,
             func: None,
@@ -1794,6 +1795,7 @@ pub(crate) fn op_block(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         value: RValue::Proc(RProc {
             irep,
             is_rb_func: true,
+            is_fnmut: false,
             sym_id: Some("<block>".into()),
             next: None,
             func: None,
@@ -1816,6 +1818,7 @@ pub(crate) fn op_method(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         value: super::value::RValue::Proc(super::value::RProc {
             irep,
             is_rb_func: true,
+            is_fnmut: false,
             sym_id: None,
             next: None,
             func: None,

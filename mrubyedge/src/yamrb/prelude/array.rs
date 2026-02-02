@@ -3,8 +3,10 @@ use std::rc::Rc;
 use crate::{
     Error,
     yamrb::{
-        helpers::{self, mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod},
-        value::{RObject, RValue},
+        helpers::{
+            self, mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod, mrb_funcall,
+        },
+        value::{RFnMut, RObject, RProc, RValue},
         vm::VM,
     },
 };
@@ -48,6 +50,7 @@ pub(crate) fn initialize_array(vm: &mut VM) {
         Box::new(mrb_array_delete_at),
     );
     mrb_define_cmethod(vm, array_class.clone(), "each", Box::new(mrb_array_each));
+    mrb_define_cmethod(vm, array_class.clone(), "map", Box::new(mrb_array_map));
     mrb_define_cmethod(vm, array_class.clone(), "empty?", Box::new(mrb_array_empty));
     mrb_define_cmethod(vm, array_class.clone(), "size", Box::new(mrb_array_size));
     mrb_define_cmethod(vm, array_class.clone(), "length", Box::new(mrb_array_size));
@@ -688,6 +691,44 @@ fn mrb_array_join(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
     }
 
     Ok(Rc::new(RObject::string(result)))
+}
+
+fn mrb_array_map(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let original_block = args
+        .last()
+        .cloned()
+        .ok_or_else(|| Error::ArgumentError("block should be specified".to_string()))?;
+    let results: Rc<RObject> = RObject::array(vec![]).to_refcount_assigned();
+    let results_ref = results.clone();
+    let wrapping_block: RFnMut = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
+        let block = original_block.clone();
+        let result = mrb_call_block(vm, block, None, args, 0)?;
+        mrb_funcall(
+            vm,
+            Some(results_ref.clone()),
+            "push",
+            std::slice::from_ref(&result),
+        )?;
+        Ok(result)
+    });
+
+    let block = RProc {
+        is_rb_func: false,
+        is_fnmut: true,
+        sym_id: None,
+        next: None,
+        irep: None,
+        func: Some(999),
+        environ: None,
+        block_self: vm.getself().ok(),
+    };
+    let this = vm.getself()?;
+    let block = RObject::proc(block).to_refcount_assigned();
+    vm.push_fnmut(wrapping_block);
+    mrb_funcall(vm, Some(this.clone()), "each", &[block])?;
+    vm.pop_fnmut();
+
+    Ok(results)
 }
 
 #[test]
