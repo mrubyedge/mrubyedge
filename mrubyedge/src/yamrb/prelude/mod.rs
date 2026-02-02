@@ -16,12 +16,14 @@ pub mod module;
 pub mod nilclass;
 pub mod object;
 pub mod proc;
-pub mod rand;
 pub mod range;
 pub mod shared_memory;
 pub mod string;
 pub mod symbol;
 pub mod trueclass;
+
+#[cfg(feature = "mruby-random")]
+pub mod rand;
 
 #[cfg(feature = "mruby-regexp")]
 pub mod regexp;
@@ -44,6 +46,7 @@ pub fn prelude(vm: &mut VM) {
     range::initialize_range(vm);
     shared_memory::initialize_shared_memory(vm);
     float::initialize_float(vm);
+    #[cfg(feature = "mruby-random")]
     rand::initialize_rand(vm);
     #[cfg(feature = "mruby-regexp")]
     regexp::initialize_regexp(vm);

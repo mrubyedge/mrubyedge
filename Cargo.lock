@@ -575,7 +575,6 @@ version = "1.1.0-rc1"
 dependencies = [
  "criterion",
  "fnv",
- "getrandom",
  "mec-mrbc-sys",
  "mruby-compiler2-sys",
  "once_cell",
