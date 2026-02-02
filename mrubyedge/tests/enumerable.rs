@@ -349,3 +349,32 @@ fn enumerable_to_a_test() {
     let result_array: Vec<Rc<RObject>> = result.as_ref().try_into().unwrap();
     assert_eq!(result_array.len(), 3);
 }
+
+#[test]
+fn enumerable_map_custom_class_test() {
+    // FIXME: support `yield`
+    let code = r#"
+    class MyCollection
+      def each(&block)
+        block.call(1)
+        block.call(2)
+        block.call(3)
+      end
+
+      include Enumerable
+    end
+
+    def test_my_collection_map
+      MyCollection.new.map { |x| x * 2 }
+    end
+    "#;
+    let binary = mrbc_compile("my_collection_map", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_my_collection_map", &args).unwrap();
+    let result: (i32, i32, i32) = result.as_ref().try_into().unwrap();
+    assert_eq!(result, (2, 4, 6));
+}
