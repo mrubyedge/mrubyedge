@@ -572,6 +572,17 @@ dependencies = [
 [[package]]
 name = "mrubyedge"
 version = "1.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f34d536e7b90424d866f961ce38f7c21c2e8a0673e63be3539e70ac0c9e729a"
+dependencies = [
+ "plain",
+ "regex",
+ "simple_endian",
+]
+
+[[package]]
+name = "mrubyedge"
+version = "1.1.0-rc1"
 dependencies = [
  "criterion",
  "fnv",
@@ -585,24 +596,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "mrubyedge"
-version = "1.0.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f34d536e7b90424d866f961ce38f7c21c2e8a0673e63be3539e70ac0c9e729a"
-dependencies = [
- "plain",
- "regex",
- "simple_endian",
-]
-
-[[package]]
 name = "mrubyedge-cli"
 version = "1.0.20"
 dependencies = [
  "askama",
  "clap",
  "mruby-compiler2-sys",
- "mrubyedge 1.0.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge 1.0.20",
  "nom",
  "rand",
  "syn",
