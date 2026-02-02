@@ -351,6 +351,24 @@ fn enumerable_to_a_test() {
 }
 
 #[test]
+fn enumerable_reduce_test() {
+    let code = r#"
+    def test_reduce
+      [1, 2, 3, 4].reduce(0) { |sum, x| sum + x }
+    end
+    "#;
+    let binary = mrbc_compile("enumerable_reduce", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_reduce", &args).unwrap();
+    let result: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(result, 10);
+}
+
+#[test]
 fn enumerable_map_custom_class_test() {
     // FIXME: support `yield`
     let code = r#"

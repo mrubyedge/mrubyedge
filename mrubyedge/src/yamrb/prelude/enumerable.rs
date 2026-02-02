@@ -108,6 +108,12 @@ pub(crate) fn initialize_enumerable(vm: &mut VM) {
         "uniq",
         Box::new(mrb_enumerable_uniq),
     );
+    mrb_define_module_cmethod(
+        vm,
+        enumerable_module.clone(),
+        "reduce",
+        Box::new(mrb_enumerable_reduce),
+    );
 }
 
 fn rproc_from_rust_block(vm: &mut VM, rfn: RFn) -> Result<Rc<RObject>, Error> {
@@ -591,4 +597,66 @@ fn mrb_enumerable_uniq(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>
         }
     }
     Ok(Rc::new(RObject::array(result)))
+}
+
+// Enumerable#reduce: Combines all elements by applying a binary operation
+fn mrb_enumerable_reduce(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    // Check if we have an initial value or just a block
+    let (initial_value, original_block) = if args.len() == 2 {
+        // Initial value provided: reduce(initial) { |acc, elem| ... }
+        (Some(args[0].clone()), args[1].clone())
+    } else if args.len() == 1 {
+        // No initial value: reduce { |acc, elem| ... }
+        (None, args[0].clone())
+    } else {
+        return Err(Error::ArgumentError(
+            "wrong number of arguments".to_string(),
+        ));
+    };
+
+    let accumulator: Rc<RObject> = if let Some(init) = initial_value {
+        RObject::array(vec![init]).to_refcount_assigned()
+    } else {
+        RObject::array(vec![]).to_refcount_assigned()
+    };
+
+    let acc_ref = accumulator.clone();
+    let wrapping_block: RFn = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
+        let current_elem = args[0].clone();
+        let acc_array: Vec<Rc<RObject>> = acc_ref.as_ref().try_into()?;
+
+        if acc_array.is_empty() {
+            // First element becomes the initial accumulator
+            mrb_funcall(
+                vm,
+                Some(acc_ref.clone()),
+                "push",
+                std::slice::from_ref(&current_elem),
+            )?;
+        } else {
+            // Call block with (accumulator, element)
+            let current_acc = acc_array[0].clone();
+            let block = original_block.clone();
+            let result = mrb_call_block(vm, block, None, &[current_acc, current_elem], 0)?;
+
+            // Update accumulator
+            mrb_funcall(vm, Some(acc_ref.clone()), "pop", &[])?;
+            mrb_funcall(
+                vm,
+                Some(acc_ref.clone()),
+                "push",
+                std::slice::from_ref(&result),
+            )?;
+        }
+        Ok(Rc::new(RObject::nil()))
+    });
+
+    let this = vm.getself()?;
+    let block = rproc_from_rust_block(vm, wrapping_block)?;
+    mrb_funcall(vm, Some(this.clone()), "each", &[block])?;
+    vm.pop_fnblock()?;
+
+    // Return the final accumulator value
+    let result = mrb_funcall(vm, Some(accumulator), "first", &[])?;
+    Ok(result)
 }
