@@ -71,6 +71,12 @@ pub(crate) fn initialize_integer(vm: &mut VM) {
         "to_s",
         Box::new(mrb_integer_inspect),
     );
+    mrb_define_cmethod(
+        vm,
+        integer_class.clone(),
+        "clamp",
+        Box::new(mrb_integer_clamp),
+    );
 }
 
 fn mrb_integer_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -207,4 +213,33 @@ fn mrb_integer_chr(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
         .ok_or_else(|| Error::RangeError(format!("invalid codepoint: {}", this)))?;
 
     Ok(Rc::new(RObject::string(ch.to_string())))
+}
+
+fn mrb_integer_clamp(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    if args.len() < 2 {
+        return Err(Error::ArgumentError(format!(
+            "wrong number of arguments (given {}, expected 2)",
+            args.len()
+        )));
+    }
+
+    let this: i64 = vm.getself()?.as_ref().try_into()?;
+    let min: i64 = args[0].as_ref().try_into()?;
+    let max: i64 = args[1].as_ref().try_into()?;
+
+    if min > max {
+        return Err(Error::ArgumentError(
+            "min argument must be smaller than max argument".to_string(),
+        ));
+    }
+
+    let result = if this < min {
+        min
+    } else if this > max {
+        max
+    } else {
+        this
+    };
+
+    Ok(Rc::new(RObject::integer(result)))
 }

@@ -228,3 +228,16 @@ fn integer_inspect_test() {
     let result_str: String = result.as_ref().try_into().unwrap();
     assert_eq!(&result_str, "456");
 }
+
+#[test]
+fn integer_clamp_test() {
+    let code = "
+100.clamp(50, 150) + 25.clamp(50, 150) + 200.clamp(50, 150)
+    ";
+    let binary = mrbc_compile("integer_clamp", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let result_int: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(result_int, 300); // 100 + 50 + 150
+}
