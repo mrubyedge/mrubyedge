@@ -1508,8 +1508,11 @@ pub(crate) fn op_lt(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
         (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 < n2),
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean(n1 < n2),
+        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean((*n1 as f64) < *n2),
+        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean(*n1 < (*n2 as f64)),
         _ => {
-            unreachable!("lt supports only integer")
+            unreachable!("lt supports only numeric")
         }
     };
     vm.current_regs()[a].replace(Rc::new(result));
@@ -1523,8 +1526,11 @@ pub(crate) fn op_le(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
         (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 <= n2),
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean(n1 <= n2),
+        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean((*n1 as f64) <= *n2),
+        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean(*n1 <= (*n2 as f64)),
         _ => {
-            unreachable!("le supports only integer")
+            unreachable!("le supports only numeric")
         }
     };
     vm.current_regs()[a].replace(Rc::new(result));
@@ -1548,8 +1554,11 @@ pub(crate) fn op_gt(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
         (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 > n2),
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean(n1 > n2),
+        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean((*n1 as f64) > *n2),
+        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean(*n1 > (*n2 as f64)),
         _ => {
-            unreachable!("gt supports only integer")
+            unreachable!("gt supports only numeric")
         }
     };
     vm.current_regs()[a].replace(Rc::new(result));
@@ -1563,8 +1572,11 @@ pub(crate) fn op_ge(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
         (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 >= n2),
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean(n1 >= n2),
+        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean((*n1 as f64) >= *n2),
+        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean(*n1 >= (*n2 as f64)),
         _ => {
-            unreachable!("ge supports only integer")
+            unreachable!("ge supports only numeric")
         }
     };
     vm.current_regs()[a].replace(Rc::new(result));
