@@ -4,6 +4,7 @@ use crate::{
     Error,
     yamrb::{
         helpers::{mrb_call_block, mrb_call_inspect, mrb_define_class_cmethod, mrb_define_cmethod},
+        prelude::module::mrb_include_module,
         value::{RHashMap, RObject, RValue},
         vm::VM,
     },
@@ -69,6 +70,9 @@ pub(crate) fn initialize_hash(vm: &mut VM) {
         Box::new(mrb_hash_inspect),
     );
     mrb_define_cmethod(vm, hash_class.clone(), "to_s", Box::new(mrb_hash_inspect));
+
+    let enumerable_module = vm.get_module_by_name("Enumerable");
+    mrb_include_module(&hash_class, enumerable_module).expect("failed to include Enumerable");
 }
 
 pub fn mrb_hash_new(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

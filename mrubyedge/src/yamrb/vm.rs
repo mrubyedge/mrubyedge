@@ -527,6 +527,16 @@ impl VM {
             .unwrap_or_else(|| panic!("Class {} not found", name))
     }
 
+    pub fn get_module_by_name(&self, name: &str) -> Rc<RModule> {
+        match self.consts.get(name).cloned() {
+            Some(obj) => match &obj.value {
+                RValue::Module(m) => m.clone(),
+                _ => panic!("Module {} not found", name),
+            },
+            None => panic!("Module {} not found", name),
+        }
+    }
+
     pub fn get_const_by_name(&self, name: &str) -> Option<Rc<RObject>> {
         self.consts.get(name).cloned()
     }
