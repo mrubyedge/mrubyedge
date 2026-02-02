@@ -1,4 +1,3 @@
-#![cfg(feature = "mruby-regexp")]
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 

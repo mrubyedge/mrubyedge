@@ -10,8 +10,9 @@ license = "BSD-3-Clause"
 
 [dependencies]
 fnv = { version = "1.0.7", optional = true }
-getrandom = { version = "0.3.4", optional = true }
 plain = "0.2.3"
+rand_core = { version = "0.10.0", optional = true }
+rand_xorshift = { version = "0.5.0", optional = true }
 regex = { version = "1.12.2", default-features = false, features = [
     "std",
 ], optional = true }
@@ -38,5 +39,6 @@ wasi = []
 mruby-hash-fnv = ["dep:fnv"]
 mruby-regexp = ["dep:regex"]
 mrubyedge-debug = ["wasi"]
-mruby-random = ["wasi", "dep:getrandom"]
+mruby-random = ["dep:rand_core", "dep:rand_xorshift"]
+# mruby-securerandom = ["wasi", "dep:getrandom"]
 no-wasi = []

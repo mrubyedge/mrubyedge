@@ -40,6 +40,7 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         "==",
         Box::new(mrb_object_double_eq),
     );
+    mrb_define_cmethod(vm, object_class.clone(), "!=", Box::new(mrb_object_not_eq));
     mrb_define_cmethod(
         vm,
         object_class.clone(),
@@ -182,6 +183,12 @@ pub fn mrb_object_double_eq(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
     let lhs = vm.getself()?;
     let rhs = args[0].clone();
     Ok(mrb_object_is_equal(vm, lhs, rhs))
+}
+
+pub fn mrb_object_not_eq(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let lhs = vm.getself()?;
+    let rhs = args[0].clone();
+    Ok(mrb_object_is_not_equal(vm, lhs, rhs))
 }
 
 pub fn mrb_object_triple_eq(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

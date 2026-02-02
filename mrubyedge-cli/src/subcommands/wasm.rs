@@ -11,7 +11,7 @@ use std::{
 };
 
 use askama::Template;
-use rand::distributions::{Alphanumeric, DistString};
+use rand::Rng;
 
 use crate::rbs_parser;
 use crate::template;
@@ -79,8 +79,13 @@ fn debug_println(debug: bool, msg: &str) {
 }
 
 pub fn execute(args: WasmArgs) -> Result<(), Box<dyn std::error::Error>> {
-    let mut rng = rand::thread_rng();
-    let suffix = Alphanumeric.sample_string(&mut rng, 32);
+    let mut rng = rand::rng();
+    let suffix: String = (0..32)
+        .map(|_| {
+            let chars = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            chars[rng.random_range(0..chars.len())] as char
+        })
+        .collect();
 
     let fnname = args.fnname;
     let path = args.path;

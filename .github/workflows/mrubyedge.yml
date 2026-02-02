@@ -43,7 +43,7 @@ jobs:
           set +e
           cargo test --workspace \
             --exclude mec \
-            --features "mrubyedge-debug,mruby-regexp${{ matrix.ENABLE_FNV_HASH }}" \
+            --features "mrubyedge-debug,mruby-random,mruby-regexp${{ matrix.ENABLE_FNV_HASH }}" \
             --profile ${{ matrix.BUILD_TARGET }}
           TEST_RESULT=$?
           if [ $TEST_RESULT != 0 ]; then
@@ -55,7 +55,7 @@ jobs:
         run: |
           cargo build --workspace \
             --exclude mec \
-            --features "mrubyedge-debug,mruby-regexp${{ matrix.ENABLE_FNV_HASH }}" \
+            --features "mrubyedge-debug,mruby-random,mruby-regexp${{ matrix.ENABLE_FNV_HASH }}" \
             --profile ${{ matrix.BUILD_TARGET }}
 
   lint:
@@ -73,4 +73,4 @@ jobs:
       - name: Install C compiler
         run: sudo apt-get update && sudo apt-get install -y build-essential
       - name: Run linter
-        run: cargo clippy -p mrubyedge
+        run: cargo clippy -p mrubyedge --features "mruby-random,mruby-regexp"
