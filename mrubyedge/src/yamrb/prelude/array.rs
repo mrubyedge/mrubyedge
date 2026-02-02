@@ -6,7 +6,7 @@ use crate::{
         helpers::{
             self, mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod, mrb_funcall,
         },
-        value::{RFnMut, RObject, RProc, RValue},
+        value::{RFn, RObject, RProc, RValue},
         vm::VM,
     },
 };
@@ -700,7 +700,7 @@ fn mrb_array_map(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
         .ok_or_else(|| Error::ArgumentError("block should be specified".to_string()))?;
     let results: Rc<RObject> = RObject::array(vec![]).to_refcount_assigned();
     let results_ref = results.clone();
-    let wrapping_block: RFnMut = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
+    let wrapping_block: RFn = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
         let block = original_block.clone();
         let result = mrb_call_block(vm, block, None, args, 0)?;
         mrb_funcall(
@@ -714,7 +714,7 @@ fn mrb_array_map(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
 
     let block = RProc {
         is_rb_func: false,
-        is_fnmut: true,
+        is_fnblock: true,
         sym_id: None,
         next: None,
         irep: None,
@@ -724,9 +724,9 @@ fn mrb_array_map(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
     };
     let this = vm.getself()?;
     let block = RObject::proc(block).to_refcount_assigned();
-    vm.push_fnmut(wrapping_block);
+    vm.push_fnblock(Rc::new(wrapping_block))?;
     mrb_funcall(vm, Some(this.clone()), "each", &[block])?;
-    vm.pop_fnmut();
+    vm.pop_fnblock()?;
 
     Ok(results)
 }

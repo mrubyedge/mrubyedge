@@ -1097,7 +1097,7 @@ pub struct RData {
 #[derive(Debug, Clone)]
 pub struct RProc {
     pub is_rb_func: bool,
-    pub is_fnmut: bool,
+    pub is_fnblock: bool,
     pub sym_id: Option<RSym>,
     pub next: Option<Rc<RProc>>,
     pub irep: Option<Rc<IREP>>,
@@ -1108,8 +1108,6 @@ pub struct RProc {
 
 /// Native Rust callable used to implement Ruby methods in the VM.
 pub type RFn = Box<dyn Fn(&mut VM, &[Rc<RObject>]) -> Result<Rc<RObject>, Error>>;
-pub type RFnMut = Box<dyn FnMut(&mut VM, &[Rc<RObject>]) -> Result<Rc<RObject>, Error>>;
-
 /// Interned symbol name used across the VM to identify methods and constants.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RSym {
