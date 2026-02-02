@@ -124,7 +124,18 @@ pub fn mrb_call_block(
         return_reg: None,
     });
     vm.current_breadcrumb.replace(new_breadcrumb);
-    let res = call_block(vm, block, recv, args, None, return_register);
+    let res = if block.is_rb_func {
+        call_block(vm, block, recv, args, None, return_register)
+    } else if block.is_fnblock {
+        let func = vm.pop_fnblock()?;
+        let res = func(vm, args);
+        vm.push_fnblock(func)?;
+        res
+    } else {
+        Err(Error::RuntimeError(
+            "Cannot call non-block RProc".to_string(),
+        ))
+    };
     let cur = vm.current_breadcrumb.take().expect("not found breadcrumb");
     if let Some(upper) = &cur.as_ref().upper {
         vm.current_breadcrumb.replace(upper.clone());
@@ -265,6 +276,7 @@ pub fn mrb_define_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: R
     let index = vm.register_fn(cmethod);
     let method = RProc {
         is_rb_func: false,
+        is_fnblock: false,
         sym_id: Some(RSym::new(name.to_string())),
         next: None,
         irep: None,
@@ -293,6 +305,7 @@ pub fn mrb_define_class_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmet
     let index = vm.register_fn(cmethod);
     let method = RProc {
         is_rb_func: false,
+        is_fnblock: false,
         sym_id: Some(RSym::new(name.to_string())),
         next: None,
         irep: None,
@@ -319,6 +332,7 @@ pub fn mrb_define_singleton_cmethod(vm: &mut VM, dest: Rc<RObject>, name: &str, 
     let index = vm.register_fn(cmethod);
     let method = RProc {
         is_rb_func: false,
+        is_fnblock: false,
         sym_id: Some(RSym::new(name.to_string())),
         next: None,
         irep: None,
@@ -359,6 +373,7 @@ pub fn mrb_define_module_cmethod(vm: &mut VM, module: Rc<RModule>, name: &str, c
     let index = vm.register_fn(cmethod);
     let method = RProc {
         is_rb_func: false,
+        is_fnblock: false,
         sym_id: Some(RSym::new(name.to_string())),
         next: None,
         irep: None,

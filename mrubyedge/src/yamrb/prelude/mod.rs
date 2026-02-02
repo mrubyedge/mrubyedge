@@ -6,6 +6,7 @@ use super::vm::VM;
 
 pub mod array;
 pub mod class;
+pub mod enumerable;
 pub mod exception;
 pub mod falseclass;
 pub mod float;
@@ -36,6 +37,7 @@ pub fn prelude(vm: &mut VM) {
     symbol::initialize_symbol(vm);
     proc::initialize_proc(vm);
     string::initialize_string(vm);
+    enumerable::initialize_enumerable(vm);
     array::initialize_array(vm);
     hash::initialize_hash(vm);
     range::initialize_range(vm);

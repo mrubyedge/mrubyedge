@@ -99,6 +99,7 @@ pub struct VM {
     pub has_env_ref: RHashMap<usize, bool>,
 
     pub fn_table: RFnTable,
+    pub fn_block_stack: RFnStack,
 }
 
 pub struct RFnTable {
@@ -108,8 +109,8 @@ pub struct RFnTable {
 
 impl RFnTable {
     #[allow(clippy::new_without_default)]
-    pub fn new() -> RFnTable {
-        RFnTable {
+    pub fn new() -> Self {
+        Self {
             size: Cell::new(0),
             table: array::from_fn(|_| MaybeUninit::uninit()),
         }
@@ -134,6 +135,57 @@ impl RFnTable {
         }
 
         unsafe { self.table[i].assume_init_ref() }.clone().into()
+    }
+
+    pub fn len(&self) -> usize {
+        self.size.get()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size.get() == 0
+    }
+}
+
+pub struct RFnStack {
+    pub size: Cell<usize>,
+    pub stack: [Option<Rc<RFn>>; 64],
+}
+
+impl RFnStack {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self {
+            size: Cell::new(0),
+            stack: array::from_fn(|_| None),
+        }
+    }
+
+    pub fn push(&mut self, f: Rc<RFn>) -> Result<(), Error> {
+        let i = self.size.get();
+        if i >= self.stack.len() {
+            return Err(Error::internal("RFnStack overflow"));
+        }
+
+        self.stack[i] = Some(f);
+        let size = self.size.get();
+        if i >= size {
+            self.size.set(i + 1);
+        }
+        Ok(())
+    }
+
+    pub fn pop(&self) -> Result<Rc<RFn>, Error> {
+        let i = self.size.get();
+        if i == 0 {
+            return Err(Error::internal("RFnStack underflow"));
+        }
+
+        self.size.set(i - 1);
+
+        self.stack[i - 1]
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| Error::internal("RFnStack invalid state"))
     }
 
     pub fn len(&self) -> usize {
@@ -208,6 +260,7 @@ impl VM {
         let exception = None;
         let flag_preemption = Cell::new(false);
         let fn_table = RFnTable::new();
+        let fn_block_stack = RFnStack::new();
         let upper = None;
         let cur_env = RHashMap::default();
         let has_env_ref = RHashMap::default();
@@ -236,6 +289,7 @@ impl VM {
             cur_env,
             has_env_ref,
             fn_table,
+            fn_block_stack,
         };
 
         prelude(&mut vm);
@@ -452,6 +506,14 @@ impl VM {
         self.fn_table.len() - 1
     }
 
+    pub(crate) fn push_fnblock(&mut self, f: Rc<RFn>) -> Result<(), Error> {
+        self.fn_block_stack.push(f)
+    }
+
+    pub(crate) fn pop_fnblock(&mut self) -> Result<Rc<RFn>, Error> {
+        self.fn_block_stack.pop()
+    }
+
     pub(crate) fn get_fn(&self, i: usize) -> Option<Rc<RFn>> {
         self.fn_table.get(i)
     }
@@ -463,6 +525,16 @@ impl VM {
             .get(name)
             .cloned()
             .unwrap_or_else(|| panic!("Class {} not found", name))
+    }
+
+    pub fn get_module_by_name(&self, name: &str) -> Rc<RModule> {
+        match self.consts.get(name).cloned() {
+            Some(obj) => match &obj.value {
+                RValue::Module(m) => m.clone(),
+                _ => panic!("Module {} not found", name),
+            },
+            None => panic!("Module {} not found", name),
+        }
     }
 
     pub fn get_const_by_name(&self, name: &str) -> Option<Rc<RObject>> {

@@ -28,17 +28,6 @@ fn mrb_module_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
         ));
     }
 
-    let self_obj = vm.getself()?;
-    let target_module = match &self_obj.value {
-        RValue::Class(klass) => klass.module.clone(),
-        RValue::Module(module) => module.clone(),
-        _ => {
-            return Err(Error::RuntimeError(
-                "Module#include must be called on class or module".to_string(),
-            ));
-        }
-    };
-
     let arg0 = &args[0];
     let mixin = match &arg0.value {
         RValue::Module(module) => module.clone(),
@@ -48,13 +37,26 @@ fn mrb_module_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
             ));
         }
     };
-    include_module(&target_module, mixin)?;
+
+    let self_obj = vm.getself()?;
+    match &self_obj.value {
+        RValue::Class(klass) => mrb_include_module(klass, mixin)?,
+        RValue::Module(module) => mrb_include_module(module, mixin)?,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Module#include must be called on class or module".to_string(),
+            ));
+        }
+    };
 
     Ok(self_obj)
 }
 
-fn include_module(target: &Rc<RModule>, mixin: Rc<RModule>) -> Result<(), Error> {
-    if Rc::ptr_eq(target, &mixin) {
+/// Public helper.
+/// Includes `mixin` module into `target`.
+pub fn mrb_include_module(target: &impl AsModule, mixin: Rc<RModule>) -> Result<(), Error> {
+    let target = target.as_module();
+    if Rc::ptr_eq(&target, &mixin) {
         return Err(Error::RuntimeError("cannot include itself".to_string()));
     }
 

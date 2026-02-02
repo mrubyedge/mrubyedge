@@ -3,7 +3,10 @@ use std::rc::Rc;
 use crate::{
     Error,
     yamrb::{
-        helpers::{self, mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod},
+        helpers::{
+            self, mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod, mrb_funcall,
+        },
+        prelude::module::mrb_include_module,
         value::{RObject, RValue},
         vm::VM,
     },
@@ -51,7 +54,6 @@ pub(crate) fn initialize_array(vm: &mut VM) {
     mrb_define_cmethod(vm, array_class.clone(), "empty?", Box::new(mrb_array_empty));
     mrb_define_cmethod(vm, array_class.clone(), "size", Box::new(mrb_array_size));
     mrb_define_cmethod(vm, array_class.clone(), "length", Box::new(mrb_array_size));
-    mrb_define_cmethod(vm, array_class.clone(), "count", Box::new(mrb_array_size));
     mrb_define_cmethod(
         vm,
         array_class.clone(),
@@ -71,20 +73,41 @@ pub(crate) fn initialize_array(vm: &mut VM) {
         Box::new(mrb_array_unshift),
     );
     mrb_define_cmethod(vm, array_class.clone(), "dup", Box::new(mrb_array_dup));
-    mrb_define_cmethod(vm, array_class.clone(), "min", Box::new(mrb_array_min));
-    mrb_define_cmethod(vm, array_class.clone(), "max", Box::new(mrb_array_max));
-    mrb_define_cmethod(
-        vm,
-        array_class.clone(),
-        "minmax",
-        Box::new(mrb_array_minmax),
-    );
-    mrb_define_cmethod(vm, array_class.clone(), "uniq", Box::new(mrb_array_uniq));
     mrb_define_cmethod(
         vm,
         array_class.clone(),
         "uniq!",
         Box::new(mrb_array_uniq_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "map!",
+        Box::new(mrb_array_map_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "select!",
+        Box::new(mrb_array_select_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "reject!",
+        Box::new(mrb_array_reject_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "sort!",
+        Box::new(mrb_array_sort_self),
+    );
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "sort_by!",
+        Box::new(mrb_array_sort_by_self),
     );
     mrb_define_cmethod(vm, array_class.clone(), "pack", Box::new(mrb_array_pack));
     mrb_define_cmethod(
@@ -95,6 +118,9 @@ pub(crate) fn initialize_array(vm: &mut VM) {
     );
     mrb_define_cmethod(vm, array_class.clone(), "to_s", Box::new(mrb_array_inspect));
     mrb_define_cmethod(vm, array_class.clone(), "join", Box::new(mrb_array_join));
+
+    let enumerable_module = vm.get_module_by_name("Enumerable");
+    mrb_include_module(&array_class, enumerable_module).expect("failed to include Enumerable");
 }
 
 pub fn mrb_array_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -457,7 +483,7 @@ fn mrb_array_or(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error>
 // Array#first: Returns the first element, or the first n elements
 fn mrb_array_first(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
-    let args = if args[args.len() - 1].as_ref().is_nil() {
+    let args = if !args.is_empty() && args[args.len() - 1].as_ref().is_nil() {
         &args[..args.len() - 1]
     } else {
         args
@@ -481,7 +507,7 @@ fn mrb_array_first(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
 // Array#last: Returns the last element, or the last n elements
 fn mrb_array_last(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
-    let args = if args[args.len() - 1].as_ref().is_nil() {
+    let args = if !args.is_empty() && args[args.len() - 1].as_ref().is_nil() {
         &args[..args.len() - 1]
     } else {
         args
@@ -543,126 +569,87 @@ fn mrb_array_dup(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
     Ok(Rc::new(RObject::array(this)))
 }
 
-// Array#min: Returns the minimum value
-// FIXME: this will be moved to Enumerable module
-fn mrb_array_min(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
-
-    if this.is_empty() {
-        return Ok(Rc::new(RObject::nil()));
-    }
-
-    let mut min = this[0].clone();
-    for elem in this.iter().skip(1) {
-        let args = vec![elem.clone()];
-        let cmp: i64 = helpers::mrb_funcall(vm, Some(min.clone()), "<=>", &args)?
-            .as_ref()
-            .try_into()?;
-        if cmp > 0 {
-            min = elem.clone();
-        }
-    }
-    Ok(min)
-}
-
-// Array#max: Returns the maximum value
-// FIXME: this will be moved to Enumerable module
-fn mrb_array_max(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
-
-    if this.is_empty() {
-        return Ok(Rc::new(RObject::nil()));
-    }
-
-    let mut max = this[0].clone();
-    for elem in this.iter().skip(1) {
-        let args = vec![elem.clone()];
-        let cmp: i64 = helpers::mrb_funcall(vm, Some(max.clone()), "<=>", &args)?
-            .as_ref()
-            .try_into()?;
-        if cmp < 0 {
-            max = elem.clone();
-        }
-    }
-    Ok(max)
-}
-
-// Array#minmax: Returns a two-element array containing the minimum and maximum values
-// FIXME: this will be moved to Enumerable module
-fn mrb_array_minmax(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
-
-    if this.is_empty() {
-        return Ok(Rc::new(RObject::array(vec![
-            Rc::new(RObject::nil()),
-            Rc::new(RObject::nil()),
-        ])));
-    }
-
-    let mut min = this[0].clone();
-    let mut max = this[0].clone();
-
-    for elem in this.iter().skip(1) {
-        let args = vec![elem.clone()];
-        let cmp_min: i64 = helpers::mrb_funcall(vm, Some(min.clone()), "<=>", &args)?
-            .as_ref()
-            .try_into()?;
-        if cmp_min > 0 {
-            min = elem.clone();
-        }
-
-        let args = vec![elem.clone()];
-        let cmp_max: i64 = helpers::mrb_funcall(vm, Some(max.clone()), "<=>", &args)?
-            .as_ref()
-            .try_into()?;
-        if cmp_max < 0 {
-            max = elem.clone();
-        }
-    }
-
-    Ok(Rc::new(RObject::array(vec![min, max])))
-}
-
-// Array#uniq: Returns a new array with duplicate values removed
-// FIXME: this will be moved to Enumerable module
-fn mrb_array_uniq(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
-
-    let mut result = Vec::new();
-    for elem in this.iter() {
-        let elem_eq = elem.as_eq_value();
-        if !result
-            .iter()
-            .any(|e: &Rc<RObject>| e.as_eq_value() == elem_eq)
-        {
-            result.push(elem.clone());
-        }
-    }
-    Ok(Rc::new(RObject::array(result)))
-}
-
 // Array#uniq!: Removes duplicate elements from self (destructive)
-// FIXME: this will be moved to Enumerable module
 fn mrb_array_uniq_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
     let arr: Vec<Rc<RObject>> = this.as_ref().try_into()?;
 
-    let mut unique = Vec::new();
-    for elem in arr.iter() {
-        let elem_eq = elem.as_eq_value();
-        if !unique
-            .iter()
-            .any(|e: &Rc<RObject>| e.as_eq_value() == elem_eq)
-        {
-            unique.push(elem.clone());
-        }
-    }
+    let unique: Vec<Rc<RObject>> = mrb_funcall(vm, Some(this.clone()), "uniq", &[])?
+        .as_ref()
+        .try_into()?;
 
     if unique.len() == arr.len() {
         return Ok(Rc::new(RObject::nil()));
     }
 
     *this.array_borrow_mut()? = unique;
+    Ok(this)
+}
+
+// Array#map!: Invokes the given block once for each element, replacing the element with the value returned by the block (destructive)
+fn mrb_array_map_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let mapped: Vec<Rc<RObject>> = mrb_funcall(vm, Some(this.clone()), "map", args)?
+        .as_ref()
+        .try_into()?;
+
+    *this.array_borrow_mut()? = mapped;
+    Ok(this)
+}
+
+// Array#select!: Invokes the given block for each element, keeping only elements for which the block returns true (destructive)
+fn mrb_array_select_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let arr: Vec<Rc<RObject>> = this.as_ref().try_into()?;
+
+    let selected: Vec<Rc<RObject>> = mrb_funcall(vm, Some(this.clone()), "select", args)?
+        .as_ref()
+        .try_into()?;
+
+    if selected.len() == arr.len() {
+        return Ok(Rc::new(RObject::nil()));
+    }
+
+    *this.array_borrow_mut()? = selected;
+    Ok(this)
+}
+
+// Array#reject!: Invokes the given block for each element, removing elements for which the block returns true (destructive)
+fn mrb_array_reject_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let arr: Vec<Rc<RObject>> = this.as_ref().try_into()?;
+
+    let rejected: Vec<Rc<RObject>> = mrb_funcall(vm, Some(this.clone()), "delete_if", args)?
+        .as_ref()
+        .try_into()?;
+
+    if rejected.len() == arr.len() {
+        return Ok(Rc::new(RObject::nil()));
+    }
+
+    *this.array_borrow_mut()? = rejected;
+    Ok(this)
+}
+
+// Array#sort!: Sorts the array in place (destructive)
+fn mrb_array_sort_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let sorted: Vec<Rc<RObject>> = mrb_funcall(vm, Some(this.clone()), "sort", &[])?
+        .as_ref()
+        .try_into()?;
+
+    *this.array_borrow_mut()? = sorted;
+    Ok(this)
+}
+
+// Array#sort_by!: Sorts the array in place by the result of the block (destructive)
+fn mrb_array_sort_by_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let sorted: Vec<Rc<RObject>> = mrb_funcall(vm, Some(this.clone()), "sort_by", args)?
+        .as_ref()
+        .try_into()?;
+
+    *this.array_borrow_mut()? = sorted;
     Ok(this)
 }
 
