@@ -16,6 +16,7 @@ pub(crate) fn initialize_float(vm: &mut VM) {
         Box::new(mrb_float_inspect),
     );
     mrb_define_cmethod(vm, float_class.clone(), "to_s", Box::new(mrb_float_inspect));
+    mrb_define_cmethod(vm, float_class.clone(), "clamp", Box::new(mrb_float_clamp));
 }
 
 pub fn mrb_float_to_i(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -52,4 +53,52 @@ pub fn mrb_float_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObjec
             "Float#inspect must be called on a Float".to_string(),
         )),
     }
+}
+
+pub fn mrb_float_clamp(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    if args.len() < 2 {
+        return Err(Error::ArgumentError(format!(
+            "wrong number of arguments (given {}, expected 2)",
+            args.len()
+        )));
+    }
+
+    let this = vm.getself()?;
+    let this_float = match &this.value {
+        crate::yamrb::value::RValue::Float(f) => *f,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Float#clamp must be called on a Float".to_string(),
+            ));
+        }
+    };
+
+    // Convert min and max to f64
+    let min = match &args[0].value {
+        crate::yamrb::value::RValue::Float(f) => *f,
+        crate::yamrb::value::RValue::Integer(i) => *i as f64,
+        _ => return Err(Error::TypeMismatch),
+    };
+
+    let max = match &args[1].value {
+        crate::yamrb::value::RValue::Float(f) => *f,
+        crate::yamrb::value::RValue::Integer(i) => *i as f64,
+        _ => return Err(Error::TypeMismatch),
+    };
+
+    if min > max {
+        return Err(Error::ArgumentError(
+            "min argument must be smaller than max argument".to_string(),
+        ));
+    }
+
+    let result = if this_float < min {
+        min
+    } else if this_float > max {
+        max
+    } else {
+        this_float
+    };
+
+    Ok(Rc::new(RObject::float(result)))
 }
