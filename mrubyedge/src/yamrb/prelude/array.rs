@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{cell::Cell, rc::Rc};
 
 use crate::{
     Error,
@@ -50,7 +50,10 @@ pub(crate) fn initialize_array(vm: &mut VM) {
         Box::new(mrb_array_delete_at),
     );
     mrb_define_cmethod(vm, array_class.clone(), "each", Box::new(mrb_array_each));
+    // TODO: move to enumerable
     mrb_define_cmethod(vm, array_class.clone(), "map", Box::new(mrb_array_map));
+    mrb_define_cmethod(vm, array_class.clone(), "find", Box::new(mrb_array_find));
+    // TODO end
     mrb_define_cmethod(vm, array_class.clone(), "empty?", Box::new(mrb_array_empty));
     mrb_define_cmethod(vm, array_class.clone(), "size", Box::new(mrb_array_size));
     mrb_define_cmethod(vm, array_class.clone(), "length", Box::new(mrb_array_size));
@@ -693,6 +696,21 @@ fn mrb_array_join(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
     Ok(Rc::new(RObject::string(result)))
 }
 
+fn rproc_from_rust_block(vm: &mut VM, rfn: RFn) -> Result<Rc<RObject>, Error> {
+    vm.push_fnblock(Rc::new(rfn))?;
+    let block = RProc {
+        is_rb_func: false,
+        is_fnblock: true,
+        sym_id: None,
+        next: None,
+        irep: None,
+        func: None,
+        environ: None,
+        block_self: vm.getself().ok(),
+    };
+    Ok(RObject::proc(block).to_refcount_assigned())
+}
+
 fn mrb_array_map(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let original_block = args
         .last()
@@ -712,23 +730,47 @@ fn mrb_array_map(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
         Ok(result)
     });
 
-    let block = RProc {
-        is_rb_func: false,
-        is_fnblock: true,
-        sym_id: None,
-        next: None,
-        irep: None,
-        func: Some(999),
-        environ: None,
-        block_self: vm.getself().ok(),
-    };
     let this = vm.getself()?;
-    let block = RObject::proc(block).to_refcount_assigned();
-    vm.push_fnblock(Rc::new(wrapping_block))?;
+    let block = rproc_from_rust_block(vm, wrapping_block)?;
     mrb_funcall(vm, Some(this.clone()), "each", &[block])?;
     vm.pop_fnblock()?;
 
     Ok(results)
+}
+
+fn mrb_array_find(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let original_block = args
+        .last()
+        .cloned()
+        .ok_or_else(|| Error::ArgumentError("block should be specified".to_string()))?;
+    let found = Cell::new(false);
+    let result_box: Rc<RObject> = RObject::array(vec![]).to_refcount_assigned();
+    let result_box_ref = result_box.clone();
+    let wrapping_block: RFn = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
+        if found.get() {
+            return Ok(Rc::new(RObject::nil()));
+        }
+
+        let block = original_block.clone();
+        let result = mrb_call_block(vm, block, None, args, 0)?;
+        if result.is_truthy() {
+            mrb_funcall(
+                vm,
+                Some(result_box_ref.clone()),
+                "push",
+                std::slice::from_ref(&args[0]),
+            )?;
+            found.set(true);
+        }
+        Ok(result)
+    });
+    let this = vm.getself()?;
+    let block = rproc_from_rust_block(vm, wrapping_block)?;
+    mrb_funcall(vm, Some(this.clone()), "each", &[block])?;
+    vm.pop_fnblock()?;
+
+    let found = mrb_funcall(vm, result_box.into(), "pop", &[])?;
+    Ok(found)
 }
 
 #[test]

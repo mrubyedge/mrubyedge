@@ -48,3 +48,38 @@ fn array_map_nested_test() {
     assert_eq!(r1, (4, 4, 4));
     assert_eq!(r2, (6, 6, 6));
 }
+
+#[test]
+fn array_find_found_test() {
+    let code = r#"
+    def test_array_find_found
+      [1, 2, 3, 4, 5].find { |x| x > 3 }
+    end
+    "#;
+    let binary = mrbc_compile("array_find_found", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_array_find_found", &args).unwrap();
+    let result_value: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(result_value, 4);
+}
+
+#[test]
+fn array_find_not_found_test() {
+    let code = r#"
+    def test_array_find_not_found
+      [1, 2, 3, 4, 5].find { |x| x > 10 }
+    end
+    "#;
+    let binary = mrbc_compile("array_find_not_found", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_array_find_not_found", &args).unwrap();
+    assert!(result.is_nil());
+}
