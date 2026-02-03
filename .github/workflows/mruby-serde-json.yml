@@ -1,0 +1,43 @@
+name: mruby-serde-json CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'mruby-serde-json/**'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'mruby-serde-json/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        BUILD_TARGET: [release]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-serde-json-${{ hashFiles('**/Cargo.lock') }}
+      # - name: Install C compiler
+      #   run: sudo apt-get update && sudo apt-get install -y build-essential
+      - name: Run formatter
+        run: |
+          cargo fmt -p mruby-serde-json --check
+      - name: Run tests for "${{ matrix.BUILD_TARGET }}" profile
+        run: |
+          cargo test -p mruby-serde-json \
+            --profile ${{ matrix.BUILD_TARGET }}
+      - name: Build binaries for "${{ matrix.BUILD_TARGET }}" profile
+        run: |
+          cargo build -p mruby-serde-json \
+            --profile ${{ matrix.BUILD_TARGET }}

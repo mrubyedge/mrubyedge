@@ -41,8 +41,7 @@ jobs:
       - name: Run tests for "${{ matrix.BUILD_TARGET }}${{ matrix.ENABLE_FNV_HASH }}" profile
         run: |
           set +e
-          cargo test --workspace \
-            --exclude mec \
+          cargo test -p mrubyedge \
             --features "mrubyedge-debug,mruby-random,mruby-regexp${{ matrix.ENABLE_FNV_HASH }}" \
             --profile ${{ matrix.BUILD_TARGET }}
           TEST_RESULT=$?
@@ -53,10 +52,10 @@ jobs:
           fi
       - name: Build binaries for "${{ matrix.BUILD_TARGET }}${{ matrix.ENABLE_FNV_HASH }}" profile
         run: |
-          cargo build --workspace \
-            --exclude mec \
+          cargo build -p mrubyedge \
             --features "mrubyedge-debug,mruby-random,mruby-regexp${{ matrix.ENABLE_FNV_HASH }}" \
             --profile ${{ matrix.BUILD_TARGET }}
+          cargo build -p mrubyedge-cli
 
   lint:
     runs-on: ubuntu-latest
