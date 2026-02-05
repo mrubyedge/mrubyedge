@@ -193,7 +193,7 @@ fn test_json_load_nil() {
 #[test]
 fn test_json_load_float() {
     let code = r#"
-    JSON.load("3.14")
+    JSON.load("3.1415")
     "#;
     let binary = mrbc_compile("json_load_float", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
@@ -202,7 +202,7 @@ fn test_json_load_float() {
 
     let result = vm.run().unwrap();
     let value: f64 = result.as_ref().try_into().unwrap();
-    assert_eq!(value, 3.14);
+    assert_eq!(value, 3.1415);
 }
 
 #[test]

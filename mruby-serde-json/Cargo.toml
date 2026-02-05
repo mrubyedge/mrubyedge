@@ -2,6 +2,9 @@
 name = "mruby-serde-json"
 version = "0.1.0"
 edition = "2024"
+authors = ["Uchio Kondo <udzura@udzura.jp>"]
+description = "mruby-serde-json provides JSON serialization/deserialization for mruby/edge using serde_json"
+license = "BSD-3-Clause"
 
 [dependencies]
 mrubyedge = ">= 1.1.0"
