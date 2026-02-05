@@ -17,6 +17,9 @@ mruby/edge is yet another mruby-compatible VM implementation, specialized for We
 ### [mrubyedge-cli](./mrubyedge-cli) [![crates.io](https://img.shields.io/crates/v/mrubyedge-cli.svg)](https://crates.io/crates/mrubyedge-cli) [![docs.rs](https://docs.rs/mrubyedge-cli/badge.svg)](https://docs.rs/mrubyedge-cli)
 * CLI endpoint for mruby/edge - run, compile to wasm, etc.
 
+### [mruby-serde-json](./mruby-serde-json) [![crates.io](https://img.shields.io/crates/v/mruby-serde-json.svg)](https://crates.io/crates/mruby-serde-json) [![docs.rs](https://docs.rs/mruby-serde-json/badge.svg)](https://docs.rs/mruby-serde-json)
+* JSON serialization/deserialization for mruby/edge using serde_json
+
 ### mec [deprecated]
 
 * Old versions of compiler
