@@ -30,6 +30,5 @@ pub fn mrbc_compile(fname: &'static str, code: &'static str) -> Vec<u8> {
         mec_mrbc_sys::mrbc_main(args.len() as i32, args.as_ptr() as *mut *mut i8);
     }
 
-    let binary = std::fs::read(dest).unwrap();
-    binary
+    std::fs::read(dest).unwrap()
 }

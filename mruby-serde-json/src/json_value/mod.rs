@@ -7,6 +7,7 @@ use mrubyedge::yamrb::value::RObject;
 use mrubyedge::yamrb::value::RValue;
 use mrubyedge::yamrb::vm::VM;
 use serde::ser::{Serialize, SerializeMap, SerializeSeq, Serializer};
+use serde_json::Value;
 
 pub struct Json<'a> {
     mrb: Rc<RefCell<&'a mut VM>>,
@@ -90,4 +91,71 @@ pub(crate) fn mrb_json_dump(vm: &mut VM, obj: Rc<RObject>) -> Result<Rc<RObject>
     let serialized =
         serde_json::to_string(&json_value).expect("Failed to serialize JSON value to string");
     Ok(RObject::string(serialized).to_refcount_assigned())
+}
+
+pub struct JsonValue {
+    inner: Rc<RObject>,
+}
+
+impl JsonValue {
+    pub fn new(inner: Rc<RObject>) -> Self {
+        Self { inner }
+    }
+
+    pub fn get_inner(&self) -> Rc<RObject> {
+        self.inner.clone()
+    }
+}
+
+impl From<JsonValue> for Rc<RObject> {
+    fn from(value: JsonValue) -> Self {
+        value.get_inner()
+    }
+}
+
+impl From<Value> for JsonValue {
+    fn from(value: Value) -> Self {
+        let obj = match value {
+            Value::Null => RObject::nil().to_refcount_assigned(),
+            Value::Bool(b) => RObject::boolean(b).to_refcount_assigned(),
+            Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    RObject::integer(i).to_refcount_assigned()
+                } else if let Some(u) = n.as_u64() {
+                    RObject::integer(u as i64).to_refcount_assigned()
+                } else if let Some(f) = n.as_f64() {
+                    RObject::float(f).to_refcount_assigned()
+                } else {
+                    panic!("Invalid range of numeric value");
+                }
+            }
+            Value::String(s) => RObject::string(s).to_refcount_assigned(),
+            Value::Array(arr) => {
+                let vec = arr.into_iter().map(JsonValue::from).collect::<Vec<_>>();
+                let arr = RObject::array(vec.into_iter().map(|j| j.get_inner()).collect());
+                arr.to_refcount_assigned()
+            }
+            Value::Object(obj) => {
+                let map = obj
+                    .into_iter()
+                    .map(|(k, v)| {
+                        let key = RObject::string(k).to_refcount_assigned();
+                        (
+                            key.as_hash_key().expect("object cannot use for hashed key"),
+                            (key.clone(), JsonValue::from(v).get_inner()),
+                        )
+                    })
+                    .collect();
+                let hash = RObject::hash(map);
+                hash.to_refcount_assigned()
+            }
+        };
+        JsonValue::new(obj)
+    }
+}
+
+pub(crate) fn mrb_json_load(_vm: &mut VM, json_str: impl Into<String>) -> Result<JsonValue, Error> {
+    let value = serde_json::from_str::<serde_json::Value>(&json_str.into())
+        .map_err(|e| Error::RuntimeError(format!("Failed to parse JSON string: {}", e)))?;
+    Ok(value.into())
 }
