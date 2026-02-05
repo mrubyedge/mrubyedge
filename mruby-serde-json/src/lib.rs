@@ -9,7 +9,31 @@ use mrubyedge::{
 
 pub fn init_json(vm: &mut VM) {
     let json_class = vm.define_class("JSON", None, None);
-    mrb_define_class_cmethod(vm, json_class, "dump", Box::new(mrb_json_class_dump));
+
+    mrb_define_class_cmethod(
+        vm,
+        json_class.clone(),
+        "dump",
+        Box::new(mrb_json_class_dump),
+    );
+    mrb_define_class_cmethod(
+        vm,
+        json_class.clone(),
+        "generate",
+        Box::new(mrb_json_class_dump),
+    );
+    mrb_define_class_cmethod(
+        vm,
+        json_class.clone(),
+        "load",
+        Box::new(mrb_json_class_load),
+    );
+    mrb_define_class_cmethod(
+        vm,
+        json_class.clone(),
+        "parse",
+        Box::new(mrb_json_class_load),
+    );
 }
 
 pub fn mrb_json_class_dump(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -25,4 +49,20 @@ pub fn mrb_json_class_dump(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObje
     }
     let result = json_value::mrb_json_dump(vm, args[0].clone())?;
     Ok(result)
+}
+
+pub fn mrb_json_class_load(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let args = if args[args.len() - 1].is_nil() {
+        &args[0..args.len() - 1]
+    } else {
+        args
+    };
+    if args.len() != 1 {
+        return Err(Error::ArgumentError(
+            "wrong number of arguments".to_string(),
+        ));
+    }
+    let json_str: String = args[0].as_ref().try_into()?;
+    let result = json_value::mrb_json_load(vm, json_str)?;
+    Ok(result.get_inner())
 }
