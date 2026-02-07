@@ -1,3 +1,4 @@
+#![allow(clippy::approx_constant)]
 extern crate mruby_serde_json;
 extern crate mrubyedge;
 
