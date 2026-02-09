@@ -2,6 +2,8 @@
 
 mruby/edge is yet another mruby-compatible VM implementation, specialized for WebAssembly.
 
+You can try what features mruby/edge have implemented in [Playground](https://mrubyedge.github.io/playground/).
+
 ## badges
 
 - ![crates.io](https://img.shields.io/crates/v/mrubyedge.svg) ![crates.io](https://img.shields.io/crates/v/mrubyedge-cli.svg)
