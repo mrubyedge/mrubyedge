@@ -1438,7 +1438,7 @@ pub(crate) fn op_addi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             unreachable!("addi supports only integer")
         }
     };
-    vm.current_regs()[a as usize].replace(Rc::new(result));
+    vm.current_regs()[a as usize].replace(result.to_refcount_assigned());
     Ok(())
 }
 
@@ -1453,7 +1453,7 @@ pub(crate) fn op_sub(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             unreachable!("sub supports only integer")
         }
     };
-    vm.current_regs()[a].replace(Rc::new(result));
+    vm.current_regs()[a].replace(result.to_refcount_assigned());
     Ok(())
 }
 
@@ -1467,7 +1467,7 @@ pub(crate) fn op_subi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             unreachable!("subi supports only integer")
         }
     };
-    vm.current_regs()[a as usize].replace(Rc::new(result));
+    vm.current_regs()[a as usize].replace(result.to_refcount_assigned());
     Ok(())
 }
 

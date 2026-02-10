@@ -206,7 +206,11 @@ pub fn mrb_array_set_index(this: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc
     match &this.value {
         RValue::Array(a) => {
             let mut a = a.borrow_mut();
-            a.insert(index, value.clone());
+            if a.len() <= index {
+                a.insert(index, value.clone());
+            } else {
+                a[index] = value.clone();
+            }
         }
         _ => {
             return Err(Error::RuntimeError(

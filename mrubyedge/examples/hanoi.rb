@@ -1,7 +1,7 @@
 # Tower of Hanoi
 # Move disks from source to destination using auxiliary peg
 
-def hanoi(n, source, destination, auxiliary, step = [0])
+def hanoi(n, source, destination, auxiliary, step)
   if n == 1
     step[0] += 1
     puts "Step #{step[0]}: Move disk 1 from #{source} to #{destination}"
@@ -16,6 +16,6 @@ end
 
 puts "Tower of Hanoi with 3 disks:"
 puts "----------------------------"
-hanoi(3, 'A', 'C', 'B')
+hanoi(3, 'A', 'C', 'B', [0])
 puts "----------------------------"
 puts "Complete!"
