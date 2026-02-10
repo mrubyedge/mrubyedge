@@ -2,5 +2,13 @@
 name = "mruby-math"
 version = "0.1.0"
 edition = "2024"
+authors = ["Uchio Kondo <udzura@udzura.jp>"]
+description = "mruby-math provides Math module for mruby/edge"
+license = "BSD-3-Clause"
 
 [dependencies]
+mrubyedge = "1.1.1"
+
+[dev-dependencies]
+mrubyedge = { version = "1.1.1", features = ["default"] }
+mec-mrbc-sys = "3.3.1"

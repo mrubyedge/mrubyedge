@@ -17,6 +17,7 @@ pub enum Error {
     TypeMismatch,
     NoMethodError(String),
     NameError(String),
+    ZeroDivisionError,
 
     Break(Rc<RObject>),
     BlockReturn(usize, Rc<RObject>),
@@ -46,6 +47,7 @@ impl Error {
             Error::TypeMismatch => "Type mismatch".to_string(),
             Error::NoMethodError(msg) => format!("Method not found: {}", msg),
             Error::NameError(msg) => format!("Cannot found name: {}", msg),
+            Error::ZeroDivisionError => "divided by 0".to_string(),
 
             Error::Break(_) => "[Break]".to_string(),
             Error::BlockReturn(_, _) => "[BlockReturn]".to_string(),
@@ -64,6 +66,7 @@ impl Error {
                 | (Error::TypeMismatch, "StandardError")
                 | (Error::NoMethodError(_), "NoMethodError")
                 | (Error::NameError(_), "NameError")
+                | (Error::ZeroDivisionError, "ZeroDivisionError")
         )
     }
 
@@ -110,6 +113,7 @@ impl From<Error> for StaticError {
             Error::TypeMismatch => StaticError::General("Type mismatch".to_string()),
             Error::NoMethodError(msg) => StaticError::General(format!("Method not found: {}", msg)),
             Error::NameError(msg) => StaticError::General(format!("Cannot found name: {}", msg)),
+            Error::ZeroDivisionError => StaticError::General("divided by 0".to_string()),
 
             Error::Break(_) => StaticError::General("[Break]".to_string()),
             Error::BlockReturn(_, _) => StaticError::General("[BlockReturn]".to_string()),
