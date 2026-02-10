@@ -30,12 +30,11 @@ puts ""
   # Map y (-1 to 1) to column position (0 to width-1)
   col = ((y + 1) * (width - 1) / 2).to_i
   
-  # Print spaces then the marker
-  line = " " * col + "*"
-  
   # Add x-axis marker at y=0
-  if y.abs < 0.1
-    line = line.sub("*", "|")
+  line = if y.abs < 0.1
+    " " * col + "|"
+  else
+    " " * col + "*"
   end
   
   # Show x value at specific points
