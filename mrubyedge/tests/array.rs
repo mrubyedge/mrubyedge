@@ -323,3 +323,71 @@ fn array_join_test() {
     let result: String = result.as_ref().try_into().unwrap();
     assert_eq!(result, "1,2,3");
 }
+
+#[test]
+fn array_reference_mutation_test() {
+    let code = r#"
+    def incr(times, state)
+      return state if times == 0
+      state[0] += 1
+      incr(times - 1, state)
+    end
+    
+    def test_array_reference
+      arr = [0]
+      incr(3, arr)
+      arr[0]
+    end
+    "#;
+    let binary = mrbc_compile("array_reference_mutation", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_array_reference", &args).unwrap();
+    let result: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(result, 3);
+}
+
+#[test]
+fn array_reference_mutation_recursive_test() {
+    let code = r#"
+    def incr_recursive(times, state, results)
+      return results if times == 0
+      state[0] += 1
+      results << state[0]
+      incr_recursive(times - 1, state, results)
+    end
+    
+    def test_recursive_mutation
+      arr = [0]
+      results = []
+      incr_recursive(5, arr, results)
+      [arr[0], results]
+    end
+    "#;
+    let binary = mrbc_compile("array_reference_recursive", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_recursive_mutation", &args).unwrap();
+    let outer: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+
+    // arr[0] should be 5
+    let final_count: i64 = outer[0].as_ref().try_into().unwrap();
+    assert_eq!(final_count, 5);
+
+    // results should be [1, 2, 3, 4, 5]
+    let results: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        outer[1].as_ref().try_into().unwrap();
+    assert_eq!(results.len(), 5);
+
+    for (i, item) in results.iter().enumerate() {
+        let val: i64 = item.as_ref().try_into().unwrap();
+        assert_eq!(val, (i + 1) as i64);
+    }
+}

@@ -1201,6 +1201,7 @@ impl From<u32> for EnterArgInfo {
 
 pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_w()?;
+    let argc = vm.current_callinfo.as_ref().map_or(0, |ci| ci.n_args);
     let arg_info = EnterArgInfo::from(a);
     let m1_argc = arg_info.m1 as usize;
     for i in 0..m1_argc {
@@ -1214,9 +1215,24 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             }
         }
     }
+    let optional_arg = arg_info.o as usize;
+    if optional_arg > 0 {
+        let m2_argc = arg_info.m2 as usize;
+        let total_preset_args = argc.saturating_sub(m1_argc + m2_argc);
+        for peek_pc in 0..total_preset_args {
+            match vm.current_irep.code[vm.pc.get() + peek_pc].code {
+                OpCode::JMP => {}
+                _ => {
+                    unreachable!("unexpected opcode while processing optional args")
+                }
+            }
+        }
+        vm.pc.set(vm.pc.get() + total_preset_args);
+    }
+
     let splat_arg = arg_info.r as usize;
     if splat_arg == 1 {
-        let total_args = vm.current_callinfo.as_ref().map_or(0, |ci| ci.n_args);
+        let total_args = argc;
         let passed_args = total_args.saturating_sub(m1_argc);
         let mut array = Vec::new();
         for i in 0..passed_args {
@@ -1438,7 +1454,7 @@ pub(crate) fn op_addi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             unreachable!("addi supports only integer")
         }
     };
-    vm.current_regs()[a as usize].replace(Rc::new(result));
+    vm.current_regs()[a as usize].replace(result.to_refcount_assigned());
     Ok(())
 }
 
@@ -1453,7 +1469,7 @@ pub(crate) fn op_sub(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             unreachable!("sub supports only integer")
         }
     };
-    vm.current_regs()[a].replace(Rc::new(result));
+    vm.current_regs()[a].replace(result.to_refcount_assigned());
     Ok(())
 }
 
@@ -1467,7 +1483,7 @@ pub(crate) fn op_subi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             unreachable!("subi supports only integer")
         }
     };
-    vm.current_regs()[a as usize].replace(Rc::new(result));
+    vm.current_regs()[a as usize].replace(result.to_refcount_assigned());
     Ok(())
 }
 
@@ -1603,7 +1619,7 @@ fn do_op_array(vm: &mut VM, this: usize, start: usize, n: usize) -> Result<(), E
         }
     }
     let val = RObject::array(ary);
-    vm.current_regs()[this].replace(Rc::new(val));
+    vm.current_regs()[this].replace(val.to_refcount_assigned());
     Ok(())
 }
 
@@ -1627,7 +1643,7 @@ pub(crate) fn op_arycat(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
                 ary1.push(item.clone());
             }
             let val = RObject::array(ary1);
-            vm.current_regs()[a].replace(Rc::new(val));
+            vm.current_regs()[a].replace(val.to_refcount_assigned());
         }
         _ => {
             unreachable!("arycat supports only array")
@@ -1687,7 +1703,7 @@ pub(crate) fn op_symbol(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let symstr = vm.current_irep.pool[b as usize].as_str().to_string();
     let sym = RSym::new(symstr);
     let val = RObject::symbol(sym);
-    vm.current_regs()[a as usize].replace(Rc::new(val));
+    vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
 }
 
@@ -1695,7 +1711,7 @@ pub(crate) fn op_string(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let str = vm.current_irep.pool[b as usize].as_str().to_string();
     let val = RObject::string(str);
-    vm.current_regs()[a as usize].replace(Rc::new(val));
+    vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
 }
 
