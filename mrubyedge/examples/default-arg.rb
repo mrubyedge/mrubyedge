@@ -1,10 +1,9 @@
-def incr(times, state)
+def incr(times, state=[0])
   return if times == 0
-  p "state: #{state.inspect}"
+  p "state: #{state.inspect} #{state.object_id}"
   state[0] += 1
-  p "state: #{state.inspect}"
   incr(times - 1, state)
   state
 end
 
-p incr(1, [0])
+p incr(3)
