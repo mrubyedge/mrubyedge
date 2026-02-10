@@ -1,3 +1,12 @@
+extern crate mruby_math;
+extern crate mrubyedge;
+
+mod helpers;
+use helpers::*;
+
+#[test]
+fn test_sine_curve() {
+    let code = r##"
 # Sin curve ASCII art
 # Draw sine wave from 0 to 4π
 
@@ -5,7 +14,8 @@ PI = Math::PI
 
 # Settings
 width = 60        # Width of the graph
-x_range = 4 * PI  # 0 to 4π
+height = 15       # Height of the graph (centered)
+x_range = 4.to_f * PI  # 0 to 4π
 steps = 80        # Number of points to plot
 
 puts "Sin(x) curve from 0 to 4π"
@@ -40,3 +50,11 @@ end
 puts ""
 puts "=" * width
 puts "Legend: * = sin(x), | = x-axis (y≈0)"
+    "##;
+    let binary = mrbc_compile("sine_curve", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    mruby_math::init_math(&mut vm);
+
+    assert!(vm.run().unwrap().is_nil());
+}
