@@ -1450,8 +1450,9 @@ pub(crate) fn op_addi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val2 = b as i64;
     let result = match &val1.value {
         RValue::Integer(n1) => RObject::integer(*n1 + val2),
+        RValue::Float(n1) => RObject::float(n1 + val2 as f64),
         _ => {
-            unreachable!("addi supports only integer")
+            unreachable!("addi supports only integer and float")
         }
     };
     vm.current_regs()[a as usize].replace(result.to_refcount_assigned());
@@ -1464,12 +1465,22 @@ pub(crate) fn op_sub(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::integer(n1 - n2),
+        (RValue::Integer(n1), RValue::Integer(n2)) => {
+            RObject::integer(n1 - n2).to_refcount_assigned()
+        }
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::float(n1 - n2).to_refcount_assigned(),
+        (RValue::Integer(n1), RValue::Float(n2)) => {
+            RObject::float(*n1 as f64 - n2).to_refcount_assigned()
+        }
+        (RValue::Float(n1), RValue::Integer(n2)) => {
+            RObject::float(n1 - *n2 as f64).to_refcount_assigned()
+        }
         _ => {
-            unreachable!("sub supports only integer")
+            let args = vec![val2.clone()];
+            mrb_funcall(vm, Some(val1.clone()), "-", &args)?
         }
     };
-    vm.current_regs()[a].replace(result.to_refcount_assigned());
+    vm.current_regs()[a].replace(result);
     Ok(())
 }
 
@@ -1496,6 +1507,13 @@ pub(crate) fn op_mul(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         (RValue::Integer(n1), RValue::Integer(n2)) => {
             RObject::integer(n1 * n2).to_refcount_assigned()
         }
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::float(n1 * n2).to_refcount_assigned(),
+        (RValue::Integer(n1), RValue::Float(n2)) => {
+            RObject::float(*n1 as f64 * n2).to_refcount_assigned()
+        }
+        (RValue::Float(n1), RValue::Integer(n2)) => {
+            RObject::float(n1 * *n2 as f64).to_refcount_assigned()
+        }
         _ => mrb_funcall(vm, Some(val1), "*", &[val2])?,
     };
     vm.current_regs()[a].replace(result);
@@ -1510,6 +1528,13 @@ pub(crate) fn op_div(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let result = match (&val1.value, &val2.value) {
         (RValue::Integer(n1), RValue::Integer(n2)) => {
             RObject::integer(n1 / n2).to_refcount_assigned()
+        }
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::float(n1 / n2).to_refcount_assigned(),
+        (RValue::Integer(n1), RValue::Float(n2)) => {
+            RObject::float(*n1 as f64 / n2).to_refcount_assigned()
+        }
+        (RValue::Float(n1), RValue::Integer(n2)) => {
+            RObject::float(n1 / *n2 as f64).to_refcount_assigned()
         }
         _ => mrb_funcall(vm, Some(val1), "/", &[val2])?,
     };
