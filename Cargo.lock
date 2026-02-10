@@ -563,7 +563,7 @@ name = "mruby-math"
 version = "0.1.0"
 dependencies = [
  "mec-mrbc-sys",
- "mrubyedge 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge 1.1.1",
 ]
 
 [[package]]

@@ -7,7 +7,7 @@ use helpers::*;
 #[test]
 fn test_math_sin() {
     let code = "
-    Math.sin(Math::PI / 2)
+    Math.sin(Math::PI / 6.0)
     ";
     let binary = mrbc_compile("math_sin", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
@@ -16,7 +16,7 @@ fn test_math_sin() {
 
     let result = vm.run().unwrap();
     let value: f64 = result.as_ref().try_into().unwrap();
-    assert!((value - 1.0).abs() < 1e-10);
+    assert!((value - 0.5).abs() < 1e-10);
 }
 
 #[test]
@@ -77,36 +77,6 @@ fn test_math_log_with_base() {
     let result = vm.run().unwrap();
     let value: f64 = result.as_ref().try_into().unwrap();
     assert!((value - 3.0).abs() < 1e-10);
-}
-
-#[test]
-fn test_math_pi() {
-    let code = "
-    Math::PI
-    ";
-    let binary = mrbc_compile("math_pi", code);
-    let mut rite = mrubyedge::rite::load(&binary).unwrap();
-    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_math::init_math(&mut vm);
-
-    let result = vm.run().unwrap();
-    let value: f64 = result.as_ref().try_into().unwrap();
-    assert!((value - std::f64::consts::PI).abs() < 1e-10);
-}
-
-#[test]
-fn test_math_e() {
-    let code = "
-    Math::E
-    ";
-    let binary = mrbc_compile("math_e", code);
-    let mut rite = mrubyedge::rite::load(&binary).unwrap();
-    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_math::init_math(&mut vm);
-
-    let result = vm.run().unwrap();
-    let value: f64 = result.as_ref().try_into().unwrap();
-    assert!((value - std::f64::consts::E).abs() < 1e-10);
 }
 
 #[test]

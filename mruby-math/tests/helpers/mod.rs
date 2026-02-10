@@ -19,8 +19,8 @@ pub fn mrbc_compile(fname: &'static str, code: &'static str) -> Vec<u8> {
     dest0.push('\0');
 
     let args = [
-        CStr::from_bytes_with_nul(b"mrbc\0").unwrap().as_ptr(),
-        CStr::from_bytes_with_nul(b"-o\0").unwrap().as_ptr(),
+        c"mrbc".as_ptr(),
+        c"-o".as_ptr(),
         CStr::from_bytes_with_nul(dest0.as_bytes())
             .unwrap()
             .as_ptr(),

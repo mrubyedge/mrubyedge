@@ -20,11 +20,26 @@ fn test_math_pi_constant() {
 }
 
 #[test]
-fn test_math_sqrt_simple() {
+fn test_math_e_constant() {
+    let code = "
+    Math::E
+    ";
+    let binary = mrbc_compile("math_e_const", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    mruby_math::init_math(&mut vm);
+
+    let result = vm.run().unwrap();
+    let value: f64 = result.as_ref().try_into().unwrap();
+    assert!((value - std::f64::consts::E).abs() < 1e-10);
+}
+
+#[test]
+fn test_math_sqrt_smoke() {
     let code = "
     Math.sqrt(4.0)
     ";
-    let binary = mrbc_compile("math_sqrt_simple", code);
+    let binary = mrbc_compile("math_sqrt_smoke", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     mruby_math::init_math(&mut vm);
@@ -35,11 +50,11 @@ fn test_math_sqrt_simple() {
 }
 
 #[test]
-fn test_math_sin_simple() {
+fn test_math_sin_smoke() {
     let code = "
     Math.sin(Math::PI / 2)
     ";
-    let binary = mrbc_compile("math_sin_simple", code);
+    let binary = mrbc_compile("math_sin_smoke", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     mruby_math::init_math(&mut vm);
