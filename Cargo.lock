@@ -559,6 +559,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mruby-math"
+version = "0.1.0"
+
+[[package]]
 name = "mruby-serde-json"
 version = "0.1.0"
 dependencies = [
