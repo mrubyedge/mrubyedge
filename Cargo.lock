@@ -563,25 +563,9 @@ name = "mruby-serde-json"
 version = "0.1.0"
 dependencies = [
  "mec-mrbc-sys",
- "mrubyedge 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge 1.1.0",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "mrubyedge"
-version = "1.1.0"
-dependencies = [
- "criterion",
- "fnv",
- "mec-mrbc-sys",
- "mruby-compiler2-sys",
- "once_cell",
- "plain",
- "rand_core 0.10.0",
- "rand_xorshift",
- "regex",
- "simple_endian",
 ]
 
 [[package]]
@@ -598,13 +582,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "mrubyedge"
+version = "1.1.1"
+dependencies = [
+ "criterion",
+ "fnv",
+ "mec-mrbc-sys",
+ "mruby-compiler2-sys",
+ "once_cell",
+ "plain",
+ "rand_core 0.10.0",
+ "rand_xorshift",
+ "regex",
+ "simple_endian",
+]
+
+[[package]]
 name = "mrubyedge-cli"
 version = "1.1.0"
 dependencies = [
  "askama",
  "clap",
  "mruby-compiler2-sys",
- "mrubyedge 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge 1.1.0",
  "nom",
  "rand",
  "syn",
