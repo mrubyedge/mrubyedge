@@ -7,10 +7,8 @@ description = "mruby-math provides Math module for mruby/edge"
 license = "BSD-3-Clause"
 
 [dependencies]
-mrubyedge = { path = "../mrubyedge", version = ">= 1.1.0" }
+mrubyedge = { version = ">= 1.1.2" }
 
 [dev-dependencies]
-mrubyedge = { path = "../mrubyedge", version = ">= 1.1.0", features = [
-    "default",
-] }
+mrubyedge = { version = ">= 1.1.2", features = ["default"] }
 mec-mrbc-sys = "3.3.1"
