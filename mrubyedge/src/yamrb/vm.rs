@@ -301,6 +301,8 @@ impl VM {
     /// register 0 or propagating any raised exception as an error. The
     /// top-level `self` is initialized automatically before evaluation.
     pub fn run(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
+        self.current_irep = self.irep.clone();
+
         let upper = self.current_breadcrumb.take();
         let new_breadcrumb = Rc::new(Breadcrumb {
             upper,
