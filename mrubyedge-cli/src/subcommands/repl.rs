@@ -33,9 +33,9 @@ pub fn execute(args: ReplArgs) -> Result<(), Box<dyn std::error::Error>> {
     loop {
         // Print prompt based on whether we're in multi-line mode
         if buffer.is_empty() {
-            print!("mrb:{}> ", line_number);
+            print!("repl:{:03}> ", line_number);
         } else {
-            print!("mrb:{}* ", line_number);
+            print!("repl:{:03}* ", line_number);
         }
         io::stdout().flush()?;
 
