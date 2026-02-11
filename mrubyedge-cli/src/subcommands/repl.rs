@@ -2,7 +2,7 @@ use clap::Args;
 use std::io::{self, Write};
 
 use mruby_compiler2_sys as mrbc;
-use mrubyedge::yamrb::helpers::{mrb_call_inspect, mrb_funcall};
+use mrubyedge::yamrb::helpers::mrb_call_inspect;
 
 #[derive(Args)]
 pub struct ReplArgs {
