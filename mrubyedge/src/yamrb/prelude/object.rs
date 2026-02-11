@@ -792,7 +792,7 @@ fn mrb_object_extend(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
     let singleton_class = this.initialize_or_get_singleton_class(vm);
 
     // Extend with each module argument
-    for arg in args {
+    for arg in args.iter().rev() {
         let module = match &arg.value {
             RValue::Module(m) => m.clone(),
             RValue::Class(c) => c.module.clone(),
