@@ -948,6 +948,7 @@ pub struct RClass {
     pub super_class: Option<Rc<RClass>>,
     pub singleton_class_ref: RefCell<Option<Rc<RClass>>>,
     pub is_singleton: bool,
+    pub extended_modules: RefCell<Vec<Rc<RModule>>>,
 }
 
 impl RClass {
@@ -966,6 +967,7 @@ impl RClass {
             super_class,
             singleton_class_ref,
             is_singleton: false,
+            extended_modules: RefCell::new(Vec::new()),
         }
     }
 
@@ -984,6 +986,7 @@ impl RClass {
             super_class,
             singleton_class_ref,
             is_singleton: true,
+            extended_modules: RefCell::new(Vec::new()),
         }
     }
 
@@ -993,12 +996,26 @@ impl RClass {
 
     // find_method will search method from self to superclass
     pub fn find_method(&self, name: &str) -> Option<RProc> {
+        // First check this class's module
         match self.module.find_method(name) {
-            Some(p) => Some(p),
-            None => match &self.super_class {
-                Some(sc) => sc.find_method(name),
-                None => None,
-            },
+            Some(p) => return Some(p),
+            None => {}
+        }
+
+        // For singleton classes, check extended modules
+        if self.is_singleton {
+            let extended = self.extended_modules.borrow();
+            for module in extended.iter() {
+                if let Some(p) = module.find_method(name) {
+                    return Some(p);
+                }
+            }
+        }
+
+        // Finally check superclass
+        match &self.super_class {
+            Some(sc) => sc.find_method(name),
+            None => None,
         }
     }
 
@@ -1020,6 +1037,15 @@ fn collect_class_chain(
     visited: &mut RHashSet<usize>,
 ) {
     collect_module_chain(&class.module, chain, visited);
+
+    // For singleton classes, include extended modules
+    if class.is_singleton {
+        let extended = class.extended_modules.borrow();
+        for module in extended.iter() {
+            collect_module_chain(module, chain, visited);
+        }
+    }
+
     if let Some(super_class) = &class.super_class {
         collect_class_chain(super_class, chain, visited);
     }

@@ -110,6 +110,12 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         "method_missing",
         Box::new(mrb_object_method_missing),
     );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "extend",
+        Box::new(mrb_object_extend),
+    );
 
     // define global consts:
     vm.consts.insert(
@@ -771,4 +777,41 @@ fn test_mrb_object_is_equal_instance() {
         .try_into()
         .expect("must return bool");
     assert!(!ret);
+}
+
+fn mrb_object_extend(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+
+    if args.is_empty() {
+        return Err(Error::ArgumentError(
+            "wrong number of arguments (given 0, expected 1+)".to_string(),
+        ));
+    }
+
+    // Initialize or get singleton class
+    let singleton_class = this.initialize_or_get_singleton_class(vm);
+
+    // Extend with each module argument
+    for arg in args.iter().rev() {
+        let module = match &arg.value {
+            RValue::Module(m) => m.clone(),
+            RValue::Class(c) => c.module.clone(),
+            RValue::Nil => {
+                continue;
+            }
+            _ => {
+                return Err(Error::ArgumentError(
+                    "wrong argument type (expected Module)".to_string(),
+                ));
+            }
+        };
+
+        // Add module to extended_modules
+        singleton_class
+            .extended_modules
+            .borrow_mut()
+            .insert(0, module);
+    }
+
+    Ok(this)
 }
