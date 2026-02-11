@@ -69,7 +69,11 @@ pub mod eval;
 pub mod rite;
 pub mod yamrb;
 
+// re-exports for easier access
 pub use error::Error;
+pub use rite::{Rite, load};
+pub use yamrb::value::RObject;
+pub use yamrb::vm::VM;
 
 /// The version of the mrubyedge crate
 #[macro_export]

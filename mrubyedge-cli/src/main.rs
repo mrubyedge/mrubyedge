@@ -27,6 +27,8 @@ enum Commands {
     /// Run Ruby code or binary.
     /// Run is invoked when rb/mrb file is directly passed to the command
     Run(subcommands::run::RunArgs),
+    /// Start an interactive REPL (Read-Eval-Print Loop)
+    Repl(subcommands::repl::ReplArgs),
     /// Generate WebAssembly binary from Ruby code
     Wasm(subcommands::wasm::WasmArgs),
     /// Compile Ruby script to mrb
@@ -50,6 +52,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Some(Commands::Run(args)) => {
             subcommands::run::execute(args)?;
+        }
+        Some(Commands::Repl(args)) => {
+            subcommands::repl::execute(args)?;
         }
         Some(Commands::Wasm(args)) => {
             subcommands::wasm::execute(args)?;

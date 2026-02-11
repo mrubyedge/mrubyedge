@@ -301,6 +301,9 @@ impl VM {
     /// register 0 or propagating any raised exception as an error. The
     /// top-level `self` is initialized automatically before evaluation.
     pub fn run(&mut self) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
+        self.current_irep = self.irep.clone();
+        self.pc.set(0);
+
         let upper = self.current_breadcrumb.take();
         let new_breadcrumb = Rc::new(Breadcrumb {
             upper,
@@ -318,6 +321,25 @@ impl VM {
         let new_breadcrumb = Rc::new(Breadcrumb {
             upper,
             event: "run_internal",
+            caller: None,
+            return_reg: None,
+        });
+        self.current_breadcrumb.replace(new_breadcrumb);
+        self.__run()
+    }
+
+    pub fn eval_rite(
+        &mut self,
+        rite: &mut Rite,
+    ) -> Result<Rc<RObject>, Box<dyn std::error::Error>> {
+        let irep = rite_to_irep(rite);
+        self.pc.set(0);
+        self.current_irep = Rc::new(irep);
+
+        let upper = self.current_breadcrumb.take();
+        let new_breadcrumb = Rc::new(Breadcrumb {
+            upper,
+            event: "eval",
             caller: None,
             return_reg: None,
         });
