@@ -53,11 +53,11 @@ fn test_rite_parse_with_local_variables() {
     let lvar = rite.lvar.unwrap();
     assert!(lvar.syms.len() == 2);
 
-    let name = rite.irep[1].lv[0].unwrap();
-    assert_eq!(lvar.syms[name].to_str().unwrap(), "name");
+    let name = rite.irep[1].lv[0].as_ref().cloned().unwrap();
+    assert_eq!(&name.to_string_lossy(), "name");
 
-    let message = rite.irep[1].lv[2].unwrap();
-    assert_eq!(lvar.syms[message].to_str().unwrap(), "message");
+    let message = rite.irep[1].lv[2].as_ref().cloned().unwrap();
+    assert_eq!(&message.to_string_lossy(), "message");
 }
 
 #[test]

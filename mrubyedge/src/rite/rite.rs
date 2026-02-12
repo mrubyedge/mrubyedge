@@ -38,7 +38,7 @@ pub struct Irep<'a> {
     pub slen: usize,
     pub syms: Vec<CString>,
     pub catch_handlers: Vec<CatchHandler>,
-    pub lv: Vec<Option<usize>>, // Local variable names (indices into LVar::syms)
+    pub lv: Vec<Option<CString>>, // Local variable names (indices into LVar::syms)
 }
 
 impl Irep<'_> {
@@ -353,7 +353,7 @@ fn read_lv_records(
             if sym_idx >= syms_len {
                 return Err(Error::InvalidFormat);
             }
-            lv.push(Some(sym_idx));
+            lv.push(Some(syms[sym_idx].clone()));
         }
     }
 
