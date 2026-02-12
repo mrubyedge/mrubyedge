@@ -661,9 +661,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "654a26dffb9457e3e26efdaeef3ebe7f259241d6d2f80b98377d9d4efa96046b"
 dependencies = [
  "plain",
- "rand_core 0.10.0",
- "rand_xorshift",
- "regex",
  "simple_endian",
 ]
 
@@ -675,7 +672,7 @@ dependencies = [
  "clap",
  "crossterm",
  "mruby-compiler2-sys",
- "mrubyedge 1.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge 1.1.4",
  "nom",
  "rand",
  "syn",
