@@ -223,6 +223,7 @@ impl VM {
             syms: Vec::new(),
             pool: Vec::new(),
             reps: Vec::new(),
+            lv: None,
             catch_target_pos: Vec::new(),
         };
         Self::new_by_raw_irep(irep)
@@ -750,6 +751,7 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
         syms: Vec::new(),
         pool: Vec::new(),
         reps: Vec::new(),
+        lv: None,
         catch_target_pos: Vec::new(),
     };
     for sym in irep.syms.iter() {
@@ -787,6 +789,15 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
             .expect("catch handler mismatch");
         irep1.catch_target_pos.push(i);
     }
+    let mut map = RHashMap::default();
+    for (reg, name) in irep.lv.iter().enumerate() {
+        if let Some(name) = name {
+            map.insert(reg, name.to_string_lossy().to_string());
+        }
+    }
+    if !map.is_empty() {
+        irep1.lv = Some(map);
+    }
     irep1.catch_target_pos.sort();
 
     irep1.code = code;
@@ -821,6 +832,7 @@ pub struct IREP {
     pub syms: Vec<RSym>,
     pub pool: Vec<RPool>,
     pub reps: Vec<Rc<IREP>>,
+    pub lv: Option<RHashMap<usize, String>>,
     pub catch_target_pos: Vec<usize>,
 }
 
