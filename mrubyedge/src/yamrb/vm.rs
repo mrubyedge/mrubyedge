@@ -792,7 +792,8 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
     let mut map = RHashMap::default();
     for (reg, name) in irep.lv.iter().enumerate() {
         if let Some(name) = name {
-            map.insert(reg, name.to_string_lossy().to_string());
+            // lv register index in mruby is 1-based
+            map.insert(reg + 1, name.to_string_lossy().to_string());
         }
     }
     if !map.is_empty() {
