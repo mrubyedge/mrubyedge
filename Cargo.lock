@@ -610,18 +610,6 @@ dependencies = [
 
 [[package]]
 name = "mruby-compiler2-sys"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "feba2d9bebead1e86da7c36f229bd92f7a81e193dab29d982815a2a776811f19"
-dependencies = [
- "bindgen 0.72.1",
- "cc",
- "glob",
- "libc",
-]
-
-[[package]]
-name = "mruby-compiler2-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e57b6bea7a439d4a48c5e2d680104b99855404caa0e24a30febe5bbee176f25"
@@ -637,7 +625,7 @@ name = "mruby-math"
 version = "0.1.0"
 dependencies = [
  "mec-mrbc-sys",
- "mrubyedge 1.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge 1.1.4",
 ]
 
 [[package]]
@@ -645,25 +633,9 @@ name = "mruby-serde-json"
 version = "0.1.0"
 dependencies = [
  "mec-mrbc-sys",
- "mrubyedge 1.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge 1.1.4",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "mrubyedge"
-version = "1.1.4"
-dependencies = [
- "criterion",
- "fnv",
- "mec-mrbc-sys",
- "mruby-compiler2-sys 0.2.2",
- "once_cell",
- "plain",
- "rand_core 0.10.0",
- "rand_xorshift",
- "regex",
- "simple_endian",
 ]
 
 [[package]]
@@ -677,14 +649,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "mrubyedge"
+version = "1.1.5"
+dependencies = [
+ "criterion",
+ "fnv",
+ "mec-mrbc-sys",
+ "mruby-compiler2-sys",
+ "once_cell",
+ "plain",
+ "rand_core 0.10.0",
+ "rand_xorshift",
+ "regex",
+ "simple_endian",
+]
+
+[[package]]
 name = "mrubyedge-cli"
 version = "1.1.4"
 dependencies = [
  "askama",
  "clap",
  "crossterm",
- "mruby-compiler2-sys 0.3.0",
- "mrubyedge 1.1.4",
+ "mruby-compiler2-sys",
+ "mrubyedge 1.1.5",
  "nom",
  "rand",
  "syn",
