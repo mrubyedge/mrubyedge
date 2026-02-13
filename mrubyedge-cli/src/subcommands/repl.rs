@@ -2,7 +2,7 @@ use clap::Args;
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
-    execute,
+    execute as cs_execute,
     terminal::{self, ClearType},
 };
 use std::{
@@ -52,6 +52,8 @@ pub fn execute(args: ReplArgs) -> Result<(), Box<dyn std::error::Error>> {
     print!("repl:{:03}> ", line_number);
     stdout.flush()?;
     let mut top_level_lvars: RHashMap<String, Rc<RObject>> = RHashMap::default();
+
+    let mut ctx = unsafe { mrbc::MRubyCompiler2Context::new() };
 
     let result = (|| -> Result<(), Box<dyn std::error::Error>> {
         loop {
@@ -129,7 +131,6 @@ pub fn execute(args: ReplArgs) -> Result<(), Box<dyn std::error::Error>> {
 
                         // Execute buffered code
                         unsafe {
-                            let mut ctx = mrbc::MRubyCompiler2Context::new();
                             if args.verbose {
                                 ctx.dump_bytecode(&buffer).unwrap();
                             }
@@ -163,6 +164,7 @@ pub fn execute(args: ReplArgs) -> Result<(), Box<dyn std::error::Error>> {
                                                 vm.exception.take();
                                             }
                                         }
+                                        // Display top-level local variables
                                         if let Some(lv) = &vm.current_irep.lv {
                                             for (reg, name) in lv.iter() {
                                                 let value =
@@ -210,7 +212,7 @@ pub fn execute(args: ReplArgs) -> Result<(), Box<dyn std::error::Error>> {
                     } => {
                         if !current_line.is_empty() {
                             current_line.pop();
-                            execute!(
+                            cs_execute!(
                                 stdout,
                                 cursor::MoveLeft(1),
                                 terminal::Clear(ClearType::UntilNewLine)
