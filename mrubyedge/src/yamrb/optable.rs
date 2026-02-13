@@ -1344,7 +1344,7 @@ pub(crate) fn op_return(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     }
 
     let regs0 = vm.current_regs();
-    if let Some(regs_a) = regs0[a].take() {
+    if let Some(regs_a) = regs0[a].clone() {
         regs0[0].replace(regs_a);
     }
     // TODO: inspect if this is needed

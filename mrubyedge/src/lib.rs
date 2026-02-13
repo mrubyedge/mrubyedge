@@ -36,6 +36,7 @@
 //!         syms: vec![RSym::new("puts".to_string())],
 //!         pool: Vec::new(),
 //!         reps: Vec::new(),
+//!         lv: None,
 //!         catch_target_pos: Vec::new(),
 //!     };
 //!

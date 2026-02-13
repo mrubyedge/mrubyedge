@@ -1,6 +1,6 @@
 [package]
 name = "mrubyedge"
-version = "1.1.4"
+version = "1.1.5"
 edition = "2024"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
 description = "mruby/edge is yet another mruby that is specialized for running on WASM"
@@ -23,7 +23,7 @@ criterion = "0.5.1"
 mec-mrbc-sys = "3.3.1"
 fnv = "1.0.7"
 once_cell = "1.20.2"
-mruby-compiler2-sys = "0.2.2"
+mruby-compiler2-sys = "0.3.0"
 
 [[bench]]
 name = "benchmark"

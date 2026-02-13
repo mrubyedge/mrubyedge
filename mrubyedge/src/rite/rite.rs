@@ -38,6 +38,7 @@ pub struct Irep<'a> {
     pub slen: usize,
     pub syms: Vec<CString>,
     pub catch_handlers: Vec<CatchHandler>,
+    pub lv: Vec<Option<CString>>, // Local variable names (indices into LVar::syms)
 }
 
 impl Irep<'_> {
@@ -69,7 +70,10 @@ pub struct CatchHandler {
 #[derive(Debug)]
 pub struct LVar {
     pub header: SectionMiscHeader,
+    pub syms: Vec<CString>,
 }
+
+const RITE_LV_NULL_MARK: u16 = 0xFFFF;
 
 pub fn load<'a>(src: &'a [u8]) -> Result<Rite<'a>, Error> {
     let mut rite = Rite::default();
@@ -103,7 +107,7 @@ pub fn load<'a>(src: &'a [u8]) -> Result<Rite<'a>, Error> {
                 head = &head[cur..];
             }
             LVAR => {
-                let (cur, lvar) = section_lvar(head)?;
+                let (cur, lvar) = section_lvar(head, &mut rite.irep)?;
                 rite.lvar = Some(lvar);
                 head = &head[cur..];
             }
@@ -273,6 +277,7 @@ pub fn section_irep_1(head: &[u8]) -> Result<(usize, SectionIrepHeader, Vec<Irep
             slen,
             syms,
             catch_handlers,
+            lv: Vec::new(), // Will be filled by section_lvar if present
         };
         ireps.push(irep);
     }
@@ -286,10 +291,84 @@ pub fn section_end(head: &[u8]) -> Result<usize, Error> {
     Ok(be32_to_u32(header.size) as usize)
 }
 
-pub fn section_lvar(head: &[u8]) -> Result<(usize, LVar), Error> {
-    let header = SectionMiscHeader::from_bytes(head)?;
-    let lvar = LVar { header };
+pub fn section_lvar(head: &[u8], ireps: &mut [Irep]) -> Result<(usize, LVar), Error> {
+    let mut cur = 0;
+    let header_size = mem::size_of::<SectionMiscHeader>();
+    let header = SectionMiscHeader::from_bytes(&head[cur..cur + header_size])?;
+    cur += header_size;
+
+    // Read syms_len (4 bytes)
+    let syms_len = be32_to_u32([head[cur], head[cur + 1], head[cur + 2], head[cur + 3]]) as usize;
+    cur += 4;
+
+    // Read symbols
+    let mut syms = Vec::new();
+    for _ in 0..syms_len {
+        let str_len = be16_to_u16([head[cur], head[cur + 1]]) as usize;
+        cur += 2;
+
+        // Read string bytes (NOT null-terminated in the binary)
+        let str_bytes = &head[cur..cur + str_len];
+        let c_str = CString::new(str_bytes).map_err(|_| Error::InvalidFormat)?;
+        syms.push(c_str);
+        cur += str_len;
+    }
+
+    // Read lv records recursively
+    let _ = read_lv_records(&head[cur..], ireps, 0, &syms, syms_len)?;
+
+    let lvar = LVar { header, syms };
     Ok((be32_to_u32(lvar.header.size) as usize, lvar))
+}
+
+fn read_lv_records(
+    head: &[u8],
+    ireps: &mut [Irep],
+    irep_idx: usize,
+    syms: &[CString],
+    syms_len: usize,
+) -> Result<(usize, usize), Error> {
+    if irep_idx >= ireps.len() {
+        return Ok((0, irep_idx));
+    }
+
+    let mut cur = 0;
+    let nlocals = ireps[irep_idx].nlocals();
+    let rlen = ireps[irep_idx].rlen();
+
+    if nlocals == 0 {
+        return Err(Error::InvalidFormat);
+    }
+
+    // Read local variable names for this irep (nlocals - 1 entries)
+    let mut lv = Vec::new();
+    for _ in 0..(nlocals - 1) {
+        let sym_idx = be16_to_u16([head[cur], head[cur + 1]]);
+        cur += 2;
+
+        if sym_idx == RITE_LV_NULL_MARK {
+            lv.push(None);
+        } else {
+            let sym_idx = sym_idx as usize;
+            if sym_idx >= syms_len {
+                return Err(Error::InvalidFormat);
+            }
+            lv.push(Some(syms[sym_idx].clone()));
+        }
+    }
+
+    ireps[irep_idx].lv = lv;
+
+    // Recursively read child ireps
+    let mut child_irep_idx = irep_idx + 1;
+    for _ in 0..rlen {
+        let (bytes_read, next_irep_idx) =
+            read_lv_records(&head[cur..], ireps, child_irep_idx, syms, syms_len)?;
+        cur += bytes_read;
+        child_irep_idx = next_irep_idx;
+    }
+
+    Ok((cur, child_irep_idx))
 }
 
 pub fn section_skip(head: &[u8]) -> Result<usize, Error> {

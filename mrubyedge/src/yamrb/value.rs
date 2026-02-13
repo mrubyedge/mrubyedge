@@ -997,9 +997,8 @@ impl RClass {
     // find_method will search method from self to superclass
     pub fn find_method(&self, name: &str) -> Option<RProc> {
         // First check this class's module
-        match self.module.find_method(name) {
-            Some(p) => return Some(p),
-            None => {}
+        if let Some(p) = self.module.find_method(name) {
+            return Some(p);
         }
 
         // For singleton classes, check extended modules

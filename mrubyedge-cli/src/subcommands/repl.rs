@@ -2,13 +2,19 @@ use clap::Args;
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
-    execute,
+    execute as cs_execute,
     terminal::{self, ClearType},
 };
-use std::io::{self, Write};
+use std::{
+    io::{self, Write},
+    rc::Rc,
+};
 
 use mruby_compiler2_sys as mrbc;
-use mrubyedge::yamrb::helpers::mrb_call_inspect;
+use mrubyedge::{
+    RObject,
+    yamrb::{helpers::mrb_call_inspect, value::RHashMap},
+};
 
 #[derive(Args)]
 pub struct ReplArgs {
@@ -45,6 +51,9 @@ pub fn execute(args: ReplArgs) -> Result<(), Box<dyn std::error::Error>> {
     // Print initial prompt
     print!("repl:{:03}> ", line_number);
     stdout.flush()?;
+    let mut top_level_lvars: RHashMap<String, Rc<RObject>> = RHashMap::default();
+
+    let mut ctx = unsafe { mrbc::MRubyCompiler2Context::new() };
 
     let result = (|| -> Result<(), Box<dyn std::error::Error>> {
         loop {
@@ -122,26 +131,62 @@ pub fn execute(args: ReplArgs) -> Result<(), Box<dyn std::error::Error>> {
 
                         // Execute buffered code
                         unsafe {
-                            let mut ctx = mrbc::MRubyCompiler2Context::new();
+                            if args.verbose {
+                                ctx.dump_bytecode(&buffer).unwrap();
+                            }
                             match ctx.compile(&buffer) {
                                 Ok(mrb_bin) => match mrubyedge::rite::load(&mrb_bin) {
-                                    Ok(mut new_rite) => match vm.eval_rite(&mut new_rite) {
-                                        Ok(result) => match mrb_call_inspect(&mut vm, result) {
-                                            Ok(inspect_result) => {
-                                                match TryInto::<String>::try_into(
-                                                    inspect_result.as_ref(),
-                                                ) {
-                                                    Ok(s) => println!(" => {}", s),
-                                                    Err(_) => println!(" => <unprintable>"),
+                                    Ok(mut new_rite) => {
+                                        // FIXME: sub ireps's lv not handled yet
+                                        let top_rep = &new_rite.irep[0];
+                                        for (reg, name) in top_rep.lv.iter().enumerate() {
+                                            if let Some(name) = name
+                                                && let Some(value) = top_level_lvars
+                                                    .get(&name.to_string_lossy().to_string())
+                                            {
+                                                vm.regs[reg + 1] = value.clone().into();
+                                            }
+                                        }
+                                        match vm.eval_rite(&mut new_rite) {
+                                            Ok(result) => match mrb_call_inspect(&mut vm, result) {
+                                                Ok(inspect_result) => {
+                                                    match TryInto::<String>::try_into(
+                                                        inspect_result.as_ref(),
+                                                    ) {
+                                                        Ok(s) => println!(" => {}", s),
+                                                        Err(_) => println!(" => <unprintable>"),
+                                                    }
+                                                }
+                                                Err(_) => println!(" => <inspect failed>"),
+                                            },
+                                            Err(e) => {
+                                                eprintln!("{:?}", e);
+                                                vm.exception.take();
+                                            }
+                                        }
+                                        // Display top-level local variables
+                                        if let Some(lv) = &vm.current_irep.lv {
+                                            for (reg, name) in lv.iter() {
+                                                let value =
+                                                    vm.regs[*reg].as_ref().cloned().unwrap_or(
+                                                        RObject::nil().to_refcount_assigned(),
+                                                    );
+                                                top_level_lvars
+                                                    .insert(name.to_string(), value.clone());
+                                            }
+                                            for (k, v) in top_level_lvars.iter() {
+                                                let inspect: String =
+                                                    mrb_call_inspect(&mut vm, v.clone())
+                                                        .unwrap()
+                                                        .as_ref()
+                                                        .try_into()
+                                                        .unwrap();
+                                                if args.verbose {
+                                                    eprintln!("  [lv] {} => {}", k, inspect);
                                                 }
                                             }
-                                            Err(_) => println!(" => <inspect failed>"),
-                                        },
-                                        Err(e) => {
-                                            eprintln!("{:?}", e);
-                                            vm.exception.take();
                                         }
-                                    },
+                                    }
                                     Err(e) => {
                                         eprintln!("Failed to load bytecode: {:?}", e);
                                     }
@@ -167,7 +212,7 @@ pub fn execute(args: ReplArgs) -> Result<(), Box<dyn std::error::Error>> {
                     } => {
                         if !current_line.is_empty() {
                             current_line.pop();
-                            execute!(
+                            cs_execute!(
                                 stdout,
                                 cursor::MoveLeft(1),
                                 terminal::Clear(ClearType::UntilNewLine)
