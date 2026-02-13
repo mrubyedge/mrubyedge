@@ -186,9 +186,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.2.55"
+version = "1.2.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47b26a0954ae34af09b50f0de26458fa95369a0d478d8236d3f93082b219bd29"
+checksum = "aebf35691d1bfb0ac386a69bac2fde4dd276fb618cf8bf4f5318fe285e821bb2"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -625,7 +625,7 @@ name = "mruby-math"
 version = "0.1.0"
 dependencies = [
  "mec-mrbc-sys",
- "mrubyedge 1.1.4",
+ "mrubyedge 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -633,19 +633,9 @@ name = "mruby-serde-json"
 version = "0.1.0"
 dependencies = [
  "mec-mrbc-sys",
- "mrubyedge 1.1.4",
+ "mrubyedge 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "mrubyedge"
-version = "1.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "654a26dffb9457e3e26efdaeef3ebe7f259241d6d2f80b98377d9d4efa96046b"
-dependencies = [
- "plain",
- "simple_endian",
 ]
 
 [[package]]
@@ -665,6 +655,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mrubyedge"
+version = "1.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e12abf12304eecad6d7ae2806ff47b22ae915a6ce8d490555b44b86d78596382"
+dependencies = [
+ "plain",
+ "rand_core 0.10.0",
+ "rand_xorshift",
+ "regex",
+ "simple_endian",
+]
+
+[[package]]
 name = "mrubyedge-cli"
 version = "1.1.4"
 dependencies = [
@@ -672,7 +675,7 @@ dependencies = [
  "clap",
  "crossterm",
  "mruby-compiler2-sys",
- "mrubyedge 1.1.5",
+ "mrubyedge 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom",
  "rand",
  "syn",
@@ -1063,9 +1066,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "syn"
-version = "2.0.114"
+version = "2.0.115"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4d107df263a3013ef9b1879b0df87d706ff80f65a86ea879bd9c31f9b307c2a"
+checksum = "6e614ed320ac28113fa64972c4262d5dbc89deacdfd00c34a3e4cea073243c12"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1327,6 +1330,6 @@ dependencies = [
 
 [[package]]
 name = "zmij"
-version = "1.0.20"
+version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4de98dfa5d5b7fef4ee834d0073d560c9ca7b6c46a71d058c48db7960f8cfaf7"
+checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
