@@ -4,6 +4,7 @@ use crate::{
     Error,
     yamrb::{
         helpers::{mrb_call_block, mrb_define_cmethod},
+        prelude::module::mrb_include_module,
         value::{RObject, RValue},
         vm::VM,
     },
@@ -19,6 +20,9 @@ pub(crate) fn initialize_range(vm: &mut VM) {
         Box::new(mrb_range_is_include),
     );
     mrb_define_cmethod(vm, range_class.clone(), "each", Box::new(mrb_range_each));
+
+    let enumerable_module = vm.get_module_by_name("Enumerable");
+    mrb_include_module(&range_class, enumerable_module).expect("failed to include Enumerable");
 }
 
 pub fn mrb_range_is_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

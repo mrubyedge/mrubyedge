@@ -9,6 +9,8 @@ pub(crate) fn initialize_float(vm: &mut VM) {
     let float_class = vm.define_standard_class("Float");
     mrb_define_cmethod(vm, float_class.clone(), "to_i", Box::new(mrb_float_to_i));
     mrb_define_cmethod(vm, float_class.clone(), "to_f", Box::new(mrb_float_to_f));
+    mrb_define_cmethod(vm, float_class.clone(), "+", Box::new(mrb_float_add));
+    mrb_define_cmethod(vm, float_class.clone(), "-", Box::new(mrb_float_sub));
     mrb_define_cmethod(vm, float_class.clone(), "*", Box::new(mrb_float_mul));
     mrb_define_cmethod(vm, float_class.clone(), "/", Box::new(mrb_float_div));
     mrb_define_cmethod(vm, float_class.clone(), "+@", Box::new(mrb_float_positive));
@@ -107,6 +109,58 @@ pub fn mrb_float_clamp(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>,
     };
 
     Ok(RObject::float(result).to_refcount_assigned())
+}
+
+pub fn mrb_float_add(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    if args.is_empty() {
+        return Err(Error::ArgumentError(
+            "wrong number of arguments (given 0, expected 1)".to_string(),
+        ));
+    }
+
+    let this = vm.getself()?;
+    let this_float = match &this.value {
+        crate::yamrb::value::RValue::Float(f) => *f,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Float#+ must be called on a Float".to_string(),
+            ));
+        }
+    };
+
+    let other = match &args[0].value {
+        crate::yamrb::value::RValue::Float(f) => *f,
+        crate::yamrb::value::RValue::Integer(i) => *i as f64,
+        _ => return Err(Error::TypeMismatch),
+    };
+
+    Ok(RObject::float(this_float + other).to_refcount_assigned())
+}
+
+pub fn mrb_float_sub(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    if args.is_empty() {
+        return Err(Error::ArgumentError(
+            "wrong number of arguments (given 0, expected 1)".to_string(),
+        ));
+    }
+
+    let this = vm.getself()?;
+    let this_float = match &this.value {
+        crate::yamrb::value::RValue::Float(f) => *f,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Float#- must be called on a Float".to_string(),
+            ));
+        }
+    };
+
+    let other = match &args[0].value {
+        crate::yamrb::value::RValue::Float(f) => *f,
+        crate::yamrb::value::RValue::Integer(i) => *i as f64,
+        _ => return Err(Error::TypeMismatch),
+    };
+
+    Ok(RObject::float(this_float - other).to_refcount_assigned())
 }
 
 pub fn mrb_float_mul(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
