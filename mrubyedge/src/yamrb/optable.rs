@@ -273,9 +273,9 @@ pub(crate) fn consume_expr(
         JMPNIL => {
             op_jmpnil(vm, operand, pos + len)?;
         }
-        // JMPUW => {
-        //     // op_jmpuw(vm, &operand)?;
-        // }
+        JMPUW => {
+            op_jmpuw(vm, &operand, pos + len)?;
+        }
         EXCEPT => {
             op_except(vm, operand)?;
         }
@@ -848,14 +848,19 @@ pub(crate) fn op_jmpnil(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Resul
     Ok(())
 }
 
+pub(crate) fn op_jmpuw(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result<(), Error> {
+    // TODO: support ensure/rescue behavior...
+    op_jmp(vm, operand, end_pos)
+}
+
 pub(crate) fn op_except(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()?;
     let val = vm
         .exception
         .take()
-        .ok_or_else(|| Error::internal("exception not found"))?;
-    let exc = Rc::new(RObject::exception(val));
-    vm.current_regs()[a as usize].replace(exc);
+        .map(|e| RObject::exception(e).to_refcount_assigned())
+        .unwrap_or_else(|| RObject::nil().to_refcount_assigned());
+    vm.current_regs()[a as usize].replace(val);
     Ok(())
 }
 
