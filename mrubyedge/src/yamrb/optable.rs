@@ -793,7 +793,12 @@ pub(crate) fn op_setidx(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_jmp(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result<(), Error> {
     let a = operand.as_s()?;
-    let next_pc = calcurate_pc(&vm.current_irep, vm.pc.get(), end_pos + a as usize);
+    let offset = a as i16; // u16をi16として再解釈（負のジャンプをサポート）
+    let next_pc = calcurate_pc(
+        &vm.current_irep,
+        0,
+        (end_pos as isize + offset as isize) as usize,
+    );
     vm.pc.set(next_pc);
     Ok(())
 }
@@ -802,7 +807,12 @@ pub(crate) fn op_jmpif(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result
     let (a, b) = operand.as_bs()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     if val.is_truthy() {
-        let next_pc = calcurate_pc(&vm.current_irep, vm.pc.get(), end_pos + b as usize);
+        let offset = b as i16; // u16をi16として再解釈
+        let next_pc = calcurate_pc(
+            &vm.current_irep,
+            0,
+            (end_pos as isize + offset as isize) as usize,
+        );
         vm.pc.set(next_pc);
     }
     Ok(())
@@ -812,7 +822,12 @@ pub(crate) fn op_jmpnot(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Resul
     let (a, b) = operand.as_bs()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     if val.is_falsy() {
-        let next_pc = calcurate_pc(&vm.current_irep, vm.pc.get(), end_pos + b as usize);
+        let offset = b as i16; // u16をi16として再解釈
+        let next_pc = calcurate_pc(
+            &vm.current_irep,
+            0,
+            (end_pos as isize + offset as isize) as usize,
+        );
         vm.pc.set(next_pc);
     }
     Ok(())
@@ -822,7 +837,12 @@ pub(crate) fn op_jmpnil(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Resul
     let (a, b) = operand.as_bs()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     if val.is_nil() {
-        let next_pc = calcurate_pc(&vm.current_irep, vm.pc.get(), end_pos + b as usize);
+        let offset = b as i16; // u16をi16として再解釈
+        let next_pc = calcurate_pc(
+            &vm.current_irep,
+            0,
+            (end_pos as isize + offset as isize) as usize,
+        );
         vm.pc.set(next_pc);
     }
     Ok(())
