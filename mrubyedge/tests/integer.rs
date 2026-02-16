@@ -241,3 +241,63 @@ fn integer_clamp_test() {
     let result_int: i32 = result.as_ref().try_into().unwrap();
     assert_eq!(result_int, 300); // 100 + 50 + 150
 }
+
+#[test]
+fn integer_add_method_test() {
+    let code = r#"
+    def test_add
+      a = 5
+      b = 3
+      a.+(b)
+    end
+    "#;
+    let binary = mrbc_compile("integer_add_method", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_add", &args).unwrap();
+    let result_int: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(result_int, 8);
+}
+
+#[test]
+fn integer_sub_method_test() {
+    let code = r#"
+    def test_sub
+      a = 10
+      b = 3
+      a.-(b)
+    end
+    "#;
+    let binary = mrbc_compile("integer_sub_method", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_sub", &args).unwrap();
+    let result_int: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(result_int, 7);
+}
+
+#[test]
+fn integer_add_float_test() {
+    let code = r#"
+    def test_add_float
+      a = 5
+      f = 2.5
+      a.+(f)
+    end
+    "#;
+    let binary = mrbc_compile("integer_add_float", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_add_float", &args).unwrap();
+    let result_float: f64 = result.as_ref().try_into().unwrap();
+    assert_eq!(result_float, 7.5);
+}

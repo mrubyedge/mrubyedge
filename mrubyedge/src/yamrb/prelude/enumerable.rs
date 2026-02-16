@@ -114,6 +114,12 @@ pub(crate) fn initialize_enumerable(vm: &mut VM) {
         "reduce",
         Box::new(mrb_enumerable_reduce),
     );
+    mrb_define_module_cmethod(
+        vm,
+        enumerable_module.clone(),
+        "sum",
+        Box::new(mrb_enumerable_sum),
+    );
 }
 
 fn rproc_from_rust_block(vm: &mut VM, rfn: RFn) -> Result<Rc<RObject>, Error> {
@@ -648,6 +654,49 @@ fn mrb_enumerable_reduce(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
                 std::slice::from_ref(&result),
             )?;
         }
+        Ok(Rc::new(RObject::nil()))
+    });
+
+    let this = vm.getself()?;
+    let block = rproc_from_rust_block(vm, wrapping_block)?;
+    mrb_funcall(vm, Some(this.clone()), "each", &[block])?;
+    vm.pop_fnblock()?;
+
+    // Return the final accumulator value
+    let result = mrb_funcall(vm, Some(accumulator), "first", &[])?;
+    Ok(result)
+}
+
+// Enumerable#sum: Returns the sum of all elements
+fn mrb_enumerable_sum(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    // Check if we have an initial value
+    let initial_value = if args.is_empty() || args[0].is_nil() {
+        // Default initial value is 0
+        Rc::new(RObject::integer(0))
+    } else {
+        // Initial value provided: sum(init)
+        args[0].clone()
+    };
+
+    let accumulator: Rc<RObject> = RObject::array(vec![initial_value]).to_refcount_assigned();
+    let acc_ref = accumulator.clone();
+
+    let wrapping_block: RFn = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
+        let current_elem = args[0].clone();
+        let acc_array: Vec<Rc<RObject>> = acc_ref.as_ref().try_into()?;
+        let current_acc = acc_array[0].clone();
+
+        // Call + operator on accumulator with current element
+        let result = mrb_funcall(vm, Some(current_acc), "+", &[current_elem])?;
+
+        // Update accumulator
+        mrb_funcall(vm, Some(acc_ref.clone()), "pop", &[])?;
+        mrb_funcall(
+            vm,
+            Some(acc_ref.clone()),
+            "push",
+            std::slice::from_ref(&result),
+        )?;
         Ok(Rc::new(RObject::nil()))
     });
 

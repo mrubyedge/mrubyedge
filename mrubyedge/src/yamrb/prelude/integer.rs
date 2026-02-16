@@ -21,6 +21,8 @@ pub(crate) fn initialize_integer(vm: &mut VM) {
         "-@",
         Box::new(mrb_integer_negative),
     );
+    mrb_define_cmethod(vm, integer_class.clone(), "+", Box::new(mrb_integer_add));
+    mrb_define_cmethod(vm, integer_class.clone(), "-", Box::new(mrb_integer_sub));
     mrb_define_cmethod(vm, integer_class.clone(), "**", Box::new(mrb_integer_power));
     mrb_define_cmethod(vm, integer_class.clone(), "%", Box::new(mrb_integer_mod));
     mrb_define_cmethod(vm, integer_class.clone(), "&", Box::new(mrb_integer_and));
@@ -116,6 +118,28 @@ fn mrb_integer_bitref(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
 fn mrb_integer_negative(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: i64 = vm.getself()?.as_ref().try_into()?;
     Ok(Rc::new(RObject::integer(-this)))
+}
+
+fn mrb_integer_add(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let lhs: i64 = vm.getself()?.as_ref().try_into()?;
+    let rhs_obj = &args[0];
+
+    match &rhs_obj.as_ref().value {
+        RValue::Integer(rhs) => Ok(Rc::new(RObject::integer(lhs + rhs))),
+        RValue::Float(rhs) => Ok(Rc::new(RObject::float(lhs as f64 + rhs))),
+        _ => Err(Error::TypeMismatch),
+    }
+}
+
+fn mrb_integer_sub(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let lhs: i64 = vm.getself()?.as_ref().try_into()?;
+    let rhs_obj = &args[0];
+
+    match &rhs_obj.as_ref().value {
+        RValue::Integer(rhs) => Ok(Rc::new(RObject::integer(lhs - rhs))),
+        RValue::Float(rhs) => Ok(Rc::new(RObject::float(lhs as f64 - rhs))),
+        _ => Err(Error::TypeMismatch),
+    }
 }
 
 fn mrb_integer_power(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

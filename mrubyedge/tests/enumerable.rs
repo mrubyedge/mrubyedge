@@ -396,3 +396,39 @@ fn enumerable_map_custom_class_test() {
     let result: (i32, i32, i32) = result.as_ref().try_into().unwrap();
     assert_eq!(result, (2, 4, 6));
 }
+
+#[test]
+fn enumerable_sum_default_test() {
+    let code = r#"
+    def test_sum
+      [1, 2, 3, 4].sum
+    end
+    "#;
+    let binary = mrbc_compile("enumerable_sum_default", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_sum", &args).unwrap();
+    let result: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(result, 10);
+}
+
+#[test]
+fn enumerable_sum_empty_with_init_test() {
+    let code = r#"
+    def test_sum_with_init
+      ["a", "b", "c", "d"].sum("")
+    end
+    "#;
+    let binary = mrbc_compile("enumerable_sum_with_init", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_sum_with_init", &args).unwrap();
+    let result: String = result.as_ref().try_into().unwrap();
+    assert_eq!(result, "abcd");
+}
