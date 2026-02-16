@@ -85,6 +85,11 @@ pub struct VM {
 
     pub flag_preemption: Cell<bool>,
 
+    #[cfg(feature = "insn-limit")]
+    pub insn_count: Cell<usize>,
+    #[cfg(feature = "insn-limit")]
+    pub insn_limit: usize,
+
     // common class
     pub object_class: Rc<RClass>,
     pub builtin_class_table: RHashMap<&'static str, Rc<RClass>>,
@@ -266,6 +271,14 @@ impl VM {
         let cur_env = RHashMap::default();
         let has_env_ref = RHashMap::default();
 
+        #[cfg(feature = "insn-limit")]
+        let insn_count = Cell::new(0);
+        #[cfg(feature = "insn-limit")]
+        let insn_limit = {
+            let limit_str = env!("MRUBYEDGE_INSN_LIMIT", "MRUBYEDGE_INSN_LIMIT must be set when insn-limit feature is enabled");
+            limit_str.parse::<usize>().expect("MRUBYEDGE_INSN_LIMIT must be a valid number")
+        };
+
         let mut vm = VM {
             id,
             bytecode,
@@ -281,6 +294,10 @@ impl VM {
             target_class,
             exception,
             flag_preemption,
+            #[cfg(feature = "insn-limit")]
+            insn_count,
+            #[cfg(feature = "insn-limit")]
+            insn_limit,
             object_class,
             builtin_class_table,
             class_object_table,
@@ -296,6 +313,18 @@ impl VM {
         prelude(&mut vm);
 
         vm
+    }
+
+    /// Resets the instruction counter. Only available when the `insn-limit` feature is enabled.
+    #[cfg(feature = "insn-limit")]
+    pub fn reset_insn_count(&mut self) {
+        self.insn_count.set(0);
+    }
+
+    /// Returns the current instruction count. Only available when the `insn-limit` feature is enabled.
+    #[cfg(feature = "insn-limit")]
+    pub fn get_insn_count(&self) -> usize {
+        self.insn_count.get()
     }
 
     /// Executes the current IREP until completion, returning the value in
@@ -430,6 +459,18 @@ impl VM {
                 .ok_or_else(|| Error::internal("end of opcode reached"))?;
             let operand = op.operand;
             self.pc.set(pc + 1);
+
+            #[cfg(feature = "insn-limit")]
+            {
+                let count = self.insn_count.get();
+                if count >= self.insn_limit {
+                    return Err(Box::new(Error::internal(format!(
+                        "instruction limit exceeded: {} instructions",
+                        self.insn_limit
+                    ))));
+                }
+                self.insn_count.set(count + 1);
+            }
 
             #[cfg(feature = "mrubyedge-debug")]
             if let Ok(v) = env::var("MRUBYEDGE_DEBUG") {

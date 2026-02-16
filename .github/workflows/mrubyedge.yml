@@ -50,6 +50,10 @@ jobs:
             git diff
             exit $TEST_RESULT
           fi
+      - name: Run extra test cases for "${{ matrix.BUILD_TARGET }}" profile
+        run: |
+          export MRUBYEDGE_INSN_LIMIT=10000
+          cargo test --features insn-limit --test insn_limit --profile ${{ matrix.BUILD_TARGET }}
       - name: Build binaries for "${{ matrix.BUILD_TARGET }}${{ matrix.ENABLE_FNV_HASH }}" profile
         run: |
           cargo build -p mrubyedge \
