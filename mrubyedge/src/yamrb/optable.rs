@@ -793,7 +793,7 @@ pub(crate) fn op_setidx(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_jmp(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result<(), Error> {
     let a = operand.as_s()?;
-    let offset = a as i16; // u16をi16として再解釈（負のジャンプをサポート）
+    let offset = a as i16;
     let next_pc = calcurate_pc(
         &vm.current_irep,
         0,
@@ -807,7 +807,7 @@ pub(crate) fn op_jmpif(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result
     let (a, b) = operand.as_bs()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     if val.is_truthy() {
-        let offset = b as i16; // u16をi16として再解釈
+        let offset = b as i16;
         let next_pc = calcurate_pc(
             &vm.current_irep,
             0,
@@ -822,7 +822,7 @@ pub(crate) fn op_jmpnot(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Resul
     let (a, b) = operand.as_bs()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     if val.is_falsy() {
-        let offset = b as i16; // u16をi16として再解釈
+        let offset = b as i16;
         let next_pc = calcurate_pc(
             &vm.current_irep,
             0,
@@ -837,7 +837,7 @@ pub(crate) fn op_jmpnil(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Resul
     let (a, b) = operand.as_bs()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     if val.is_nil() {
-        let offset = b as i16; // u16をi16として再解釈
+        let offset = b as i16;
         let next_pc = calcurate_pc(
             &vm.current_irep,
             0,
