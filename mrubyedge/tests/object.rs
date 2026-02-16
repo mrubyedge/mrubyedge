@@ -291,3 +291,29 @@ fn object_extend_multiple_arguments_priority_test() {
         "M2 only"
     );
 }
+
+#[test]
+fn object_loop_basic_test() {
+    let code = r#"
+    def test_loop
+      i = 0
+      loop do
+        i += 1
+        break if i >= 5
+      end
+      i
+    end
+    "#;
+    let binary = mrbc_compile_debug("loop_basic", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: i32 = mrb_funcall(&mut vm, None, "test_loop", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, 5);
+}

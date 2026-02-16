@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     Error,
     yamrb::{
-        helpers::{mrb_define_cmethod, mrb_funcall},
+        helpers::{mrb_call_block, mrb_define_cmethod, mrb_funcall},
         value::*,
         vm::VM,
     },
@@ -116,6 +116,7 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         "extend",
         Box::new(mrb_object_extend),
     );
+    mrb_define_cmethod(vm, object_class.clone(), "loop", Box::new(mrb_object_loop));
 
     // define global consts:
     vm.consts.insert(
@@ -363,6 +364,20 @@ fn mrb_object_class(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
     let obj = vm.getself()?;
     let class = obj.get_class(vm);
     Ok(RObject::class_or_module(class.as_module(), vm))
+}
+
+fn mrb_object_loop(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let block = args[0].clone();
+    if !matches!(block.value, RValue::Proc(_)) {
+        return Err(Error::ArgumentError(
+            "Object#loop expects a block".to_string(),
+        ));
+    }
+
+    let this = vm.getself()?;
+    loop {
+        mrb_call_block(vm, block.clone(), Some(this.clone()), &[], 0)?;
+    }
 }
 
 fn mrb_object_method_missing(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
