@@ -1,6 +1,8 @@
 use std::cell::Cell;
 use std::cell::RefCell;
 
+#[cfg(feature = "mrubyedge-debug")]
+use std::env;
 use std::rc::Rc;
 
 use crate::Error;
@@ -273,9 +275,9 @@ pub(crate) fn consume_expr(
         JMPNIL => {
             op_jmpnil(vm, operand, pos + len)?;
         }
-        // JMPUW => {
-        //     // op_jmpuw(vm, &operand)?;
-        // }
+        JMPUW => {
+            op_jmpuw(vm, operand, pos + len)?;
+        }
         EXCEPT => {
             op_except(vm, operand)?;
         }
@@ -793,7 +795,12 @@ pub(crate) fn op_setidx(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_jmp(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result<(), Error> {
     let a = operand.as_s()?;
-    let next_pc = calcurate_pc(&vm.current_irep, vm.pc.get(), end_pos + a as usize);
+    let offset = a as i16;
+    let next_pc = calcurate_pc(
+        &vm.current_irep,
+        0,
+        (end_pos as isize + offset as isize) as usize,
+    );
     vm.pc.set(next_pc);
     Ok(())
 }
@@ -802,7 +809,12 @@ pub(crate) fn op_jmpif(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result
     let (a, b) = operand.as_bs()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     if val.is_truthy() {
-        let next_pc = calcurate_pc(&vm.current_irep, vm.pc.get(), end_pos + b as usize);
+        let offset = b as i16;
+        let next_pc = calcurate_pc(
+            &vm.current_irep,
+            0,
+            (end_pos as isize + offset as isize) as usize,
+        );
         vm.pc.set(next_pc);
     }
     Ok(())
@@ -812,7 +824,12 @@ pub(crate) fn op_jmpnot(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Resul
     let (a, b) = operand.as_bs()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     if val.is_falsy() {
-        let next_pc = calcurate_pc(&vm.current_irep, vm.pc.get(), end_pos + b as usize);
+        let offset = b as i16;
+        let next_pc = calcurate_pc(
+            &vm.current_irep,
+            0,
+            (end_pos as isize + offset as isize) as usize,
+        );
         vm.pc.set(next_pc);
     }
     Ok(())
@@ -822,10 +839,72 @@ pub(crate) fn op_jmpnil(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Resul
     let (a, b) = operand.as_bs()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     if val.is_nil() {
-        let next_pc = calcurate_pc(&vm.current_irep, vm.pc.get(), end_pos + b as usize);
+        let offset = b as i16;
+        let next_pc = calcurate_pc(
+            &vm.current_irep,
+            0,
+            (end_pos as isize + offset as isize) as usize,
+        );
         vm.pc.set(next_pc);
     }
     Ok(())
+}
+
+pub(crate) fn op_jmpuw(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result<(), Error> {
+    if vm.current_irep.catch_target_pos.is_empty() {
+        op_jmp(vm, operand, end_pos)
+    } else {
+        // TODO multiple catch targets... :(
+        let target_pos = vm.current_irep.catch_target_pos[0];
+        vm.pc.set(target_pos);
+
+        consume_ensure_block(vm)?;
+        op_jmp(vm, operand, end_pos)
+    }
+}
+
+fn consume_ensure_block(vm: &mut VM) -> Result<(), Error> {
+    loop {
+        let pc = vm.pc.get();
+        if vm.current_irep.code.len() <= pc {
+            // reached end of the IREP
+            return Err(Error::internal(
+                "end of opcode reached while consuming ensure block",
+            ));
+        }
+        let op = *vm
+            .current_irep
+            .code
+            .get(pc)
+            .ok_or_else(|| Error::internal("end of opcode reached"))?;
+        let operand = op.operand;
+        vm.pc.set(pc + 1);
+
+        if matches!(op.code, OpCode::RAISEIF) {
+            return Ok(());
+        }
+
+        #[cfg(feature = "mrubyedge-debug")]
+        if let Ok(v) = env::var("MRUBYEDGE_DEBUG") {
+            let level: i32 = v.parse().unwrap_or(1);
+            if level >= 2 {
+                vm.debug_dump_to_stdout(32);
+            }
+            eprintln!(
+                "{:?}: {:?} (pos={} len={})",
+                op.code, &operand, op.pos, op.len
+            );
+        }
+
+        match consume_expr(vm, op.code, &operand, op.pos, op.len) {
+            Ok(_) => {}
+            Err(e) => {
+                let exception = RException::from_error(vm, &e);
+                vm.exception = Some(Rc::new(exception));
+                continue;
+            }
+        }
+    }
 }
 
 pub(crate) fn op_except(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
@@ -833,9 +912,9 @@ pub(crate) fn op_except(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val = vm
         .exception
         .take()
-        .ok_or_else(|| Error::internal("exception not found"))?;
-    let exc = Rc::new(RObject::exception(val));
-    vm.current_regs()[a as usize].replace(exc);
+        .map(|e| RObject::exception(e).to_refcount_assigned())
+        .unwrap_or_else(|| RObject::nil().to_refcount_assigned());
+    vm.current_regs()[a as usize].replace(val);
     Ok(())
 }
 
