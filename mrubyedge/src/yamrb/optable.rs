@@ -1,6 +1,8 @@
 use std::cell::Cell;
 use std::cell::RefCell;
 
+#[cfg(feature = "mrubyedge-debug")]
+use std::env;
 use std::rc::Rc;
 
 use crate::Error;
@@ -274,7 +276,7 @@ pub(crate) fn consume_expr(
             op_jmpnil(vm, operand, pos + len)?;
         }
         JMPUW => {
-            op_jmpuw(vm, &operand, pos + len)?;
+            op_jmpuw(vm, operand, pos + len)?;
         }
         EXCEPT => {
             op_except(vm, operand)?;
@@ -849,8 +851,60 @@ pub(crate) fn op_jmpnil(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Resul
 }
 
 pub(crate) fn op_jmpuw(vm: &mut VM, operand: &Fetched, end_pos: usize) -> Result<(), Error> {
-    // TODO: support ensure/rescue behavior...
-    op_jmp(vm, operand, end_pos)
+    if vm.current_irep.catch_target_pos.is_empty() {
+        op_jmp(vm, operand, end_pos)
+    } else {
+        // TODO multiple catch targets... :(
+        let target_pos = vm.current_irep.catch_target_pos[0];
+        vm.pc.set(target_pos);
+
+        consume_ensure_block(vm)?;
+        op_jmp(vm, operand, end_pos)
+    }
+}
+
+fn consume_ensure_block(vm: &mut VM) -> Result<(), Error> {
+    loop {
+        let pc = vm.pc.get();
+        if vm.current_irep.code.len() <= pc {
+            // reached end of the IREP
+            return Err(Error::internal(
+                "end of opcode reached while consuming ensure block",
+            ));
+        }
+        let op = *vm
+            .current_irep
+            .code
+            .get(pc)
+            .ok_or_else(|| Error::internal("end of opcode reached"))?;
+        let operand = op.operand;
+        vm.pc.set(pc + 1);
+
+        if matches!(op.code, OpCode::RAISEIF) {
+            return Ok(());
+        }
+
+        #[cfg(feature = "mrubyedge-debug")]
+        if let Ok(v) = env::var("MRUBYEDGE_DEBUG") {
+            let level: i32 = v.parse().unwrap_or(1);
+            if level >= 2 {
+                vm.debug_dump_to_stdout(32);
+            }
+            eprintln!(
+                "{:?}: {:?} (pos={} len={})",
+                op.code, &operand, op.pos, op.len
+            );
+        }
+
+        match consume_expr(vm, op.code, &operand, op.pos, op.len) {
+            Ok(_) => {}
+            Err(e) => {
+                let exception = RException::from_error(vm, &e);
+                vm.exception = Some(Rc::new(exception));
+                continue;
+            }
+        }
+    }
 }
 
 pub(crate) fn op_except(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
