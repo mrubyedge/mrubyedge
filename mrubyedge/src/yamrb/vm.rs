@@ -275,8 +275,13 @@ impl VM {
         let insn_count = Cell::new(0);
         #[cfg(feature = "insn-limit")]
         let insn_limit = {
-            let limit_str = env!("MRUBYEDGE_INSN_LIMIT", "MRUBYEDGE_INSN_LIMIT must be set when insn-limit feature is enabled");
-            limit_str.parse::<usize>().expect("MRUBYEDGE_INSN_LIMIT must be a valid number")
+            let limit_str = env!(
+                "MRUBYEDGE_INSN_LIMIT",
+                "MRUBYEDGE_INSN_LIMIT must be set when insn-limit feature is enabled"
+            );
+            limit_str
+                .parse::<usize>()
+                .expect("MRUBYEDGE_INSN_LIMIT must be a valid number")
         };
 
         let mut vm = VM {
@@ -464,10 +469,11 @@ impl VM {
             {
                 let count = self.insn_count.get();
                 if count >= self.insn_limit {
-                    return Err(Box::new(Error::internal(format!(
+                    return Err(Error::internal(format!(
                         "instruction limit exceeded: {} instructions",
                         self.insn_limit
-                    ))));
+                    ))
+                    .into());
                 }
                 self.insn_count.set(count + 1);
             }
