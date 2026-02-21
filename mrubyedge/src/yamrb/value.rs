@@ -655,6 +655,28 @@ impl TryFrom<&RObject> for (i64, u32) {
     }
 }
 
+impl TryFrom<&RObject> for (i64, u32, i32) {
+    type Error = Error;
+
+    fn try_from(value: &RObject) -> Result<Self, Self::Error> {
+        match &value.value {
+            RValue::Array(ar) => {
+                let vec = ar.borrow();
+                if vec.len() < 3 {
+                    return Err(Error::ArgumentError(
+                        "expected array of at least length 3".to_string(),
+                    ));
+                }
+                let first: i64 = vec[0].as_ref().try_into()?;
+                let second: u32 = vec[1].as_ref().try_into()?;
+                let third: i64 = vec[2].as_ref().try_into()?;
+                Ok((first, second, third as i32))
+            }
+            _ => Err(Error::TypeMismatch),
+        }
+    }
+}
+
 impl TryFrom<&RObject> for u32 {
     type Error = Error;
 

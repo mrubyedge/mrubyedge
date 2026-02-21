@@ -15,7 +15,7 @@ fn make_vm_with_time_source(sec: i64, nsec: u32) -> mrubyedge::yamrb::vm::VM {
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     mruby_time::init_time(&mut vm);
 
-    // Override Time.__source to return [sec, nsec]
+    // Override Time.__source to return [sec, nsec, utc_offset]
     let sec_val = sec;
     let nsec_val = nsec;
     let time_class_obj = vm.get_const_by_name("Time").expect("Time not found");
@@ -27,6 +27,7 @@ fn make_vm_with_time_source(sec: i64, nsec: u32) -> mrubyedge::yamrb::vm::VM {
             let arr = vec![
                 RObject::integer(sec_val).to_refcount_assigned(),
                 RObject::integer(nsec_val as i64).to_refcount_assigned(),
+                RObject::integer(0).to_refcount_assigned(), // utc_offset = 0
             ];
             Ok(RObject::array(arr).to_refcount_assigned())
         }),
@@ -322,6 +323,7 @@ fn make_vm_with_fixed_source(
             let arr = vec![
                 RObject::integer(sec).to_refcount_assigned(),
                 RObject::integer(nsec as i64).to_refcount_assigned(),
+                RObject::integer(0).to_refcount_assigned(), // utc_offset = 0
             ];
             Ok(RObject::array(arr).to_refcount_assigned())
         }),

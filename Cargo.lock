@@ -696,8 +696,9 @@ dependencies = [
 name = "mrubyedge-time"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "mec-mrbc-sys",
- "mrubyedge 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge 1.1.7",
 ]
 
 [[package]]

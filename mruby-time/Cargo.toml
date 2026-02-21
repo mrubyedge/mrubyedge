@@ -7,10 +7,11 @@ description = "mruby-time provides Time class for mruby/edge"
 license = "BSD-3-Clause"
 
 [dependencies]
-mrubyedge = "1.1.7"
+mrubyedge = { path = "../mrubyedge" }
+libc = "0.2"
 
 [dev-dependencies]
-mrubyedge = { version = "1.1.7", features = ["default"] }
+mrubyedge = { path = "../mrubyedge", features = ["default"] }
 mec-mrbc-sys = "3.3.1"
 
 [features]
