@@ -1,0 +1,41 @@
+name: mruby-time CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'mruby-time/**'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'mruby-time/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        BUILD_TARGET: [release]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-time-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run formatter
+        run: |
+          cargo fmt -p mruby-time --check
+      - name: Run tests for "${{ matrix.BUILD_TARGET }}" profile
+        run: |
+          cargo test -p mruby-time \
+            --profile ${{ matrix.BUILD_TARGET }}
+      - name: Build binaries for "${{ matrix.BUILD_TARGET }}" profile
+        run: |
+          cargo build -p mruby-time \
+            --profile ${{ matrix.BUILD_TARGET }}
