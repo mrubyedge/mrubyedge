@@ -507,7 +507,7 @@ fn fetch_bss(bin: &mut &[u8]) -> Result<Fetched, Error> {
     }
     let a = bin[1];
     let s1 = ((bin[2] as u16) << 8) | bin[3] as u16;
-    let s2 = ((bin[2] as u16) << 8) | bin[5] as u16;
+    let s2 = ((bin[4] as u16) << 8) | bin[5] as u16;
     let operand = Fetched::BSS(a, s1, s2);
 
     *bin = &bin[6..];

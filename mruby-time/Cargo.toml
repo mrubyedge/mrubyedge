@@ -1,0 +1,19 @@
+[package]
+name = "mruby-time"
+version = "0.1.0"
+edition = "2024"
+authors = ["Uchio Kondo <udzura@udzura.jp>"]
+description = "mruby-time provides Time class for mruby/edge"
+license = "BSD-3-Clause"
+
+[dependencies]
+mrubyedge = { path = "../mrubyedge" }
+
+[dev-dependencies]
+mrubyedge = { path = "../mrubyedge", features = ["default"] }
+mec-mrbc-sys = "3.3.1"
+
+[features]
+default = []
+# Enable std::time based Time.__source (disabled on wasm by default)
+std-time = []

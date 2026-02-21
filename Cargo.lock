@@ -639,6 +639,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mruby-time"
+version = "0.1.0"
+dependencies = [
+ "mec-mrbc-sys",
+ "mrubyedge 1.1.6",
+]
+
+[[package]]
 name = "mrubyedge"
 version = "1.1.6"
 dependencies = [
