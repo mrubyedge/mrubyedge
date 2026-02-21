@@ -1,5 +1,5 @@
-extern crate mruby_time;
 extern crate mrubyedge;
+extern crate mrubyedge_time as mruby_time;
 
 mod helpers;
 use helpers::*;

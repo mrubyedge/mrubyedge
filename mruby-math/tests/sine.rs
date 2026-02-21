@@ -1,5 +1,5 @@
-extern crate mruby_math;
 extern crate mrubyedge;
+extern crate mrubyedge_math as mruby_math;
 
 mod helpers;
 use helpers::*;

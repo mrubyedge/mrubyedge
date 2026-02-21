@@ -1,5 +1,5 @@
-extern crate mruby_serde_json;
 extern crate mrubyedge;
+extern crate mrubyedge_serde_json;
 
 mod helpers;
 use helpers::*;
@@ -12,7 +12,7 @@ fn test_json_dump_integer() {
     let binary = mrbc_compile("json_dump_integer", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();
@@ -27,7 +27,7 @@ fn test_json_dump_string() {
     let binary = mrbc_compile("json_dump_string", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();
@@ -42,7 +42,7 @@ fn test_json_dump_array() {
     let binary = mrbc_compile("json_dump_array", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();
@@ -61,7 +61,7 @@ fn test_json_dump_hash() {
     let binary = mrbc_compile("json_dump_hash", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();
@@ -86,7 +86,7 @@ fn test_json_dump_nested_structure() {
     let binary = mrbc_compile("json_dump_nested", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();
@@ -106,7 +106,7 @@ fn test_json_dump_boolean() {
     let binary = mrbc_compile("json_dump_bool", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();
@@ -121,7 +121,7 @@ fn test_json_dump_nil() {
     let binary = mrbc_compile("json_dump_nil", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();
@@ -136,7 +136,7 @@ fn test_json_dump_float() {
     let binary = mrbc_compile("json_dump_float", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();
@@ -153,7 +153,7 @@ fn test_json_dump_symbol_key() {
     let binary = mrbc_compile("json_dump_symbol", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();
@@ -182,7 +182,7 @@ fn test_json_dump_to_json() {
     let binary = mrbc_compile("json_dump_to_json", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let json_str: String = result.as_ref().try_into().unwrap();

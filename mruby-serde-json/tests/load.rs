@@ -1,6 +1,6 @@
 #![allow(clippy::approx_constant)]
-extern crate mruby_serde_json;
 extern crate mrubyedge;
+extern crate mrubyedge_serde_json;
 
 mod helpers;
 use helpers::*;
@@ -13,7 +13,7 @@ fn test_json_load_integer() {
     let binary = mrbc_compile("json_load_integer", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let value: i64 = result.as_ref().try_into().unwrap();
@@ -28,7 +28,7 @@ fn test_json_load_string() {
     let binary = mrbc_compile("json_load_string", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let value: String = result.as_ref().try_into().unwrap();
@@ -48,7 +48,7 @@ fn test_json_load_array() {
     let binary = mrbc_compile("json_load_array", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     if let mrubyedge::yamrb::value::RValue::Array(arr) = &result.value {
@@ -76,7 +76,7 @@ fn test_json_load_hash() {
     let binary = mrbc_compile("json_load_hash_name", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
     let result = vm.run().unwrap();
     let name: String = result.as_ref().try_into().unwrap();
     assert_eq!(name, "Alice");
@@ -91,7 +91,7 @@ fn test_json_load_hash() {
     let binary2 = mrbc_compile("json_load_hash_age", code2);
     let mut rite2 = mrubyedge::rite::load(&binary2).unwrap();
     let mut vm2 = mrubyedge::yamrb::vm::VM::open(&mut rite2);
-    mruby_serde_json::init_json(&mut vm2);
+    mrubyedge_serde_json::init_json(&mut vm2);
     let result2 = vm2.run().unwrap();
     let age: i64 = result2.as_ref().try_into().unwrap();
     assert_eq!(age, 30);
@@ -117,7 +117,7 @@ fn test_json_load_nested_structure() {
     let binary = mrbc_compile("json_load_nested", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let name: String = result.as_ref().try_into().unwrap();
@@ -141,7 +141,7 @@ fn test_json_load_nested_structure() {
     let binary2 = mrbc_compile("json_load_nested2", code2);
     let mut rite2 = mrubyedge::rite::load(&binary2).unwrap();
     let mut vm2 = mrubyedge::yamrb::vm::VM::open(&mut rite2);
-    mruby_serde_json::init_json(&mut vm2);
+    mrubyedge_serde_json::init_json(&mut vm2);
     let result2 = vm2.run().unwrap();
     let name2: String = result2.as_ref().try_into().unwrap();
     assert_eq!(name2, "Carol");
@@ -155,7 +155,7 @@ fn test_json_load_boolean() {
     let binary = mrbc_compile("json_load_bool", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let value: bool = result.as_ref().try_into().unwrap();
@@ -170,7 +170,7 @@ fn test_json_load_boolean_2() {
     let binary = mrbc_compile("json_load_bool_2", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let value: bool = result.as_ref().try_into().unwrap();
@@ -185,7 +185,7 @@ fn test_json_load_nil() {
     let binary = mrbc_compile("json_load_nil", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     assert!(result.is_nil());
@@ -199,7 +199,7 @@ fn test_json_load_float() {
     let binary = mrbc_compile("json_load_float", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let value: f64 = result.as_ref().try_into().unwrap();
@@ -217,7 +217,7 @@ fn test_json_load_key() {
     let binary = mrbc_compile("json_load_key", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    mruby_serde_json::init_json(&mut vm);
+    mrubyedge_serde_json::init_json(&mut vm);
 
     let result = vm.run().unwrap();
     let value: String = result.as_ref().try_into().unwrap();

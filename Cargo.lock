@@ -658,6 +658,8 @@ dependencies = [
  "crossterm",
  "mruby-compiler2-sys",
  "mrubyedge 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge-math 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mrubyedge-time 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom",
  "rand",
  "syn",
@@ -668,6 +670,15 @@ name = "mrubyedge-math"
 version = "0.1.0"
 dependencies = [
  "mec-mrbc-sys",
+ "mrubyedge 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "mrubyedge-math"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7faac1fa8bf95e7f02ca71824aebf139ed1dd20696e42e8e1c4cb8374dde2dbe"
+dependencies = [
  "mrubyedge 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -686,6 +697,15 @@ name = "mrubyedge-time"
 version = "0.1.0"
 dependencies = [
  "mec-mrbc-sys",
+ "mrubyedge 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "mrubyedge-time"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b50f7bd2889e92c1b6e98915d091e487a340fd138cf9548b49718c9099d28a79"
+dependencies = [
  "mrubyedge 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
