@@ -1,5 +1,5 @@
 [package]
-name = "mruby-math"
+name = "mrubyedge-math"
 version = "0.1.0"
 edition = "2024"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]

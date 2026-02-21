@@ -1,6 +1,6 @@
 [package]
 name = "mrubyedge-cli"
-version = "1.1.6"
+version = "1.1.7"
 edition = "2024"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
 description = "mruby/edge cli endpoint - run, compile to wasm, etc."
@@ -15,7 +15,7 @@ path = "src/main.rs"
 clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.28"
 mruby-compiler2-sys = "0.3.0"
-mrubyedge = { version = "1.1.6", features = [
+mrubyedge = { version = "1.1.7", features = [
     "default",
     "mruby-random",
     "mruby-regexp",

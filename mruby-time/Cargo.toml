@@ -1,5 +1,5 @@
 [package]
-name = "mruby-time"
+name = "mrubyedge-time"
 version = "0.1.0"
 edition = "2024"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
@@ -7,10 +7,10 @@ description = "mruby-time provides Time class for mruby/edge"
 license = "BSD-3-Clause"
 
 [dependencies]
-mrubyedge = { path = "../mrubyedge" }
+mrubyedge = "1.1.7"
 
 [dev-dependencies]
-mrubyedge = { path = "../mrubyedge", features = ["default"] }
+mrubyedge = { version = "1.1.7", features = ["default"] }
 mec-mrbc-sys = "3.3.1"
 
 [features]
