@@ -11,6 +11,9 @@ use mrubyedge::{
     },
 };
 
+/// Type alias for datetime parts: (year, month, day, wday, hour, min, sec)
+type DateTimeParts = (i32, u32, u32, u32, u32, u32, u32);
+
 /// Rust-side representation of a Ruby Time object.
 /// Stores seconds and nanoseconds since UNIX epoch, and UTC offset in seconds.
 #[derive(Debug, Clone)]
@@ -22,7 +25,7 @@ pub struct RTimeData {
     /// UTC offset in seconds (e.g. +9h = 32400, -5h = -18000)
     pub utc_offset: i32,
     /// Cached result of to_datetime_parts() — computed lazily, interior-mutable.
-    cached_parts: Cell<Option<(i32, u32, u32, u32, u32, u32, u32)>>,
+    cached_parts: Cell<Option<DateTimeParts>>,
 }
 
 impl RTimeData {
@@ -43,7 +46,7 @@ impl RTimeData {
     /// Decompose into (year, month, day, wday, hour, min, sec_in_day).
     /// Uses the proleptic Gregorian calendar algorithm.
     /// Result is cached on first call via interior mutability.
-    pub fn to_datetime_parts(&self) -> (i32, u32, u32, u32, u32, u32, u32) {
+    pub fn to_datetime_parts(&self) -> DateTimeParts {
         if let Some(parts) = self.cached_parts.get() {
             return parts;
         }
@@ -110,9 +113,7 @@ fn get_time_data(obj: &Rc<RObject>) -> Result<RTimeData, Error> {
                 .ok_or_else(|| Error::RuntimeError("Invalid Time data".to_string()))?;
             Ok(time.clone())
         }
-        _ => Err(Error::RuntimeError(
-            "Expected a Time object".to_string(),
-        )),
+        _ => Err(Error::RuntimeError("Expected a Time object".to_string())),
     }
 }
 
@@ -127,9 +128,7 @@ fn make_time_object(vm: &mut VM, time_data: RTimeData) -> Rc<RObject> {
     };
     let rdata = Rc::new(RData {
         class,
-        data: RefCell::new(Some(Rc::new(
-            Box::new(time_data) as Box<dyn Any>
-        ))),
+        data: RefCell::new(Some(Rc::new(Box::new(time_data) as Box<dyn Any>))),
         ref_count: 1,
     });
     Rc::new(RObject {
@@ -149,7 +148,8 @@ fn make_time_object(vm: &mut VM, time_data: RTimeData) -> Rc<RObject> {
 /// Calls Time.__source to get [sec, nsec], then creates a Time object.
 /// utc_offset defaults to 0 (UTC).
 fn mrb_time_now(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let time_class_obj = vm.get_const_by_name("Time")
+    let time_class_obj = vm
+        .get_const_by_name("Time")
         .ok_or_else(|| Error::RuntimeError("Time class not found".to_string()))?;
 
     // Call Time.__source -> [sec, nsec]
@@ -269,7 +269,10 @@ fn mrb_time_add(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error>
     let new_nsec = new_nsec.rem_euclid(1_000_000_000) as u32;
     let new_sec = t.sec + delta_sec + carry;
 
-    Ok(make_time_object(vm, RTimeData::new(new_sec, new_nsec, t.utc_offset)))
+    Ok(make_time_object(
+        vm,
+        RTimeData::new(new_sec, new_nsec, t.utc_offset),
+    ))
 }
 
 /// Time#- (sec as integer or float), also supports Time - Time -> Float (seconds)
@@ -284,13 +287,13 @@ fn mrb_time_sub(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error>
     let t = get_time_data(&self_obj)?;
 
     // Check if rhs is a Time object
-    if let RValue::Data(_) = &args[0].value {
-        if let Ok(rhs) = get_time_data(&args[0]) {
-            // Time - Time -> Float (difference in seconds)
-            let sec_diff = (t.sec - rhs.sec) as f64
-                + (t.nsec as f64 - rhs.nsec as f64) / 1_000_000_000.0;
-            return Ok(RObject::float(sec_diff).to_refcount_assigned());
-        }
+    if let RValue::Data(_) = &args[0].value
+        && let Ok(rhs) = get_time_data(&args[0])
+    {
+        // Time - Time -> Float (difference in seconds)
+        let sec_diff =
+            (t.sec - rhs.sec) as f64 + (t.nsec as f64 - rhs.nsec as f64) / 1_000_000_000.0;
+        return Ok(RObject::float(sec_diff).to_refcount_assigned());
     }
 
     let (delta_sec, delta_nsec) = float_to_sec_nsec(&args[0])?;
@@ -299,7 +302,10 @@ fn mrb_time_sub(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error>
     let new_nsec = new_nsec.rem_euclid(1_000_000_000) as u32;
     let new_sec = t.sec - delta_sec + carry;
 
-    Ok(make_time_object(vm, RTimeData::new(new_sec, new_nsec, t.utc_offset)))
+    Ok(make_time_object(
+        vm,
+        RTimeData::new(new_sec, new_nsec, t.utc_offset),
+    ))
 }
 
 /// Time#<=> (compare with another Time object)
@@ -350,7 +356,10 @@ fn mrb_time_localtime(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
         get_integer_or_float_as_i64(&args[0])? as i32
     };
 
-    Ok(make_time_object(vm, RTimeData::new(t.sec, t.nsec, new_offset)))
+    Ok(make_time_object(
+        vm,
+        RTimeData::new(t.sec, t.nsec, new_offset),
+    ))
 }
 
 /// Time#to_i -> sec
@@ -407,7 +416,9 @@ fn get_integer_or_float_as_i64(obj: &RObject) -> Result<i64, Error> {
     match &obj.value {
         RValue::Integer(i) => Ok(*i),
         RValue::Float(f) => Ok(*f as i64),
-        _ => Err(Error::ArgumentError("expected Integer or Float".to_string())),
+        _ => Err(Error::ArgumentError(
+            "expected Integer or Float".to_string(),
+        )),
     }
 }
 
@@ -415,17 +426,23 @@ fn get_integer_or_float_as_u32(obj: &RObject) -> Result<u32, Error> {
     match &obj.value {
         RValue::Integer(i) => {
             if *i < 0 {
-                return Err(Error::ArgumentError("nsec must be non-negative".to_string()));
+                return Err(Error::ArgumentError(
+                    "nsec must be non-negative".to_string(),
+                ));
             }
             Ok(*i as u32)
         }
         RValue::Float(f) => {
             if *f < 0.0 {
-                return Err(Error::ArgumentError("nsec must be non-negative".to_string()));
+                return Err(Error::ArgumentError(
+                    "nsec must be non-negative".to_string(),
+                ));
             }
             Ok(*f as u32)
         }
-        _ => Err(Error::ArgumentError("expected Integer or Float".to_string())),
+        _ => Err(Error::ArgumentError(
+            "expected Integer or Float".to_string(),
+        )),
     }
 }
 
@@ -438,7 +455,9 @@ fn float_to_sec_nsec(obj: &RObject) -> Result<(i64, u32), Error> {
             let nsec = (f.fract().abs() * 1_000_000_000.0).round() as u32;
             Ok((sec, nsec))
         }
-        _ => Err(Error::ArgumentError("expected Integer or Float".to_string())),
+        _ => Err(Error::ArgumentError(
+            "expected Integer or Float".to_string(),
+        )),
     }
 }
 
@@ -471,9 +490,24 @@ pub fn init_time(vm: &mut VM) {
     mrb_define_cmethod(vm, time_class.clone(), "+", Box::new(mrb_time_add));
     mrb_define_cmethod(vm, time_class.clone(), "-", Box::new(mrb_time_sub));
     mrb_define_cmethod(vm, time_class.clone(), "<=>", Box::new(mrb_time_cmp));
-    mrb_define_cmethod(vm, time_class.clone(), "utc_offset", Box::new(mrb_time_utc_offset));
-    mrb_define_cmethod(vm, time_class.clone(), "gmt_offset", Box::new(mrb_time_utc_offset));
-    mrb_define_cmethod(vm, time_class.clone(), "localtime", Box::new(mrb_time_localtime));
+    mrb_define_cmethod(
+        vm,
+        time_class.clone(),
+        "utc_offset",
+        Box::new(mrb_time_utc_offset),
+    );
+    mrb_define_cmethod(
+        vm,
+        time_class.clone(),
+        "gmt_offset",
+        Box::new(mrb_time_utc_offset),
+    );
+    mrb_define_cmethod(
+        vm,
+        time_class.clone(),
+        "localtime",
+        Box::new(mrb_time_localtime),
+    );
     mrb_define_cmethod(vm, time_class.clone(), "to_i", Box::new(mrb_time_to_i));
     mrb_define_cmethod(vm, time_class.clone(), "to_f", Box::new(mrb_time_to_f));
 
@@ -484,7 +518,12 @@ pub fn init_time(vm: &mut VM) {
         let time_class_obj_for_source = vm
             .get_const_by_name("Time")
             .expect("Time class not found after definition");
-        mrb_define_class_cmethod_on_obj(vm, time_class_obj_for_source, "__source", Box::new(mrb_time_source_default));
+        mrb_define_class_cmethod_on_obj(
+            vm,
+            time_class_obj_for_source,
+            "__source",
+            Box::new(mrb_time_source_default),
+        );
     }
 }
 
