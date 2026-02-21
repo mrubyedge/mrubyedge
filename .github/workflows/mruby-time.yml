@@ -30,12 +30,12 @@ jobs:
           key: ${{ runner.os }}-cargo-time-${{ hashFiles('**/Cargo.lock') }}
       - name: Run formatter
         run: |
-          cargo fmt -p mruby-time --check
+          cargo fmt -p mrubyedge-time --check
       - name: Run tests for "${{ matrix.BUILD_TARGET }}" profile
         run: |
-          cargo test -p mruby-time \
+          cargo test -p mrubyedge-time \
             --profile ${{ matrix.BUILD_TARGET }}
       - name: Build binaries for "${{ matrix.BUILD_TARGET }}" profile
         run: |
-          cargo build -p mruby-time \
+          cargo build -p mrubyedge-time \
             --profile ${{ matrix.BUILD_TARGET }}

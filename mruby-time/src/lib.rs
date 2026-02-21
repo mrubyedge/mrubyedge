@@ -145,18 +145,17 @@ fn make_time_object(vm: &mut VM, time_data: RTimeData) -> Rc<RObject> {
 // ---------------------------------------------------------------------------
 
 /// Time.now
-/// Calls Time.__source to get [sec, nsec], then creates a Time object.
-/// utc_offset defaults to 0 (UTC).
+/// Calls Time.__source to get [sec, nsec, utc_offset], then creates a Time object.
 fn mrb_time_now(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let time_class_obj = vm
         .get_const_by_name("Time")
         .ok_or_else(|| Error::RuntimeError("Time class not found".to_string()))?;
 
-    // Call Time.__source -> [sec, nsec]
+    // Call Time.__source -> [sec, nsec, utc_offset]
     let source = mrb_funcall(vm, Some(time_class_obj), "__source", &[])?;
-    let (sec, nsec) = source.as_ref().try_into()?;
+    let (sec, nsec, utc_offset) = source.as_ref().try_into()?;
 
-    Ok(make_time_object(vm, RTimeData::new(sec, nsec, 0)))
+    Ok(make_time_object(vm, RTimeData::new(sec, nsec, utc_offset)))
 }
 
 /// Time.at(sec) or Time.at(sec, nsec)
@@ -382,7 +381,8 @@ fn mrb_time_to_f(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
 // ---------------------------------------------------------------------------
 
 /// Default implementation of Time.__source using std::time.
-/// Returns [sec, nsec] as a Ruby array.
+/// Returns [sec, nsec, utc_offset] as a Ruby array.
+/// utc_offset is the local timezone offset in seconds (e.g. JST = +32400).
 /// Compiled on non-wasm targets, and also on wasm32-wasi where std::time is available.
 #[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
 fn mrb_time_source_default(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -395,11 +395,29 @@ fn mrb_time_source_default(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<ROb
     })?;
     let sec = unixtime.as_secs() as i64;
     let nsec = unixtime.subsec_nanos() as i64;
+    let utc_offset = local_utc_offset_secs();
     let arr = vec![
         RObject::integer(sec).to_refcount_assigned(),
         RObject::integer(nsec).to_refcount_assigned(),
+        RObject::integer(utc_offset as i64).to_refcount_assigned(),
     ];
     Ok(RObject::array(arr).to_refcount_assigned())
+}
+
+/// Return the local timezone UTC offset in seconds using POSIX localtime_r.
+/// Positive values are east of UTC (e.g. JST = +32400).
+#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
+fn local_utc_offset_secs() -> i32 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let t = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as libc::time_t)
+        .unwrap_or(0);
+    unsafe {
+        let mut tm: libc::tm = std::mem::zeroed();
+        libc::localtime_r(&t, &mut tm);
+        tm.tm_gmtoff as i32
+    }
 }
 
 // ---------------------------------------------------------------------------

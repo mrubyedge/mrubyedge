@@ -32,12 +32,12 @@ jobs:
       #   run: sudo apt-get update && sudo apt-get install -y build-essential
       - name: Run formatter
         run: |
-          cargo fmt -p mruby-math --check
+          cargo fmt -p mrubyedge-math --check
       - name: Run tests for "${{ matrix.BUILD_TARGET }}" profile
         run: |
-          cargo test -p mruby-math \
+          cargo test -p mrubyedge-math \
             --profile ${{ matrix.BUILD_TARGET }}
       - name: Build binaries for "${{ matrix.BUILD_TARGET }}" profile
         run: |
-          cargo build -p mruby-math \
+          cargo build -p mrubyedge-math \
             --profile ${{ matrix.BUILD_TARGET }}

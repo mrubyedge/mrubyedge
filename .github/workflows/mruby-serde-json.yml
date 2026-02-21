@@ -32,12 +32,12 @@ jobs:
       #   run: sudo apt-get update && sudo apt-get install -y build-essential
       - name: Run formatter
         run: |
-          cargo fmt -p mruby-serde-json --check
+          cargo fmt -p mrubyedge-serde-json --check
       - name: Run tests for "${{ matrix.BUILD_TARGET }}" profile
         run: |
-          cargo test -p mruby-serde-json \
+          cargo test -p mrubyedge-serde-json \
             --profile ${{ matrix.BUILD_TARGET }}
       - name: Build binaries for "${{ matrix.BUILD_TARGET }}" profile
         run: |
-          cargo build -p mruby-serde-json \
+          cargo build -p mrubyedge-serde-json \
             --profile ${{ matrix.BUILD_TARGET }}
