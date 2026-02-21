@@ -92,7 +92,7 @@ fn keyword_args_nested_call_test() {
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     let result = vm.run().unwrap();
-    let (got1, got2) = result.as_ref().try_into().unwrap();
+    let (got1, got2): (i32, i32) = result.as_ref().try_into().unwrap();
     assert_eq!(got1, 28); // 5 * 2 + 6 * 3
     assert_eq!(got2, 34); // 5 * 2 + 6 * 4
 }

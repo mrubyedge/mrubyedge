@@ -383,14 +383,16 @@ fn mrb_time_to_f(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
 
 /// Default implementation of Time.__source using std::time.
 /// Returns [sec, nsec] as a Ruby array.
-/// Only compiled on non-wasm targets (wasi feature disabled implies std::time available).
-#[cfg(not(target_arch = "wasm32"))]
+/// Compiled on non-wasm targets, and also on wasm32-wasi where std::time is available.
+#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
 fn mrb_time_source_default(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     use std::time::{SystemTime, UNIX_EPOCH};
     let now = SystemTime::now();
-    let unixtime = now
-        .duration_since(UNIX_EPOCH)
-        .map_err(|_| Error::RuntimeError("system time before UNIX EPOCH".to_string()))?;
+    let unixtime = now.duration_since(UNIX_EPOCH).map_err(|_| {
+        Error::RuntimeError(
+            "system time before UNIX EPOCH -- are you running this from the past?".to_string(),
+        )
+    })?;
     let sec = unixtime.as_secs() as i64;
     let nsec = unixtime.subsec_nanos() as i64;
     let arr = vec![
@@ -511,8 +513,8 @@ pub fn init_time(vm: &mut VM) {
     mrb_define_cmethod(vm, time_class.clone(), "to_i", Box::new(mrb_time_to_i));
     mrb_define_cmethod(vm, time_class.clone(), "to_f", Box::new(mrb_time_to_f));
 
-    // Register default Time.__source on non-wasm targets
-    #[cfg(not(target_arch = "wasm32"))]
+    // Register default Time.__source on non-wasm targets, and also on wasm32-wasi
+    #[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
     {
         let _time_class_obj = RObject::class(time_class, vm);
         let time_class_obj_for_source = vm
@@ -528,7 +530,7 @@ pub fn init_time(vm: &mut VM) {
 }
 
 /// Helper: define a singleton (class-side) cmethod on a class RObject.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), target_os = "wasi"))]
 fn mrb_define_class_cmethod_on_obj(
     vm: &mut VM,
     class_obj: Rc<RObject>,

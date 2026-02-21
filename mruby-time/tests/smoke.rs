@@ -6,8 +6,8 @@ use helpers::*;
 
 /// Helper: build a VM with Time initialized and a fixed Time.__source returning [sec, nsec].
 fn make_vm_with_time_source(sec: i64, nsec: u32) -> mrubyedge::yamrb::vm::VM {
-    use mrubyedge::yamrb::value::RObject;
     use mrubyedge::yamrb::helpers::mrb_define_singleton_cmethod;
+    use mrubyedge::yamrb::value::RObject;
 
     // We need a dummy bytecode to open a VM. Use a trivial "nil" script.
     let dummy = mrbc_compile("dummy_source", "nil");
@@ -36,11 +36,13 @@ fn make_vm_with_time_source(sec: i64, nsec: u32) -> mrubyedge::yamrb::vm::VM {
 }
 
 // 1970-01-01 00:00:00 UTC (UNIX epoch)
+#[allow(unused)]
 const EPOCH_SEC: i64 = 0;
 // 2024-03-14 15:09:26 UTC  (Pi Day!)
 // date -d "2024-03-14 15:09:26 UTC" +%s  => 1710428966
 const PI_DAY_SEC: i64 = 1710428966;
 // 2009-01-03 18:15:05 UTC (Bitcoin genesis block)
+#[allow(unused)]
 const GENESIS_SEC: i64 = 1231006505;
 
 #[test]

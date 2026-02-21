@@ -1,4 +1,10 @@
 [workspace]
 resolver = "2"
 
-members = ["mruby-math", "mruby-serde-json", "mruby-time", "mrubyedge", "mrubyedge-cli"]
+members = [
+    "mruby-math",
+    "mruby-serde-json",
+    "mruby-time",
+    "mrubyedge",
+    "mrubyedge-cli",
+]
