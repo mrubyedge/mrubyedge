@@ -39,6 +39,8 @@ pub fn execute(args: ReplArgs) -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut rite = mrubyedge::rite::load(&mrb_bin)?;
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    mrubyedge_math::init_math(&mut vm);
+    mrubyedge_time::init_time(&mut vm);
 
     // Enable raw mode
     terminal::enable_raw_mode()?;
