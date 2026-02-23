@@ -15,11 +15,11 @@ jobs:
   doc:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Run doc on mrubyedge
       run: cargo doc --no-deps -p mrubyedge
-    - name: Deploy
-      uses: actions/upload-pages-artifact@v1
+    - name: Upload
+      uses: actions/upload-pages-artifact@v3
       with:
         path: target/doc/mrubyedge
 
@@ -35,4 +35,4 @@ jobs:
      steps:
        - name: Deploy to GitHub Pages
          id: deployment
-         uses: actions/deploy-pages@v1
+         uses: actions/deploy-pages@v4
