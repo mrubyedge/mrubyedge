@@ -3,7 +3,7 @@ name: Deploy mrubyedge docs
 on:
   push:
     branches: [ "master" ]
-    paths: [ "mrubyedge/**" ]
+    paths: [ "mrubyedge/**", ".github/workflows/docs.yml" ]
   pull_request:
     branches: [ "master" ]
     paths: [ "mrubyedge/**" ]
