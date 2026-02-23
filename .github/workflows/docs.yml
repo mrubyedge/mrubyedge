@@ -1,0 +1,38 @@
+name: Deploy mrubyedge docs
+
+on:
+  push:
+    branches: [ "master" ]
+    paths: [ "mrubyedge/**" ]
+  pull_request:
+    branches: [ "master" ]
+    paths: [ "mrubyedge/**" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run doc on mrubyedge
+      run: cargo doc --no-deps -p mrubyedge
+    - name: Deploy
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: target/doc/mrubyedge
+
+  deploy:
+     needs: doc
+     permissions:
+       pages: write
+       id-token: write
+     environment:
+       name: github-pages
+       url: ${{ steps.deployment.outputs.page_url }}
+     runs-on: ubuntu-latest
+     steps:
+       - name: Deploy to GitHub Pages
+         id: deployment
+         uses: actions/deploy-pages@v1
