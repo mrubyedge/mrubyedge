@@ -94,6 +94,7 @@ For a command-line interface to compile and run Ruby scripts, see [mrubyedge-cli
 
 - [API Documentation](https://docs.rs/mrubyedge)
 - [GitHub Repository](https://github.com/mrubyedge/mrubyedge)
+- [Ruby Compatibility Coverage](./COVERAGE.md)
 
 ## License
 
