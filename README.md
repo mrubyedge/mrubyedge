@@ -15,6 +15,7 @@ You can try what features mruby/edge have implemented in [Playground](https://mr
 
 
 * mruby/edge core VM implementation
+* [Ruby Compatibility Coverage](./mrubyedge/COVERAGE.md)
 
 ### [mrubyedge-cli](./mrubyedge-cli) [![crates.io](https://img.shields.io/crates/v/mrubyedge-cli.svg)](https://crates.io/crates/mrubyedge-cli) [![docs.rs](https://docs.rs/mrubyedge-cli/badge.svg)](https://docs.rs/mrubyedge-cli)
 * CLI endpoint for mruby/edge - run, compile to wasm, etc.
