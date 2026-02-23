@@ -51,7 +51,7 @@
 //!
 //! mruby/edge implements a subset of the Ruby standard library.
 //! The built-in classes and methods that are currently supported are listed in
-//! [`COVERAGE.md`](https://github.com/mrubyedge/mrubyedge/blob/master/COVERAGE.md).
+//! [`COVERAGE.md`](https://github.com/mrubyedge/mrubyedge/blob/master/mrubyedge/COVERAGE.md).
 //!
 //! In brief, the following classes are available out of the box:
 //! `Object`, `Integer`, `Float`, `String`, `Array`, `Hash`, `Range`,
