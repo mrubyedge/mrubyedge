@@ -18,10 +18,25 @@ jobs:
     - uses: actions/checkout@v4
     - name: Run doc on mrubyedge
       run: cargo doc --no-deps -p mrubyedge
+    - name: Add redirect index.html
+      run: |
+        cat > target/doc/index.html <<'EOF'
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=mrubyedge/">
+            <link rel="canonical" href="mrubyedge/">
+          </head>
+          <body>
+            <p>Redirecting to <a href="mrubyedge/">mrubyedge documentation</a>...</p>
+          </body>
+        </html>
+        EOF
     - name: Upload
       uses: actions/upload-pages-artifact@v3
       with:
-        path: target/doc/mrubyedge
+        path: target/doc
 
   deploy:
      needs: doc
