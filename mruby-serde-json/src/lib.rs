@@ -37,11 +37,6 @@ pub fn init_json(vm: &mut VM) {
 }
 
 pub fn mrb_json_class_dump(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let args = if args[args.len() - 1].is_nil() {
-        &args[0..args.len() - 1]
-    } else {
-        args
-    };
     if args.len() != 1 {
         return Err(Error::ArgumentError(
             "wrong number of arguments".to_string(),
@@ -52,11 +47,6 @@ pub fn mrb_json_class_dump(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObje
 }
 
 pub fn mrb_json_class_load(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let args = if args[args.len() - 1].is_nil() {
-        &args[0..args.len() - 1]
-    } else {
-        args
-    };
     if args.len() != 1 {
         return Err(Error::ArgumentError(
             "wrong number of arguments".to_string(),

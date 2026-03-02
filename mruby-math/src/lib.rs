@@ -107,14 +107,8 @@ fn get_float_arg(obj: &RObject) -> Result<f64, Error> {
     }
 }
 
-// Helper function to check argument count (excluding trailing nil)
+// Helper function to check argument count
 fn check_args_count(args: &[Rc<RObject>], expected: usize) -> Result<Vec<Rc<RObject>>, Error> {
-    let args = if !args.is_empty() && args[args.len() - 1].is_nil() {
-        &args[0..args.len() - 1]
-    } else {
-        args
-    };
-
     if args.len() != expected {
         return Err(Error::ArgumentError(format!(
             "wrong number of arguments (given {}, expected {})",
@@ -217,23 +211,17 @@ pub fn mrb_math_exp(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
 }
 
 pub fn mrb_math_log(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let args_vec = if !args.is_empty() && args[args.len() - 1].is_nil() {
-        args[0..args.len() - 1].to_vec()
-    } else {
-        args.to_vec()
-    };
-
-    if args_vec.len() == 1 {
-        let x = get_float_arg(&args_vec[0])?;
+    if args.len() == 1 {
+        let x = get_float_arg(&args[0])?;
         Ok(RObject::float(x.ln()).to_refcount_assigned())
-    } else if args_vec.len() == 2 {
-        let x = get_float_arg(&args_vec[0])?;
-        let base = get_float_arg(&args_vec[1])?;
+    } else if args.len() == 2 {
+        let x = get_float_arg(&args[0])?;
+        let base = get_float_arg(&args[1])?;
         Ok(RObject::float(x.log(base)).to_refcount_assigned())
     } else {
         Err(Error::ArgumentError(format!(
             "wrong number of arguments (given {}, expected 1..2)",
-            args_vec.len()
+            args.len()
         )))
     }
 }

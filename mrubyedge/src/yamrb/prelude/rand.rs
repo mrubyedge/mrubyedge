@@ -108,11 +108,6 @@ fn get_default_rng(vm: &mut VM) -> Rc<RObject> {
 
 pub(crate) fn mrb_random_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let class = get_rng_class(vm);
-    let args = if !args.is_empty() && args[args.len() - 1].is_nil() {
-        &args[0..args.len() - 1]
-    } else {
-        args
-    };
     let seed = if args.is_empty() {
         new_seed()
     } else {
@@ -142,11 +137,6 @@ pub(crate) fn mrb_random_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<ROb
 
 // Random.srand
 fn mrb_random_class_srand(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let args = if !args.is_empty() && args[args.len() - 1].is_nil() {
-        &args[0..args.len() - 1]
-    } else {
-        args
-    };
     let seed = if args.is_empty() {
         new_seed()
     } else {
@@ -193,12 +183,6 @@ fn mrb_random_seed(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
 // Random#rand
 fn mrb_random_rand(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     use rand_core::Rng;
-
-    let args = if !args.is_empty() && args[args.len() - 1].is_nil() {
-        &args[0..args.len() - 1]
-    } else {
-        args
-    };
 
     let self_obj = vm.getself()?;
 

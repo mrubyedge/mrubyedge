@@ -421,12 +421,6 @@ fn mrb_string_slice_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
         ));
     }
 
-    let args = if args[args.len() - 1].is_nil() {
-        &args[..args.len() - 1]
-    } else {
-        args
-    };
-
     let index: i64 = args[0].as_ref().try_into()?;
     let len = chars.len() as i64;
     let idx = if index < 0 { len + index } else { index };
