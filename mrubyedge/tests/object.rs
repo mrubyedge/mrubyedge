@@ -410,11 +410,16 @@ fn object_block_given_with_args_without_block_test() {
     vm.run().unwrap();
 
     let args = vec![];
-    let result: bool = mrb_funcall(&mut vm, None, "test_block_given_with_args_without_block", &args)
-        .unwrap()
-        .as_ref()
-        .try_into()
-        .unwrap();
+    let result: bool = mrb_funcall(
+        &mut vm,
+        None,
+        "test_block_given_with_args_without_block",
+        &args,
+    )
+    .unwrap()
+    .as_ref()
+    .try_into()
+    .unwrap();
     assert_eq!(result, false);
 }
 
