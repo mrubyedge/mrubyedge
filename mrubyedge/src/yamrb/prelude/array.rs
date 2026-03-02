@@ -118,7 +118,12 @@ pub(crate) fn initialize_array(vm: &mut VM) {
     );
     mrb_define_cmethod(vm, array_class.clone(), "to_s", Box::new(mrb_array_inspect));
     mrb_define_cmethod(vm, array_class.clone(), "join", Box::new(mrb_array_join));
-    mrb_define_cmethod(vm, array_class.clone(), "flatten", Box::new(mrb_array_flatten));
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "flatten",
+        Box::new(mrb_array_flatten),
+    );
     mrb_define_cmethod(
         vm,
         array_class.clone(),

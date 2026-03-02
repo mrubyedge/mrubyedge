@@ -70,7 +70,12 @@ pub(crate) fn initialize_hash(vm: &mut VM) {
         Box::new(mrb_hash_inspect),
     );
     mrb_define_cmethod(vm, hash_class.clone(), "to_s", Box::new(mrb_hash_inspect));
-    mrb_define_cmethod(vm, hash_class.clone(), "flatten", Box::new(mrb_hash_flatten));
+    mrb_define_cmethod(
+        vm,
+        hash_class.clone(),
+        "flatten",
+        Box::new(mrb_hash_flatten),
+    );
 
     let enumerable_module = vm.get_module_by_name("Enumerable");
     mrb_include_module(&hash_class, enumerable_module).expect("failed to include Enumerable");

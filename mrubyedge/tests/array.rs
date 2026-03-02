@@ -410,10 +410,7 @@ fn array_flatten_basic_test() {
         result.as_ref().try_into().unwrap();
 
     assert_eq!(arr.len(), 4);
-    let vals: Vec<i64> = arr
-        .iter()
-        .map(|r| r.as_ref().try_into().unwrap())
-        .collect();
+    let vals: Vec<i64> = arr.iter().map(|r| r.as_ref().try_into().unwrap()).collect();
     assert_eq!(vals, vec![1, 2, 3, 4]);
 }
 
@@ -435,10 +432,7 @@ fn array_flatten_nested_test() {
         result.as_ref().try_into().unwrap();
 
     assert_eq!(arr.len(), 5);
-    let vals: Vec<i64> = arr
-        .iter()
-        .map(|r| r.as_ref().try_into().unwrap())
-        .collect();
+    let vals: Vec<i64> = arr.iter().map(|r| r.as_ref().try_into().unwrap()).collect();
     assert_eq!(vals, vec![1, 2, 3, 4, 5]);
 }
 
@@ -480,10 +474,7 @@ fn array_flatten_no_nested_test() {
         result.as_ref().try_into().unwrap();
 
     assert_eq!(arr.len(), 3);
-    let vals: Vec<i64> = arr
-        .iter()
-        .map(|r| r.as_ref().try_into().unwrap())
-        .collect();
+    let vals: Vec<i64> = arr.iter().map(|r| r.as_ref().try_into().unwrap()).collect();
     assert_eq!(vals, vec![1, 2, 3]);
 }
 
@@ -507,10 +498,7 @@ fn array_flatten_self_basic_test() {
         result.as_ref().try_into().unwrap();
 
     assert_eq!(arr.len(), 4);
-    let vals: Vec<i64> = arr
-        .iter()
-        .map(|r| r.as_ref().try_into().unwrap())
-        .collect();
+    let vals: Vec<i64> = arr.iter().map(|r| r.as_ref().try_into().unwrap()).collect();
     assert_eq!(vals, vec![1, 2, 3, 4]);
 }
 
