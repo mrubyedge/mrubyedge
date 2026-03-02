@@ -343,6 +343,7 @@ Includes Enumerable.
 | `#inspect` | alias: `to_s` |
 | `#join` | |
 | `#flatten` | returns a new flattened array (recursive) |
+| `#flatten!` | flattens self in place (recursive), returns self or nil |
 
 ---
 
