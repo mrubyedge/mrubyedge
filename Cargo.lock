@@ -654,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "mrubyedge-math"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "mec-mrbc-sys",
  "mrubyedge",
@@ -662,7 +662,7 @@ dependencies = [
 
 [[package]]
 name = "mrubyedge-serde-json"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "mec-mrbc-sys",
  "mrubyedge",
@@ -672,7 +672,7 @@ dependencies = [
 
 [[package]]
 name = "mrubyedge-time"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "libc",
  "mec-mrbc-sys",
