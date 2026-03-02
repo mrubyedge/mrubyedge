@@ -1023,7 +1023,13 @@ pub(crate) fn do_op_send(
     vm.kargs.borrow_mut().replace(map);
 
     if let Some(blk_index) = blk_index {
-        args.push(vm.get_current_regs_cloned(blk_index)?);
+        let blk_val = vm.get_current_regs_cloned(blk_index)?;
+        if matches!(blk_val.tt, RType::Symbol) {
+            let proc_val = mrb_funcall(vm, Some(blk_val), "to_proc", &[])?;
+            args.push(proc_val);
+        } else {
+            args.push(blk_val);
+        }
     } else {
         // When no block is provided, set nil in the block register
         vm.current_regs()[block_index].replace(Rc::new(RObject::nil()));
