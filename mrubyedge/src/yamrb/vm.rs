@@ -11,7 +11,6 @@ use super::prelude::prelude;
 use super::value::RHashMap;
 use super::value::*;
 use super::{op, optable::*};
-use super::optable::EnterArgInfo;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const ENGINE: &str = "mruby/edge";

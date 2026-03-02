@@ -50,6 +50,27 @@ fn symbol_to_proc_map_to_s() {
 }
 
 #[test]
+fn symbol_to_proc_keep() {
+    let code = r#"
+    def test_to_proc_keep
+      blk = :to_i.to_proc
+      a = ["1", "2", "3"].map(&blk).sum
+      b = ["4", "5", "6"].map(&blk).sum
+      c = ["7", "8", "9"].map(&blk).sum
+      a + b + c
+    end
+    "#;
+    let binary = mrbc_compile("to_proc_keep", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let result = mrb_funcall(&mut vm, None, "test_to_proc_keep", &[]).unwrap();
+    let result: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(result, 45);
+}
+
+#[test]
 fn symbol_to_proc_select() {
     let code = r#"
     def test_to_proc_select
