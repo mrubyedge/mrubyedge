@@ -123,6 +123,18 @@ pub(crate) fn initialize_object(vm: &mut VM) {
         Box::new(mrb_object_extend),
     );
     mrb_define_cmethod(vm, object_class.clone(), "loop", Box::new(mrb_object_loop));
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "respond_to?",
+        Box::new(mrb_object_respond_to),
+    );
+    mrb_define_cmethod(
+        vm,
+        object_class.clone(),
+        "public_send",
+        Box::new(mrb_object_public_send),
+    );
 
     // define global consts:
     vm.consts.insert(
@@ -395,6 +407,29 @@ fn mrb_object_loop(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
     loop {
         mrb_call_block(vm, block.clone(), Some(this.clone()), &[], 0)?;
     }
+}
+
+fn mrb_object_respond_to(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let method_name: String = args[0].as_ref().try_into()?;
+    let obj = vm.getself()?;
+    let klass = obj.singleton_or_this_class(vm);
+    let has_method = resolve_method(&klass, &method_name).is_some();
+    Ok(Rc::new(RObject::boolean(has_method)))
+}
+
+fn mrb_object_public_send(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    if args.is_empty() {
+        return Err(Error::ArgumentError(
+            "wrong number of arguments (given 0, expected 1+)".to_string(),
+        ));
+    }
+
+    let method_name: String = args[0].as_ref().try_into()?;
+    let obj = vm.getself()?;
+    let method_args = &args[1..];
+
+    // For now, public_send behaves the same as send since we don't have visibility modifiers
+    mrb_funcall(vm, Some(obj), &method_name, method_args)
 }
 
 fn mrb_object_method_missing(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

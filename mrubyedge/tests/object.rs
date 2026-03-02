@@ -417,3 +417,103 @@ fn object_block_given_with_args_without_block_test() {
         .unwrap();
     assert_eq!(result, false);
 }
+
+#[test]
+fn object_respond_to_existing_method_test() {
+    let code = r#"
+    def test_respond_to_existing
+      obj = Object.new
+      obj.respond_to?("to_s")
+    end
+    "#;
+    let binary = mrbc_compile("respond_to_existing", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: bool = mrb_funcall(&mut vm, None, "test_respond_to_existing", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, true);
+}
+
+#[test]
+fn object_respond_to_non_existing_method_test() {
+    let code = r#"
+    def test_respond_to_non_existing
+      obj = Object.new
+      obj.respond_to?("non_existing_method")
+    end
+    "#;
+    let binary = mrbc_compile("respond_to_non_existing", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: bool = mrb_funcall(&mut vm, None, "test_respond_to_non_existing", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, false);
+}
+
+#[test]
+fn object_public_send_test() {
+    let code = r#"
+    class TestClass
+      def hello(name)
+        "Hello, #{name}!"
+      end
+    end
+
+    def test_public_send
+      obj = TestClass.new
+      obj.public_send("hello", "World")
+    end
+    "#;
+    let binary = mrbc_compile("public_send", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: String = mrb_funcall(&mut vm, None, "test_public_send", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, "Hello, World!");
+}
+
+#[test]
+fn object_public_send_no_args_test() {
+    let code = r#"
+    class TestClass
+      def greet
+        "Hi!"
+      end
+    end
+
+    def test_public_send_no_args
+      obj = TestClass.new
+      obj.public_send("greet")
+    end
+    "#;
+    let binary = mrbc_compile("public_send_no_args", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: String = mrb_funcall(&mut vm, None, "test_public_send_no_args", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, "Hi!");
+}
