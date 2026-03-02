@@ -70,6 +70,12 @@ pub(crate) fn initialize_hash(vm: &mut VM) {
         Box::new(mrb_hash_inspect),
     );
     mrb_define_cmethod(vm, hash_class.clone(), "to_s", Box::new(mrb_hash_inspect));
+    mrb_define_cmethod(
+        vm,
+        hash_class.clone(),
+        "flatten",
+        Box::new(mrb_hash_flatten),
+    );
 
     let enumerable_module = vm.get_module_by_name("Enumerable");
     mrb_include_module(&hash_class, enumerable_module).expect("failed to include Enumerable");
@@ -443,6 +449,28 @@ fn mrb_hash_merge_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>,
 // Hash#to_h: Returns self
 fn mrb_hash_to_h(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     vm.getself()
+}
+
+// Hash#flatten: Returns a new array that is a one-dimensional flattening of this hash
+// Converts the hash to an array of [key1, value1, key2, value2, ...]
+fn mrb_hash_flatten(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let hash = match &this.value {
+        RValue::Hash(h) => h,
+        _ => {
+            return Err(Error::RuntimeError(
+                "Hash#flatten must be called on a hash".to_string(),
+            ));
+        }
+    };
+
+    let mut result = Vec::new();
+    for (_, (key, value)) in hash.borrow().iter() {
+        result.push(key.clone());
+        result.push(value.clone());
+    }
+
+    Ok(RObject::array(result).to_refcount_assigned())
 }
 
 #[test]

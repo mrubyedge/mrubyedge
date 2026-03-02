@@ -342,6 +342,8 @@ Includes Enumerable.
 | `#pack` | format: `Q q L l I i S s C c` |
 | `#inspect` | alias: `to_s` |
 | `#join` | |
+| `#flatten` | returns a new flattened array (recursive) |
+| `#flatten!` | flattens self in place (recursive), returns self or nil |
 
 ---
 
@@ -370,6 +372,7 @@ Includes Enumerable.
 | `#to_h` | |
 | `#values` | |
 | `#inspect` | alias: `to_s` |
+| `#flatten` | returns an array of [key1, value1, key2, value2, ...] |
 
 ---
 
