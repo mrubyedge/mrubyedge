@@ -1031,9 +1031,8 @@ pub(crate) fn do_op_send(
             args.push(blk_val);
         }
     } else {
-        // When no block is provided, set nil in the block register
+        // When no block is provided, do not push a nil placeholder
         vm.current_regs()[block_index].replace(Rc::new(RObject::nil()));
-        args.push(Rc::new(RObject::nil()));
     }
 
     let klass = recv.get_class(vm);

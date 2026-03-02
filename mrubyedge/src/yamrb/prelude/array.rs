@@ -159,11 +159,6 @@ pub fn mrb_array_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
 
 fn mrb_array_push_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
-    let args = if args[args.len() - 1].as_ref().is_nil() {
-        &args[..args.len() - 1]
-    } else {
-        args
-    };
     mrb_array_push(this, args)
 }
 
