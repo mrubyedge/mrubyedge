@@ -34,7 +34,7 @@ fn symbol_to_proc_map_to_s() {
       [1, 2, 3].map(&:to_s)
     end
     "#;
-    let binary = mrbc_compile_debug("to_proc_map_to_s", code);
+    let binary = mrbc_compile("to_proc_map_to_s", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     vm.run().unwrap();
