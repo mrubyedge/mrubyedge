@@ -363,3 +363,45 @@ fn hash_to_h_test() {
     let result: bool = result.as_ref().try_into().unwrap();
     assert!(result);
 }
+
+#[test]
+fn hash_flatten_test() {
+    let code = r#"
+    def test_hash_flatten
+      h = {"a" => 1, "b" => 2}
+      h.flatten
+    end
+    "#;
+    let binary = mrbc_compile("hash_flatten", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_hash_flatten", &args).unwrap();
+    let arr: Vec<Rc<RObject>> = result.as_ref().try_into().unwrap();
+
+    // Hash#flatten returns an array of [key1, value1, key2, value2, ...]
+    assert_eq!(arr.len(), 4);
+
+    // Verify the array contains the keys and values
+    let strings: Vec<String> = arr
+        .iter()
+        .filter_map(|obj| {
+            let s: Result<String, _> = obj.as_ref().try_into();
+            s.ok()
+        })
+        .collect();
+    let ints: Vec<i64> = arr
+        .iter()
+        .filter_map(|obj| {
+            let i: Result<i64, _> = obj.as_ref().try_into();
+            i.ok()
+        })
+        .collect();
+
+    assert!(strings.contains(&"a".to_string()));
+    assert!(strings.contains(&"b".to_string()));
+    assert!(ints.contains(&1));
+    assert!(ints.contains(&2));
+}

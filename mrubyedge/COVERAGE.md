@@ -372,6 +372,7 @@ Includes Enumerable.
 | `#to_h` | |
 | `#values` | |
 | `#inspect` | alias: `to_s` |
+| `#flatten` | returns an array of [key1, value1, key2, value2, ...] |
 
 ---
 
