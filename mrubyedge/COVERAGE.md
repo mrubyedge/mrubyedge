@@ -34,6 +34,9 @@ A list of currently supported classes and methods, based on the implementations 
 | `#method_missing` | |
 | `#extend` | |
 | `#loop` | |
+| `#block_given?` | |
+| `#respond_to?` | |
+| `#public_send` | |
 | `#wasm?` | mruby/edge specific |
 | `#puts` | `[feature: wasi]` only |
 | `#p` | `[feature: wasi]` only |
@@ -209,6 +212,7 @@ Exception
 |---|---|
 | `#to_s` | |
 | `#inspect` | `:sym` format |
+| `#to_proc` | converts symbol to a proc that calls the method |
 
 ---
 

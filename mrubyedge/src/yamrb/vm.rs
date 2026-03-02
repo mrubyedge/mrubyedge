@@ -895,6 +895,7 @@ pub struct CALLINFO {
     pub n_args: usize,
     pub return_reg: usize,
     pub method_owner: Option<Rc<RModule>>,
+    pub has_block: Cell<bool>,
 }
 
 #[derive(Debug, Clone)]

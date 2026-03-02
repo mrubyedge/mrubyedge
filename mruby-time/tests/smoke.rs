@@ -5,6 +5,7 @@ mod helpers;
 use helpers::*;
 
 /// Helper: build a VM with Time initialized and a fixed Time.__source returning [sec, nsec].
+#[allow(unused)]
 fn make_vm_with_time_source(sec: i64, nsec: u32) -> mrubyedge::yamrb::vm::VM {
     use mrubyedge::yamrb::helpers::mrb_define_singleton_cmethod;
     use mrubyedge::yamrb::value::RObject;

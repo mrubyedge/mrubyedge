@@ -160,7 +160,6 @@ fn mrb_time_now(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
 
 /// Time.at(sec) or Time.at(sec, nsec)
 fn mrb_time_at(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let args = strip_trailing_nil(args);
     if args.is_empty() {
         return Err(Error::ArgumentError(
             "wrong number of arguments (given 0, expected 1+)".to_string(),
@@ -253,7 +252,6 @@ fn mrb_time_to_s(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
 
 /// Time#+ (sec as integer or float)
 fn mrb_time_add(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let args = strip_trailing_nil(args);
     if args.is_empty() {
         return Err(Error::ArgumentError(
             "wrong number of arguments (given 0, expected 1)".to_string(),
@@ -276,7 +274,6 @@ fn mrb_time_add(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error>
 
 /// Time#- (sec as integer or float), also supports Time - Time -> Float (seconds)
 fn mrb_time_sub(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let args = strip_trailing_nil(args);
     if args.is_empty() {
         return Err(Error::ArgumentError(
             "wrong number of arguments (given 0, expected 1)".to_string(),
@@ -309,7 +306,6 @@ fn mrb_time_sub(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error>
 
 /// Time#<=> (compare with another Time object)
 fn mrb_time_cmp(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let args = strip_trailing_nil(args);
     if args.is_empty() {
         return Err(Error::ArgumentError(
             "wrong number of arguments (given 0, expected 1)".to_string(),
@@ -345,7 +341,6 @@ fn mrb_time_utc_offset(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>
 
 /// Time#localtime(offset) - returns a new Time with the given UTC offset (in seconds)
 fn mrb_time_localtime(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let args = strip_trailing_nil(args);
     let self_obj = vm.getself()?;
     let t = get_time_data(&self_obj)?;
 
@@ -423,14 +418,6 @@ fn local_utc_offset_secs() -> i32 {
 // ---------------------------------------------------------------------------
 // Helper utilities
 // ---------------------------------------------------------------------------
-
-fn strip_trailing_nil(args: &[Rc<RObject>]) -> &[Rc<RObject>] {
-    if !args.is_empty() && args[args.len() - 1].is_nil() {
-        &args[0..args.len() - 1]
-    } else {
-        args
-    }
-}
 
 fn get_integer_or_float_as_i64(obj: &RObject) -> Result<i64, Error> {
     match &obj.value {

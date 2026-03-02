@@ -494,6 +494,7 @@ pub(crate) fn push_callinfo(
         return_reg,
         target_class: vm.target_class.clone(),
         method_owner,
+        has_block: Cell::new(false),
     };
     vm.current_callinfo = Some(Rc::new(callinfo));
 }
@@ -1023,11 +1024,16 @@ pub(crate) fn do_op_send(
     vm.kargs.borrow_mut().replace(map);
 
     if let Some(blk_index) = blk_index {
-        args.push(vm.get_current_regs_cloned(blk_index)?);
+        let blk_val = vm.get_current_regs_cloned(blk_index)?;
+        if matches!(blk_val.tt, RType::Symbol) {
+            let proc_val = mrb_funcall(vm, Some(blk_val), "to_proc", &[])?;
+            args.push(proc_val);
+        } else {
+            args.push(blk_val);
+        }
     } else {
-        // When no block is provided, set nil in the block register
+        // When no block is provided, do not push a nil placeholder
         vm.current_regs()[block_index].replace(Rc::new(RObject::nil()));
-        args.push(Rc::new(RObject::nil()));
     }
 
     let klass = recv.get_class(vm);
@@ -1098,6 +1104,11 @@ pub(crate) fn do_op_send(
     }
 
     push_callinfo(vm, method_id, n, Some(owner_module), a as usize);
+
+    // Set has_block flag based on whether a block was provided
+    if let Some(ci) = vm.current_callinfo.as_ref() {
+        ci.has_block.set(blk_index.is_some());
+    }
 
     vm.pc.set(0);
     vm.current_irep = method.irep.ok_or_else(|| Error::internal("empry irep"))?;
@@ -1253,15 +1264,15 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
-struct EnterArgInfo {
-    m1: u32,
-    o: u32,
-    r: u32,
-    m2: u32,
-    k: u32,
-    d: u32,
-    b: u32,
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct EnterArgInfo {
+    pub m1: u32,
+    pub o: u32,
+    pub r: u32,
+    pub m2: u32,
+    pub k: u32,
+    pub d: u32,
+    pub b: u32,
 }
 
 impl From<u32> for EnterArgInfo {
