@@ -7,10 +7,10 @@ description = "mruby-serde-json provides JSON serialization/deserialization for 
 license = "BSD-3-Clause"
 
 [dependencies]
-mrubyedge = { path = "../mrubyedge" }
+mrubyedge = { version = "1.1.9" }
 serde = ">= 1.0.228"
 serde_json = ">= 1.0.149"
 
 [dev-dependencies]
-mrubyedge = { path = "../mrubyedge", features = ["default"] }
+mrubyedge = { version = "1.1.9", features = ["default"] }
 mec-mrbc-sys = "3.3.1"
