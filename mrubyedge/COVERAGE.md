@@ -342,6 +342,7 @@ Includes Enumerable.
 | `#pack` | format: `Q q L l I i S s C c` |
 | `#inspect` | alias: `to_s` |
 | `#join` | |
+| `#flatten` | returns a new flattened array (recursive) |
 
 ---
 

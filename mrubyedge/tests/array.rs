@@ -391,3 +391,186 @@ fn array_reference_mutation_recursive_test() {
         assert_eq!(val, (i + 1) as i64);
     }
 }
+
+#[test]
+fn array_flatten_basic_test() {
+    let code = r#"
+    def test_flatten_basic
+      [1, 2, [3, 4]].flatten
+    end
+    "#;
+    let binary = mrbc_compile("flatten_basic", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_flatten_basic", &args).unwrap();
+    let arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+
+    assert_eq!(arr.len(), 4);
+    let vals: Vec<i64> = arr
+        .iter()
+        .map(|r| r.as_ref().try_into().unwrap())
+        .collect();
+    assert_eq!(vals, vec![1, 2, 3, 4]);
+}
+
+#[test]
+fn array_flatten_nested_test() {
+    let code = r#"
+    def test_flatten_nested
+      [1, [2, [3, 4]], 5].flatten
+    end
+    "#;
+    let binary = mrbc_compile("flatten_nested", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_flatten_nested", &args).unwrap();
+    let arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+
+    assert_eq!(arr.len(), 5);
+    let vals: Vec<i64> = arr
+        .iter()
+        .map(|r| r.as_ref().try_into().unwrap())
+        .collect();
+    assert_eq!(vals, vec![1, 2, 3, 4, 5]);
+}
+
+#[test]
+fn array_flatten_empty_test() {
+    let code = r#"
+    def test_flatten_empty
+      [].flatten
+    end
+    "#;
+    let binary = mrbc_compile("flatten_empty", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_flatten_empty", &args).unwrap();
+    let arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+
+    assert_eq!(arr.len(), 0);
+}
+
+#[test]
+fn array_flatten_no_nested_test() {
+    let code = r#"
+    def test_flatten_no_nested
+      [1, 2, 3].flatten
+    end
+    "#;
+    let binary = mrbc_compile("flatten_no_nested", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_flatten_no_nested", &args).unwrap();
+    let arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+
+    assert_eq!(arr.len(), 3);
+    let vals: Vec<i64> = arr
+        .iter()
+        .map(|r| r.as_ref().try_into().unwrap())
+        .collect();
+    assert_eq!(vals, vec![1, 2, 3]);
+}
+
+#[test]
+fn array_flatten_self_basic_test() {
+    let code = r#"
+    def test_flatten_self_basic
+      a = [1, 2, [3, 4]]
+      a.flatten!
+      a
+    end
+    "#;
+    let binary = mrbc_compile("flatten_self_basic", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_flatten_self_basic", &args).unwrap();
+    let arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+
+    assert_eq!(arr.len(), 4);
+    let vals: Vec<i64> = arr
+        .iter()
+        .map(|r| r.as_ref().try_into().unwrap())
+        .collect();
+    assert_eq!(vals, vec![1, 2, 3, 4]);
+}
+
+#[test]
+fn array_flatten_self_returns_nil_if_no_change_test() {
+    let code = r#"
+    def test_flatten_self_no_change
+      a = [1, 2, 3]
+      a.flatten!
+    end
+    "#;
+    let binary = mrbc_compile("flatten_self_no_change", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_flatten_self_no_change", &args).unwrap();
+
+    // Should return nil if no changes were made
+    assert!(result.as_ref().is_nil());
+}
+
+#[test]
+fn array_flatten_self_returns_self_if_changed_test() {
+    let code = r#"
+    def test_flatten_self_changed
+      a = [1, [2], 3]
+      result = a.flatten!
+      [result, a]
+    end
+    "#;
+    let binary = mrbc_compile("flatten_self_changed", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_flatten_self_changed", &args).unwrap();
+    let outer: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+
+    // result (outer[0]) should be the same as a (outer[1])
+    let result_arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        outer[0].as_ref().try_into().unwrap();
+    let a_arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        outer[1].as_ref().try_into().unwrap();
+
+    assert_eq!(result_arr.len(), 3);
+    assert_eq!(a_arr.len(), 3);
+
+    let result_vals: Vec<i64> = result_arr
+        .iter()
+        .map(|r| r.as_ref().try_into().unwrap())
+        .collect();
+    let a_vals: Vec<i64> = a_arr
+        .iter()
+        .map(|r| r.as_ref().try_into().unwrap())
+        .collect();
+
+    assert_eq!(result_vals, vec![1, 2, 3]);
+    assert_eq!(a_vals, vec![1, 2, 3]);
+}

@@ -118,6 +118,13 @@ pub(crate) fn initialize_array(vm: &mut VM) {
     );
     mrb_define_cmethod(vm, array_class.clone(), "to_s", Box::new(mrb_array_inspect));
     mrb_define_cmethod(vm, array_class.clone(), "join", Box::new(mrb_array_join));
+    mrb_define_cmethod(vm, array_class.clone(), "flatten", Box::new(mrb_array_flatten));
+    mrb_define_cmethod(
+        vm,
+        array_class.clone(),
+        "flatten!",
+        Box::new(mrb_array_flatten_self),
+    );
 
     let enumerable_module = vm.get_module_by_name("Enumerable");
     mrb_include_module(&array_class, enumerable_module).expect("failed to include Enumerable");
@@ -659,6 +666,56 @@ fn mrb_array_join(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
     }
 
     Ok(Rc::new(RObject::string(result)))
+}
+
+/// Array#flatten: Returns a new array that is a one-dimensional flattening of self (recursively)
+fn mrb_array_flatten(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
+    let mut result = Vec::new();
+    do_array_flatten_recursive(&this, &mut result);
+    Ok(Rc::new(RObject::array(result)))
+}
+
+/// Helper function to recursively flatten an array
+fn do_array_flatten_recursive(array: &[Rc<RObject>], result: &mut Vec<Rc<RObject>>) {
+    for elem in array {
+        if let RValue::Array(inner_array) = &elem.value {
+            // Recursively flatten if element is an array
+            let inner: Vec<Rc<RObject>> = inner_array.borrow().clone();
+            do_array_flatten_recursive(&inner, result);
+        } else {
+            // Otherwise, add the element as-is
+            result.push(elem.clone());
+        }
+    }
+}
+
+/// Array#flatten!: Flattens self in place (recursively)
+fn mrb_array_flatten_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    let arr: Vec<Rc<RObject>> = this.as_ref().try_into()?;
+
+    let flattened: Vec<Rc<RObject>> = mrb_funcall(vm, Some(this.clone()), "flatten", &[])?
+        .as_ref()
+        .try_into()?;
+
+    // Return nil if no changes were made
+    if flattened.len() == arr.len() {
+        // Check if the structure actually changed
+        let mut changed = false;
+        for (i, elem) in arr.iter().enumerate() {
+            if elem.as_eq_value() != flattened[i].as_eq_value() {
+                changed = true;
+                break;
+            }
+        }
+        if !changed {
+            return Ok(Rc::new(RObject::nil()));
+        }
+    }
+
+    *this.array_borrow_mut()? = flattened;
+    Ok(this)
 }
 
 #[test]
