@@ -11,6 +11,7 @@ use super::prelude::prelude;
 use super::value::RHashMap;
 use super::value::*;
 use super::{op, optable::*};
+use super::optable::EnterArgInfo;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const ENGINE: &str = "mruby/edge";
@@ -895,6 +896,7 @@ pub struct CALLINFO {
     pub n_args: usize,
     pub return_reg: usize,
     pub method_owner: Option<Rc<RModule>>,
+    pub has_block: Cell<bool>,
 }
 
 #[derive(Debug, Clone)]

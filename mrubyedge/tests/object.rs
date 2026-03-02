@@ -317,3 +317,103 @@ fn object_loop_basic_test() {
         .unwrap();
     assert_eq!(result, 5);
 }
+
+#[test]
+fn object_block_given_with_block_test() {
+    let code = r#"
+    def method_with_block
+      block_given?
+    end
+
+    def test_block_given_with_block
+      method_with_block { }
+    end
+    "#;
+    let binary = mrbc_compile("block_given_with_block", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: bool = mrb_funcall(&mut vm, None, "test_block_given_with_block", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, true);
+}
+
+#[test]
+fn object_block_given_without_block_test() {
+    let code = r#"
+    def method_with_block
+      block_given?
+    end
+
+    def test_block_given_without_block
+      method_with_block
+    end
+    "#;
+    let binary = mrbc_compile("block_given_without_block", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: bool = mrb_funcall(&mut vm, None, "test_block_given_without_block", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, false);
+}
+
+#[test]
+fn object_block_given_with_args_and_block_test() {
+    let code = r#"
+    def method_with_args(a, b, c)
+      block_given?
+    end
+
+    def test_block_given_with_args_and_block
+      method_with_args(1, 2, 3) { }
+    end
+    "#;
+    let binary = mrbc_compile("block_given_with_args_and_block", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: bool = mrb_funcall(&mut vm, None, "test_block_given_with_args_and_block", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, true);
+}
+
+#[test]
+fn object_block_given_with_args_without_block_test() {
+    let code = r#"
+    def method_with_args(a, b, c)
+      block_given?
+    end
+
+    def test_block_given_with_args_without_block
+      method_with_args(1, 2, 3)
+    end
+    "#;
+    let binary = mrbc_compile("block_given_with_args_without_block", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: bool = mrb_funcall(&mut vm, None, "test_block_given_with_args_without_block", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, false);
+}

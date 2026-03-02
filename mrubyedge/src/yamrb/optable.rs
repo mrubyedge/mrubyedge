@@ -494,6 +494,7 @@ pub(crate) fn push_callinfo(
         return_reg,
         target_class: vm.target_class.clone(),
         method_owner,
+        has_block: Cell::new(false),
     };
     vm.current_callinfo = Some(Rc::new(callinfo));
 }
@@ -1104,6 +1105,11 @@ pub(crate) fn do_op_send(
 
     push_callinfo(vm, method_id, n, Some(owner_module), a as usize);
 
+    // Set has_block flag based on whether a block was provided
+    if let Some(ci) = vm.current_callinfo.as_ref() {
+        ci.has_block.set(blk_index.is_some());
+    }
+
     vm.pc.set(0);
     vm.current_irep = method.irep.ok_or_else(|| Error::internal("empry irep"))?;
     vm.current_regs_offset += a as usize;
@@ -1258,15 +1264,15 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
-struct EnterArgInfo {
-    m1: u32,
-    o: u32,
-    r: u32,
-    m2: u32,
-    k: u32,
-    d: u32,
-    b: u32,
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct EnterArgInfo {
+    pub m1: u32,
+    pub o: u32,
+    pub r: u32,
+    pub m2: u32,
+    pub k: u32,
+    pub d: u32,
+    pub b: u32,
 }
 
 impl From<u32> for EnterArgInfo {
