@@ -19,7 +19,7 @@ fn mrb_test_dummy_raise(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObjec
 }
 
 fn prelude_custom_error_func(vm: &mut VM) {
-    // ユーザー定義例外クラス CustomError を StandardError のサブクラスとして登録
+    // Register user-defined exception class CustomError as a subclass of StandardError
     let std_err = vm.get_class_by_name("StandardError");
     vm.define_class("CustomError", Some(std_err), None);
 
@@ -162,7 +162,7 @@ fn custom_error_raise_test() {
     prelude_custom_error_func(&mut vm);
     vm.run().unwrap();
 
-    // Assert: ユーザー定義例外 CustomError が関数内で raise されてもエラーが伝播する
+    // Assert: CustomError raised inside a function propagates correctly
     let args = vec![];
     let result = mrb_funcall(&mut vm, None, "test_raise", &args).err();
     assert_eq!(
@@ -186,7 +186,7 @@ fn custom_error_rescue_test() {
     prelude_custom_error_func(&mut vm);
     vm.run().unwrap();
 
-    // Assert: ユーザー定義例外 CustomError を rescue で catch できる
+    // Assert: CustomError raised inside a function can be caught by rescue
     let args = vec![];
     let result: String = mrb_funcall(&mut vm, None, "test_raise", &args)
         .unwrap()
