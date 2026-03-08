@@ -1238,6 +1238,12 @@ impl RClass {
             Error::NameError(_) => vm.get_class_by_name("NameError"),
             Error::ZeroDivisionError => vm.get_class_by_name("ZeroDivisionError"),
 
+            Error::TaggedError(tag, _) => vm
+                .get_const_by_name(tag)
+                .and_then(|exc| exc.get_class(vm).into())
+                .or_else(|| vm.get_class_by_name("Exception").into())
+                .expect("Invalid error tag"),
+
             Error::Break(_) => vm.get_class_by_name("_Break"),
             Error::BlockReturn(_, _) => vm.get_class_by_name("_BlockReturn"),
         }

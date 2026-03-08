@@ -19,6 +19,8 @@ pub enum Error {
     NameError(String),
     ZeroDivisionError,
 
+    TaggedError(&'static str, String),
+
     Break(Rc<RObject>),
     BlockReturn(usize, Rc<RObject>),
 }
@@ -48,6 +50,8 @@ impl Error {
             Error::NoMethodError(msg) => format!("Method not found: {}", msg),
             Error::NameError(msg) => format!("Cannot found name: {}", msg),
             Error::ZeroDivisionError => "divided by 0".to_string(),
+
+            Error::TaggedError(tag, msg) => format!("[{}] {}", tag, msg),
 
             Error::Break(_) => "[Break]".to_string(),
             Error::BlockReturn(_, _) => "[BlockReturn]".to_string(),
@@ -114,6 +118,8 @@ impl From<Error> for StaticError {
             Error::NoMethodError(msg) => StaticError::General(format!("Method not found: {}", msg)),
             Error::NameError(msg) => StaticError::General(format!("Cannot found name: {}", msg)),
             Error::ZeroDivisionError => StaticError::General("divided by 0".to_string()),
+
+            Error::TaggedError(tag, msg) => StaticError::General(format!("[{}] {}", tag, msg)),
 
             Error::Break(_) => StaticError::General("[Break]".to_string()),
             Error::BlockReturn(_, _) => StaticError::General("[BlockReturn]".to_string()),
