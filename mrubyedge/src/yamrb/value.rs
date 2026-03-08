@@ -1240,9 +1240,14 @@ impl RClass {
 
             Error::TaggedError(tag, _) => vm
                 .get_const_by_name(tag)
-                .and_then(|exc| exc.get_class(vm).into())
-                .or_else(|| vm.get_class_by_name("Exception").into())
-                .expect("Invalid error tag"),
+                .and_then(|obj| {
+                    if let RValue::Class(c) = &obj.value {
+                        Some(c.clone())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_else(|| vm.get_class_by_name("Exception")),
 
             Error::Break(_) => vm.get_class_by_name("_Break"),
             Error::BlockReturn(_, _) => vm.get_class_by_name("_BlockReturn"),

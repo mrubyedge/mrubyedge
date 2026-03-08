@@ -18,6 +18,22 @@ fn mrb_test_dummy_raise(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObjec
     Err(Error::RuntimeError("Intentional Rust Error".to_string()))
 }
 
+fn prelude_custom_error_func(vm: &mut VM) {
+    // ユーザー定義例外クラス CustomError を StandardError のサブクラスとして登録
+    let std_err = vm.get_class_by_name("StandardError");
+    vm.define_class("CustomError", Some(std_err), None);
+
+    let klass = vm.object_class.clone();
+    mrb_define_cmethod(vm, klass, "custom_raise", Box::new(mrb_test_custom_raise));
+}
+
+fn mrb_test_custom_raise(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    Err(Error::TaggedError(
+        "CustomError",
+        "Intentional Custom Error".to_string(),
+    ))
+}
+
 #[test]
 fn rust_raise_test() {
     let code = "
@@ -131,4 +147,51 @@ fn rust_noname_rescue_test() {
         .try_into()
         .unwrap();
     assert_eq!(&result, "rescued: Cannot found name: NoName");
+}
+
+#[test]
+fn custom_error_raise_test() {
+    let code = "
+    def test_raise
+      custom_raise
+    end
+    ";
+    let binary = mrbc_compile("custom_error_raise", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    prelude_custom_error_func(&mut vm);
+    vm.run().unwrap();
+
+    // Assert: ユーザー定義例外 CustomError が関数内で raise されてもエラーが伝播する
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_raise", &args).err();
+    assert_eq!(
+        &result.unwrap().message(),
+        "[CustomError] Intentional Custom Error"
+    );
+}
+
+#[test]
+fn custom_error_rescue_test() {
+    let code = "
+    def test_raise
+      custom_raise
+    rescue => e
+      \"rescued: #{e.message}\"
+    end
+    ";
+    let binary = mrbc_compile("custom_error_rescue", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    prelude_custom_error_func(&mut vm);
+    vm.run().unwrap();
+
+    // Assert: ユーザー定義例外 CustomError を rescue で catch できる
+    let args = vec![];
+    let result: String = mrb_funcall(&mut vm, None, "test_raise", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(&result, "rescued: [CustomError] Intentional Custom Error");
 }
