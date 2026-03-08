@@ -516,9 +516,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.182"
+version = "0.2.183"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
+checksum = "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
 
 [[package]]
 name = "libloading"
@@ -622,19 +622,6 @@ dependencies = [
 
 [[package]]
 name = "mrubyedge"
-version = "1.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8196b89b47357c9d189abfdcb6024b0842817d089742cb127f5a223c11592a2b"
-dependencies = [
- "plain",
- "rand_core 0.10.0",
- "rand_xorshift",
- "regex",
- "simple_endian",
-]
-
-[[package]]
-name = "mrubyedge"
 version = "1.1.10"
 dependencies = [
  "criterion",
@@ -650,14 +637,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "mrubyedge"
+version = "1.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d5fb7c3a4987ec0c40b6363c463393f7550859e1963c6a4d4716d6169320160"
+dependencies = [
+ "plain",
+ "rand_core 0.10.0",
+ "rand_xorshift",
+ "regex",
+ "simple_endian",
+]
+
+[[package]]
 name = "mrubyedge-cli"
-version = "1.1.9"
+version = "1.1.10"
 dependencies = [
  "askama",
  "clap",
  "crossterm",
  "mruby-compiler2-sys",
- "mrubyedge 1.1.9",
+ "mrubyedge 1.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "mrubyedge-math 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "mrubyedge-time 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom",
@@ -670,7 +670,7 @@ name = "mrubyedge-math"
 version = "0.1.1"
 dependencies = [
  "mec-mrbc-sys",
- "mrubyedge 1.1.9",
+ "mrubyedge 1.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -679,7 +679,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94ab341d1a13e87a66cde9725f0a2f15a2e88c806b7995d9eb69968f4162fa45"
 dependencies = [
- "mrubyedge 1.1.9",
+ "mrubyedge 1.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -687,7 +687,7 @@ name = "mrubyedge-serde-json"
 version = "0.1.1"
 dependencies = [
  "mec-mrbc-sys",
- "mrubyedge 1.1.9",
+ "mrubyedge 1.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
 ]
@@ -698,7 +698,7 @@ version = "0.1.2"
 dependencies = [
  "libc",
  "mec-mrbc-sys",
- "mrubyedge 1.1.9",
+ "mrubyedge 1.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -708,7 +708,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "143c9c3b434a5c16e206d2cb18917f8b6a8e035259b01029a2c7f9196a9642ec"
 dependencies = [
  "libc",
- "mrubyedge 1.1.9",
+ "mrubyedge 1.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -841,9 +841,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.44"
+version = "1.0.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b2ebcf727b7760c461f091f9f0f539b77b8e87f2fd88131e7f1b433b3cece4"
+checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
 dependencies = [
  "proc-macro2",
 ]
