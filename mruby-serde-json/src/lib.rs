@@ -8,6 +8,10 @@ use mrubyedge::{
 };
 
 pub fn init_json(vm: &mut VM) {
+    if vm.get_const_by_name("JSON").is_some() {
+        return;
+    }
+
     let json_class = vm.define_class("JSON", None, None);
 
     mrb_define_class_cmethod(
