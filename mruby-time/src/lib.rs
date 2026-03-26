@@ -475,6 +475,10 @@ fn float_to_sec_nsec(obj: &RObject) -> Result<(i64, u32), Error> {
 /// Initialize the Time class in the VM.
 /// Call this after `VM::open` to make `Time` available in Ruby code.
 pub fn init_time(vm: &mut VM) {
+    if vm.get_const_by_name("Time").is_some() {
+        return;
+    }
+
     let time_class = vm.define_class("Time", None, None);
 
     // Class methods

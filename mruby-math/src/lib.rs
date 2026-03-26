@@ -10,6 +10,10 @@ use mrubyedge::{
 };
 
 pub fn init_math(vm: &mut VM) {
+    if vm.get_const_by_name("Math").is_some() {
+        return;
+    }
+
     let math_module = vm.define_module("Math", None);
 
     // Define constants
