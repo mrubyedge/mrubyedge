@@ -1,6 +1,6 @@
 [package]
 name = "mrubyedge-time"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 authors = ["Uchio Kondo <udzura@udzura.jp>"]
 description = "mruby-time provides Time class for mruby/edge"
