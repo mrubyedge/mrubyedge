@@ -38,6 +38,20 @@ pub(crate) fn initialize_float(vm: &mut VM) {
     );
     mrb_define_cmethod(vm, float_class.clone(), "to_s", Box::new(mrb_float_inspect));
     mrb_define_cmethod(vm, float_class.clone(), "clamp", Box::new(mrb_float_clamp));
+
+    let mut const_table = float_class.consts.borrow_mut();
+    const_table.insert(
+        "INFINITY".to_string(),
+        RObject::float(f64::INFINITY).to_refcount_assigned(),
+    );
+    const_table.insert(
+        "NAN".to_string(),
+        RObject::float(f64::NAN).to_refcount_assigned(),
+    );
+    const_table.insert(
+        "EPSILON".to_string(),
+        RObject::float(f64::EPSILON).to_refcount_assigned(),
+    );
 }
 
 pub fn mrb_float_to_i(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
