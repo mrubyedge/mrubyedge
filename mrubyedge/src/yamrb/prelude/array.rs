@@ -197,8 +197,12 @@ pub fn mrb_array_get_index(this: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc
             ));
         }
     };
-    let index: u32 = args[0].as_ref().try_into()?;
-    let value = array.borrow()[index as usize].clone();
+    let index: i32 = args[0].as_ref().try_into()?;
+    let value = if index < 0 {
+        array.borrow()[(array.borrow().len() as i32 + index) as usize].clone()
+    } else {
+        array.borrow()[index as usize].clone()
+    };
     Ok(value)
 }
 
@@ -208,11 +212,16 @@ fn mrb_array_set_index_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
 }
 
 pub fn mrb_array_set_index(this: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let index: usize = args[0].as_ref().try_into()?;
+    let index: i32 = args[0].as_ref().try_into()?;
     let value = &args[1];
     match &this.value {
         RValue::Array(a) => {
             let mut a = a.borrow_mut();
+            let index = if index < 0 {
+                (a.len() as i32 + index) as usize
+            } else {
+                index as usize
+            };
             if a.len() <= index {
                 a.insert(index, value.clone());
             } else {

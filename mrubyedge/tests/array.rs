@@ -62,6 +62,47 @@ fn array_at_test() {
 }
 
 #[test]
+fn array_negative_index_test() {
+    let code = r#"
+    def test_array_negative_index
+      arr = [1, 2, 3]
+      [arr[-1], arr[-2], arr[-3]]
+    end
+    "#;
+    let binary = mrbc_compile("array_negative_index", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_array_negative_index", &args).unwrap();
+    let result: (i32, i32, i32) = result.as_ref().try_into().unwrap();
+    assert_eq!(result, (3, 2, 1));
+}
+
+#[test]
+fn array_set_negative_index_test() {
+    let code = r#"
+    def test_array_set_negative_index
+      arr = [1, 2, 3]
+      arr[-1] = 4
+      arr[-2] = 5
+      arr[-3] = 6
+      arr
+    end
+    "#;
+    let binary = mrbc_compile("array_set_negative_index", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_array_set_negative_index", &args).unwrap();
+    let result: (i32, i32, i32) = result.as_ref().try_into().unwrap();
+    assert_eq!(result, (6, 5, 4));
+}
+
+#[test]
 fn array_clear_test() {
     let code = r#"
     def test_array_clear
