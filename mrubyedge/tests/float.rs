@@ -95,3 +95,60 @@ fn float_add_integer_test() {
     let result_float: f64 = result.as_ref().try_into().unwrap();
     assert_eq!(result_float, 8.5);
 }
+
+#[test]
+fn float_infinite_test() {
+    let code = r#"
+    def test_infinite
+      value = 1.0 / 0.0
+      value.infinite?
+    end
+    "#;
+    let binary = mrbc_compile("float_infinite", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_infinite", &args).unwrap();
+    let infinite: bool = result.as_ref().try_into().unwrap();
+    assert!(infinite);
+}
+
+#[test]
+fn float_finite_test() {
+    let code = r#"
+    def test_finite
+      value = 1.0 / 1.0
+      value.finite?
+    end
+    "#;
+    let binary = mrbc_compile("float_finite", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_finite", &args).unwrap();
+    let finite: bool = result.as_ref().try_into().unwrap();
+    assert!(finite);
+}
+
+#[test]
+fn float_nan_test() {
+    let code = r#"
+    def test_nan
+      value = 0.0 / 0.0
+      value.nan?
+    end
+    "#;
+    let binary = mrbc_compile("float_nan", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_nan", &args).unwrap();
+    let nan: bool = result.as_ref().try_into().unwrap();
+    assert!(nan);
+}
