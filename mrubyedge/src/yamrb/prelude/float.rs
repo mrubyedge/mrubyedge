@@ -20,11 +20,38 @@ pub(crate) fn initialize_float(vm: &mut VM) {
     mrb_define_cmethod(
         vm,
         float_class.clone(),
+        "finite?",
+        Box::new(mrb_float_finite),
+    );
+    mrb_define_cmethod(
+        vm,
+        float_class.clone(),
+        "infinite?",
+        Box::new(mrb_float_infinite),
+    );
+    mrb_define_cmethod(vm, float_class.clone(), "nan?", Box::new(mrb_float_nan));
+    mrb_define_cmethod(
+        vm,
+        float_class.clone(),
         "inspect",
         Box::new(mrb_float_inspect),
     );
     mrb_define_cmethod(vm, float_class.clone(), "to_s", Box::new(mrb_float_inspect));
     mrb_define_cmethod(vm, float_class.clone(), "clamp", Box::new(mrb_float_clamp));
+
+    let mut const_table = float_class.consts.borrow_mut();
+    const_table.insert(
+        "INFINITY".to_string(),
+        RObject::float(f64::INFINITY).to_refcount_assigned(),
+    );
+    const_table.insert(
+        "NAN".to_string(),
+        RObject::float(f64::NAN).to_refcount_assigned(),
+    );
+    const_table.insert(
+        "EPSILON".to_string(),
+        RObject::float(f64::EPSILON).to_refcount_assigned(),
+    );
 }
 
 pub fn mrb_float_to_i(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -46,6 +73,42 @@ pub fn mrb_float_to_f(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>,
         crate::yamrb::value::RValue::Float(f) => Ok(RObject::float(*f).to_refcount_assigned()),
         _ => Err(Error::RuntimeError(
             "Float#to_f must be called on a Float".to_string(),
+        )),
+    }
+}
+
+pub fn mrb_float_finite(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    match &this.value {
+        crate::yamrb::value::RValue::Float(f) => {
+            Ok(RObject::boolean(f.is_finite()).to_refcount_assigned())
+        }
+        _ => Err(Error::RuntimeError(
+            "Float#finite? must be called on a Float".to_string(),
+        )),
+    }
+}
+
+pub fn mrb_float_infinite(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    match &this.value {
+        crate::yamrb::value::RValue::Float(f) => {
+            Ok(RObject::boolean(f.is_infinite()).to_refcount_assigned())
+        }
+        _ => Err(Error::RuntimeError(
+            "Float#infinite? must be called on a Float".to_string(),
+        )),
+    }
+}
+
+pub fn mrb_float_nan(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    let this = vm.getself()?;
+    match &this.value {
+        crate::yamrb::value::RValue::Float(f) => {
+            Ok(RObject::boolean(f.is_nan()).to_refcount_assigned())
+        }
+        _ => Err(Error::RuntimeError(
+            "Float#nan? must be called on a Float".to_string(),
         )),
     }
 }
