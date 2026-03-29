@@ -2,7 +2,10 @@ extern crate mec_mrbc_sys;
 extern crate mrubyedge;
 
 mod helpers;
+use std::rc::Rc;
+
 use helpers::*;
+use mrubyedge::RObject;
 
 #[test]
 fn float_clamp_test() {
@@ -151,4 +154,32 @@ fn float_nan_test() {
     let result = mrb_funcall(&mut vm, None, "test_nan", &args).unwrap();
     let nan: bool = result.as_ref().try_into().unwrap();
     assert!(nan);
+}
+
+#[test]
+fn float_constants_test() {
+    let code = r#"
+    def test_constants
+      [
+       Float::INFINITY,
+       Float::NAN,
+       Float::EPSILON
+      ]
+    end
+    "#;
+    let binary = mrbc_compile("float_constants", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_constants", &args).unwrap();
+    let constants: Vec<Rc<RObject>> = result.as_ref().try_into().unwrap();
+    let floats: Vec<f64> = constants
+        .iter()
+        .map(|c| c.as_ref().try_into().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(floats[0], f64::INFINITY);
+    assert!(floats[1].is_nan());
+    assert_eq!(floats[2], f64::EPSILON);
 }
