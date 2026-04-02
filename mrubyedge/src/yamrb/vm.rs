@@ -645,7 +645,18 @@ impl VM {
 
     /// Defines a new module, optionally nested under another module, and stores
     /// it in the VM's constant table so it becomes accessible to Ruby code.
+    /// If a module with the same name already exists, it returns the existing one.
     pub fn define_module(&mut self, name: &str, parent_module: Option<Rc<RModule>>) -> Rc<RModule> {
+        let existing = if let Some(ref parent) = parent_module {
+            parent.consts.borrow().get(name).cloned()
+        } else {
+            self.consts.get(name).cloned()
+        };
+        if let Some(existing) = existing
+            && let RValue::Module(ref m) = existing.value
+        {
+            return m.clone();
+        }
         let module = Rc::new(RModule::new(name));
         if let Some(parent) = parent_module {
             module.parent.replace(Some(parent));
