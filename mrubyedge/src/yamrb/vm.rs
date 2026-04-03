@@ -658,15 +658,19 @@ impl VM {
             return m.clone();
         }
         let module = Rc::new(RModule::new(name));
-        if let Some(parent) = parent_module {
-            module.parent.replace(Some(parent));
+        if let Some(ref parent) = parent_module {
+            module.parent.replace(Some(parent.clone()));
         }
         let object = RObject::module(module.clone()).to_refcount_assigned();
         self.consts.insert(name.to_string(), object.clone());
-        self.object_class
-            .consts
-            .borrow_mut()
-            .insert(name.to_string(), object);
+        if let Some(parent) = parent_module {
+            parent.consts.borrow_mut().insert(name.to_string(), object);
+        } else {
+            self.object_class
+                .consts
+                .borrow_mut()
+                .insert(name.to_string(), object);
+        }
         module
     }
 
