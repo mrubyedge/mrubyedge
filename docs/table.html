@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mruby Bytecode Table (with Types)</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Meiryo, system-ui, -apple-system, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 20px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: #0d47a1;
+        }
+
+        table {
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            width: 75px;
+            height: 45px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 0.8rem;
+        }
+
+        th {
+            background-color: #e9ecef;
+            font-weight: bold;
+            color: #555;
+        }
+
+        td.opcode {
+            cursor: pointer;
+            font-family: "Consolas", monospace;
+            transition: background-color 0.2s;
+        }
+
+        td.opcode:hover {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            font-weight: bold;
+        }
+
+        td.empty {
+            background-color: #fafafa;
+        }
+
+        /* ポップアップ（ツールチップ）のスタイル */
+        #tooltip {
+            position: absolute;
+            display: none;
+            background-color: rgba(33, 33, 33, 0.95);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            line-height: 1.4;
+        }
+
+        .tooltip-header {
+            border-bottom: 1px solid #555;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .tooltip-hex {
+            color: #90caf9;
+            font-family: monospace;
+        }
+
+        .tooltip-name {
+            color: #fff;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .tooltip-type {
+            color: #ffcc80;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .tooltip-desc {
+            color: #e0e0e0;
+            display: block;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>mruby Bytecode Table</h1>
+    <div id="tooltip">
+        <div class="tooltip-header">
+            <span class="tooltip-hex"></span>
+            <span class="tooltip-name"></span>
+            <span class="tooltip-type"></span>
+        </div>
+        <span class="tooltip-desc"></span>
+    </div>
+
+    <div id="table-container"></div>
+
+    <script>
+        // オペコード名, 引数タイプ, 日本語説明のリスト
+        const opcodes = [
+            { n: "NOP", t: "Z", d: "何もしない" },
+            { n: "MOVE", t: "BB", d: "レジスタ間の値コピー (R[a] = R[b])" },
+            { n: "LOADL", t: "BB", d: "プールから値を読み込む (R[a] = Pool[b])" },
+            { n: "LOADI8", t: "BB", d: "8ビット整数を読み込む (R[a] = mrb_int(b))" },
+            { n: "LOADINEG", t: "BB", d: "負の整数を読み込む (R[a] = mrb_int(-b))" },
+            { n: "LOADI__1", t: "B", d: "-1を読み込む (R[a] = mrb_int(-1))" },
+            { n: "LOADI_0", t: "B", d: "0を読み込む (R[a] = mrb_int(0))" },
+            { n: "LOADI_1", t: "B", d: "1を読み込む (R[a] = mrb_int(1))" },
+            { n: "LOADI_2", t: "B", d: "2を読み込む (R[a] = mrb_int(2))" },
+            { n: "LOADI_3", t: "B", d: "3を読み込む (R[a] = mrb_int(3))" },
+            { n: "LOADI_4", t: "B", d: "4を読み込む (R[a] = mrb_int(4))" },
+            { n: "LOADI_5", t: "B", d: "5を読み込む (R[a] = mrb_int(5))" },
+            { n: "LOADI_6", t: "B", d: "6を読み込む (R[a] = mrb_int(6))" },
+            { n: "LOADI_7", t: "B", d: "7を読み込む (R[a] = mrb_int(7))" },
+            { n: "LOADI16", t: "BS", d: "16ビット整数を読み込む (R[a] = mrb_int(b))" },
+            { n: "LOADI32", t: "BSS", d: "32ビット整数を読み込む (R[a] = mrb_int((b<<16)+c))" },
+            { n: "LOADSYM", t: "BB", d: "シンボルを読み込む (R[a] = Syms[b])" },
+            { n: "LOADNIL", t: "B", d: "nilを代入 (R[a] = nil)" },
+            { n: "LOADSELF", t: "B", d: "selfを代入 (R[a] = self)" },
+            { n: "LOADT", t: "B", d: "trueを代入 (R[a] = true)" },
+            { n: "LOADF", t: "B", d: "falseを代入 (R[a] = false)" },
+            { n: "GETGV", t: "BB", d: "グローバル変数を取得" },
+            { n: "SETGV", t: "BB", d: "グローバル変数に代入" },
+            { n: "GETSV", t: "BB", d: "特殊変数を取得" },
+            { n: "SETSV", t: "BB", d: "特殊変数に代入" },
+            { n: "GETIV", t: "BB", d: "インスタンス変数を取得" },
+            { n: "SETIV", t: "BB", d: "インスタンス変数に代入" },
+            { n: "GETCV", t: "BB", d: "クラス変数を取得" },
+            { n: "SETCV", t: "BB", d: "クラス変数に代入" },
+            { n: "GETCONST", t: "BB", d: "定数を取得" },
+            { n: "SETCONST", t: "BB", d: "定数に代入" },
+            { n: "GETMCNST", t: "BB", d: "モジュール内定数を取得" },
+            { n: "SETMCNST", t: "BB", d: "モジュール内定数に代入" },
+            { n: "GETUPVAR", t: "BBB", d: "上位変数の取得 (uvget)" },
+            { n: "SETUPVAR", t: "BBB", d: "上位変数への代入 (uvset)" },
+            { n: "GETIDX", t: "B", d: "インデックス参照 (R[a] = R[a][R[a+1]])" },
+            { n: "SETIDX", t: "B", d: "インデックス代入 (R[a][R[a+1]] = R[a+2])" },
+            { n: "JMP", t: "S", d: "無条件ジャンプ" },
+            { n: "JMPIF", t: "BS", d: "真ならジャンプ" },
+            { n: "JMPNOT", t: "BS", d: "偽ならジャンプ" },
+            { n: "JMPNIL", t: "BS", d: "nilならジャンプ" },
+            { n: "JMPUW", t: "S", d: "Unwindジャンプ (例外用)" },
+            { n: "EXCEPT", t: "B", d: "例外オブジェクトを取得" },
+            { n: "RESCUE", t: "BB", d: "例外捕捉チェック" },
+            { n: "RAISEIF", t: "B", d: "条件付き例外発生" },
+            { n: "SSEND", t: "BBB", d: "selfへのメソッド呼び出し" },
+            { n: "SSENDB", t: "BBB", d: "selfへのブロック付き呼出" },
+            { n: "SEND", t: "BBB", d: "メソッド呼び出し" },
+            { n: "SENDB", t: "BBB", d: "ブロック付き呼出" },
+            { n: "CALL", t: "Z", d: "関数呼び出し (末尾再帰対応)" },
+            { n: "SUPER", t: "BB", d: "superの呼び出し" },
+            { n: "ARGARY", t: "BS", d: "引数配列の構築" },
+            { n: "ENTER", t: "W", d: "メソッド引数の受取設定" },
+            { n: "KEY_P", t: "BB", d: "キーワード引数のチェック" },
+            { n: "KEYEND", t: "Z", d: "キーワード引数の終端チェック" },
+            { n: "KARG", t: "BB", d: "キーワード引数の取得" },
+            { n: "RETURN", t: "B", d: "リターン" },
+            { n: "RETURN_BLK", t: "B", d: "ブロック内からのリターン" },
+            { n: "BREAK", t: "B", d: "ループ脱出" },
+            { n: "BLKPUSH", t: "BS", d: "ブロックをスタックへ" },
+            { n: "ADD", t: "B", d: "加算 (R[a] + R[a+1])" },
+            { n: "ADDI", t: "BB", d: "即値加算 (R[a] + b)" },
+            { n: "SUB", t: "B", d: "減算 (R[a] - R[a+1])" },
+            { n: "SUBI", t: "BB", d: "即値減算 (R[a] - b)" },
+            { n: "MUL", t: "B", d: "乗算" },
+            { n: "DIV", t: "B", d: "除算" },
+            { n: "EQ", t: "B", d: "等号比較 (==)" },
+            { n: "LT", t: "B", d: "小なり (<)" },
+            { n: "LE", t: "B", d: "以下 (<=)" },
+            { n: "GT", t: "B", d: "大なり (>)" },
+            { n: "GE", t: "B", d: "以上 (>=)" },
+            { n: "ARRAY", t: "BB", d: "配列作成" },
+            { n: "ARRAY2", t: "BBB", d: "配列作成 (範囲指定)" },
+            { n: "ARYCAT", t: "B", d: "配列結合" },
+            { n: "ARYPUSH", t: "BB", d: "配列への追加" },
+            { n: "ARYSPLAT", t: "B", d: "配列展開" },
+            { n: "AREF", t: "BBB", d: "配列要素参照" },
+            { n: "ASET", t: "BBB", d: "配列要素代入" },
+            { n: "APOST", t: "BBB", d: "配列の多重代入展開" },
+            { n: "INTERN", t: "B", d: "シンボル化" },
+            { n: "SYMBOL", t: "BB", d: "プール文字列をシンボル化" },
+            { n: "STRING", t: "BB", d: "文字列の生成" },
+            { n: "STRCAT", t: "B", d: "文字列結合" },
+            { n: "HASH", t: "BB", d: "ハッシュ生成" },
+            { n: "HASHADD", t: "BB", d: "ハッシュ要素追加" },
+            { n: "HASHCAT", t: "B", d: "ハッシュ結合" },
+            { n: "LAMBDA", t: "BB", d: "ラムダ生成" },
+            { n: "BLOCK", t: "BB", d: "ブロック生成" },
+            { n: "METHOD", t: "BB", d: "メソッド生成" },
+            { n: "RANGE_INC", t: "B", d: "範囲生成 (終端含む)" },
+            { n: "RANGE_EXC", t: "B", d: "範囲生成 (終端含まず)" },
+            { n: "OCLASS", t: "B", d: "Objectクラス取得" },
+            { n: "CLASS", t: "BB", d: "クラス定義" },
+            { n: "MODULE", t: "BB", d: "モジュール定義" },
+            { n: "EXEC", t: "BB", d: "定義内実行" },
+            { n: "DEF", t: "BB", d: "メソッド定義" },
+            { n: "ALIAS", t: "BB", d: "エイリアス定義" },
+            { n: "UNDEF", t: "B", d: "メソッド未定義化" },
+            { n: "SCLASS", t: "B", d: "特異クラス取得" },
+            { n: "TCLASS", t: "B", d: "ターゲットクラス取得" },
+            { n: "DEBUG", t: "BBB", d: "デバッグ表示" },
+            { n: "ERR", t: "B", d: "例外の発生" },
+            { n: "EXT1", t: "Z", d: "第1引数拡張" },
+            { n: "EXT2", t: "Z", d: "第2引数拡張" },
+            { n: "EXT3", t: "Z", d: "両引数拡張" },
+            { n: "STOP", t: "Z", d: "VM停止" }
+        ];
+
+        const COLUMNS = 16;
+        const TOTAL_OPCODES = opcodes.length;
+        const tableContainer = document.getElementById("table-container");
+
+        // テーブル作成
+        let html = "<table><thead><tr><th></th>";
+        for (let i = 0; i < COLUMNS; i++) {
+            html += `<th>+${i.toString(16).toUpperCase()}</th>`;
+        }
+        html += "</tr></thead><tbody>";
+
+        let rows = Math.ceil(TOTAL_OPCODES / COLUMNS);
+
+        for (let r = 0; r < rows; r++) {
+            html += `<tr><th>0x${(r * COLUMNS).toString(16).padStart(2, '0').toUpperCase()}</th>`;
+            for (let c = 0; c < COLUMNS; c++) {
+                let index = r * COLUMNS + c;
+                if (index < TOTAL_OPCODES) {
+                    let op = opcodes[index];
+                    let hexCode = "0x" + index.toString(16).padStart(2, '0').toUpperCase();
+                    html += `<td class="opcode" 
+                            data-hex="${hexCode}" 
+                            data-name="${op.n}" 
+                            data-type="${op.t}" 
+                            data-desc="${op.d}">${op.n}</td>`;
+                } else {
+                    html += `<td class="empty"></td>`;
+                }
+            }
+            html += "</tr>";
+        }
+        html += "</tbody></table>";
+        tableContainer.innerHTML = html;
+
+        // ツールチップ制御
+        const tooltip = document.getElementById("tooltip");
+        const tHex = tooltip.querySelector(".tooltip-hex");
+        const tName = tooltip.querySelector(".tooltip-name");
+        const tType = tooltip.querySelector(".tooltip-type");
+        const tDesc = tooltip.querySelector(".tooltip-desc");
+
+        document.querySelectorAll("td.opcode").forEach(cell => {
+            cell.addEventListener("mousemove", (e) => {
+                tooltip.style.display = "block";
+                tHex.textContent = cell.getAttribute("data-hex");
+                tName.textContent = cell.getAttribute("data-name");
+                tType.textContent = "[" + cell.getAttribute("data-type") + "]";
+                tDesc.textContent = cell.getAttribute("data-desc");
+
+                tooltip.style.left = (e.pageX + 15) + "px";
+                tooltip.style.top = (e.pageY + 15) + "px";
+            });
+            cell.addEventListener("mouseleave", () => {
+                tooltip.style.display = "none";
+            });
+        });
+    </script>
+
+</body>
+
+</html>
