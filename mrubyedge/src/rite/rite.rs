@@ -243,13 +243,13 @@ pub fn section_irep_1(head: &[u8]) -> Result<(usize, SectionIrepHeader, Vec<Irep
                     cur += 8;
                 }
                 7 => {
-                    // IREP_TT_BIGINT: Big integer (not yet fully supported)
-                    let data = &head[cur..cur + 2];
-                    let bigint_len = be16_to_u16([data[0], data[1]]) as usize;
-                    cur += 2;
-                    let bigint_data = head[cur..cur + bigint_len].to_vec();
+                    // IREP_TT_BIGINT: [len:u8][base:i8][digits]
+                    let bigint_len = head.get(cur).copied().ok_or(Error::TooShort)? as usize;
+                    cur += 1;
+                    let bigint_end = cur + bigint_len + 1; // base byte + digits
+                    let bigint_data = head.get(cur..bigint_end).ok_or(Error::TooShort)?.to_vec();
                     pool.push(PoolValue::BigInt(bigint_data));
-                    cur += bigint_len;
+                    cur = bigint_end;
                 }
                 v => {
                     return Err(Error::UnknownPoolType(v));

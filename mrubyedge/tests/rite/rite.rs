@@ -95,6 +95,50 @@ fn test_rite_parse_pool_values() {
 }
 
 #[test]
+fn test_rite_parse_bigint_pool_value() {
+    let code = r#"
+    x = 99999999999999999999999
+    x
+    "#;
+    let binary = mrbc_compile("bigint", code);
+
+    let rite = mrubyedge::rite::load(&binary).unwrap();
+
+    use mrubyedge::rite::PoolValue;
+    let bigint = rite.irep[0]
+        .pool
+        .iter()
+        .find_map(|p| match p {
+            PoolValue::BigInt(bytes) => Some(bytes),
+            _ => None,
+        })
+        .expect("Should have a BigInt in pool");
+
+    // `[base][digits]`: base 10 followed by the 23 decimal digits.
+    assert_eq!(bigint.len(), 24);
+    assert_eq!(bigint[0], 10);
+    assert!(bigint[1..].iter().all(|&b| b == b'9'));
+}
+
+#[test]
+fn test_rite_truncated_bigint_is_error_not_panic() {
+    let binary = mrbc_compile("bigint", "x = 99999999999999999999999");
+    let digits = [b'9'; 23];
+    let digits_start = binary
+        .windows(digits.len())
+        .position(|w| w == digits)
+        .expect("Should find the bigint digits");
+
+    // Layout before the digits is [type=7][len:u8][base:i8].
+    let len_pos = digits_start - 2;
+    let mut chunk = binary.clone();
+    chunk[len_pos] = 0xff;
+
+    // An out-of-bounds length must be reported, not panic.
+    assert!(mrubyedge::rite::load(&chunk).is_err());
+}
+
+#[test]
 fn a_chunk_of_an_unknown_format_version_is_refused_test() {
     let binary = mrbc_compile("compiled", "1 + 1");
 
