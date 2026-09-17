@@ -1671,12 +1671,9 @@ pub(crate) fn op_add(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         (RValue::Integer(n1), RValue::Float(n2)) => Rc::new(RObject::float(*n1 as f64 + n2)),
         (RValue::Float(n1), RValue::Integer(n2)) => Rc::new(RObject::float(n1 + *n2 as f64)),
         (RValue::String(n1, _), RValue::String(n2, _)) => {
-            let mut n1 = n1.borrow_mut();
-            let n2 = n2.borrow();
-            for c in n2.iter() {
-                n1.push(*c);
-            }
-            val1.clone()
+            let mut bytes = n1.borrow().to_vec();
+            bytes.extend_from_slice(&n2.borrow());
+            Rc::new(RObject::string_from_vec(bytes))
         }
         _ => {
             let args = vec![val2.clone()];

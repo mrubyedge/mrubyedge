@@ -686,3 +686,24 @@ fn string_size_test() {
     let result: i64 = result.as_ref().try_into().unwrap();
     assert_eq!(result, 5);
 }
+
+#[test]
+fn string_add_does_not_mutate_left_operand_test() {
+    let code = r#"
+    def test_string_add_no_mutate
+      a = "foo"
+      b = a
+      a + "bar"
+      b
+    end
+    "#;
+    let binary = mrbc_compile("string_add_no_mutate", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_string_add_no_mutate", &args).unwrap();
+    let result: String = result.as_ref().try_into().unwrap();
+    assert_eq!(result, "foo");
+}
