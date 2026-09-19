@@ -139,3 +139,43 @@ fn expired_closure_test() {
         .unwrap();
     assert_eq!(result, 3);
 }
+
+#[test]
+fn cross_file_irep_ids_do_not_collide() {
+    // Two blobs loaded into one VM must not reuse irep ids. Per-file numbering
+    // used to collide, so a method returning from one file captured its
+    // registers into another file's live block environment (the outer env of
+    // the nested each in build_layer). That shrank the captured window below
+    // the upvar index and panicked on the read.
+    let build = "
+    def build_layer
+      a = 0; b = 1; c = 2; d = 3; e = 4; f = 5
+      draws = []
+      [1, 2].each do |x|
+        foreign_return
+        [3, 4].each { |arr| draws << arr }
+      end
+      draws.size
+    end
+    ";
+    let foreign = "
+    def foreign_return
+      q = 1
+      q
+    end
+    ";
+    let mut vm = mrubyedge::yamrb::vm::VM::empty();
+    for (name, code) in [("cross_file_build", build), ("cross_file_foreign", foreign)] {
+        let binary = mrbc_compile(name, code);
+        let mut rite = mrubyedge::rite::load(&binary).unwrap();
+        vm.eval_rite(&mut rite).unwrap();
+    }
+
+    let args = vec![];
+    let result: i32 = mrb_funcall(&mut vm, None, "build_layer", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert_eq!(result, 4);
+}

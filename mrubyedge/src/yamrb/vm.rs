@@ -1,6 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::mem::MaybeUninit;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{array, env};
 
 use crate::Error;
@@ -11,6 +12,13 @@ use super::prelude::prelude;
 use super::value::RHashMap;
 use super::value::*;
 use super::{op, optable::*};
+
+// IREP ids must be unique across every loaded script: the VM keys closure
+// environments by the enclosing irep's id (`cur_env`, `has_env_ref` and the
+// `__irep_id` equality in op_return). Per-file numbering collides, letting a
+// returning method from one file capture its registers into another file's
+// live block environment.
+static NEXT_IREP_ID: AtomicUsize = AtomicUsize::new(1);
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const ENGINE: &str = "mruby/edge";
@@ -810,7 +818,7 @@ fn interpret_insn(mut insns: &[u8]) -> Vec<Op> {
 fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
     let irep = &mut reps[pos];
     let mut irep1 = IREP {
-        __id: pos,
+        __id: NEXT_IREP_ID.fetch_add(1, Ordering::SeqCst),
         nlocals: irep.nlocals(),
         nregs: irep.nregs(),
         rlen: irep.rlen(),
