@@ -153,19 +153,40 @@ pub fn mrb_array_inspect(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObjec
     Ok(Rc::new(RObject::string(s)))
 }
 
-pub fn mrb_array_new(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let array = if args.is_empty() {
-        vec![]
-    } else {
-        let size: usize = args[0].as_ref().try_into()?;
-        {
-            let mut v = Vec::with_capacity(size);
-            for _ in 0..size {
-                v.push(Rc::new(RObject::nil()));
-            }
-            v
-        }
+pub fn mrb_array_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
+    // Honor the block form `Array.new(size) { |i| }` (the block rides as the
+    // trailing argument) and the default-value form `Array.new(size, obj)`,
+    // matching CRuby. Previously the block was ignored and the array was
+    // always filled with nil.
+    let block = match args.last().map(|a| &a.value) {
+        Some(RValue::Proc(_)) => args.last().cloned(),
+        _ => None,
     };
+    let positional: &[Rc<RObject>] = if block.is_some() {
+        &args[..args.len() - 1]
+    } else {
+        args
+    };
+    let mut array = Vec::new();
+    if let Some(size) = positional.first() {
+        let n: i64 = size.as_ref().try_into()?;
+        if n < 0 {
+            return Err(Error::ArgumentError("negative array size".to_string()));
+        }
+        for i in 0..n {
+            let elem = match &block {
+                Some(b) => {
+                    let idx = Rc::new(RObject::integer(i));
+                    mrb_call_block(vm, b.clone(), None, std::slice::from_ref(&idx), 0)?
+                }
+                None => positional
+                    .get(1)
+                    .cloned()
+                    .unwrap_or_else(|| Rc::new(RObject::nil())),
+            };
+            array.push(elem);
+        }
+    }
     Ok(Rc::new(RObject::array(array)))
 }
 
@@ -193,15 +214,25 @@ pub fn mrb_array_get_index(this: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc
         RValue::Array(a) => a.clone(),
         _ => {
             return Err(Error::RuntimeError(
-                "Array#push must be called on an Array".to_string(),
+                "Array#[] must be called on an Array".to_string(),
             ));
         }
     };
-    let index: i32 = args[0].as_ref().try_into()?;
-    let value = if index < 0 {
-        array.borrow()[(array.borrow().len() as i32 + index) as usize].clone()
-    } else {
-        array.borrow()[index as usize].clone()
+    let index: i64 = args
+        .first()
+        .ok_or_else(|| {
+            Error::ArgumentError("wrong number of arguments (given 0, expected 1)".to_string())
+        })?
+        .as_ref()
+        .try_into()?;
+    let elems = array.borrow();
+    let len = elems.len() as i64;
+    let idx = if index < 0 { index + len } else { index };
+    // Out-of-range reads return nil (as in CRuby) instead of panicking on
+    // the Vec index.
+    let value = match elems.get(idx as usize) {
+        Some(v) => v.clone(),
+        None => Rc::new(RObject::nil()),
     };
     Ok(value)
 }
