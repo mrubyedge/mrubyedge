@@ -251,12 +251,12 @@ pub(crate) fn consume_expr(
         SETIV => {
             op_setiv(vm, operand)?;
         }
-        // GETCV => {
-        //     // op_getcv(vm, &operand)?;
-        // }
-        // SETCV => {
-        //     // op_setcv(vm, &operand)?;
-        // }
+        GETCV => {
+            op_getcv(vm, operand)?;
+        }
+        SETCV => {
+            op_setcv(vm, operand)?;
+        }
         GETCONST => {
             op_getconst(vm, operand)?;
         }
@@ -266,9 +266,9 @@ pub(crate) fn consume_expr(
         GETMCNST => {
             op_getmcnst(vm, operand)?;
         }
-        // SETMCNST => {
-        //     // op_setmcnst(vm, &operand)?;
-        // }
+        SETMCNST => {
+            op_setmcnst(vm, operand)?;
+        }
         GETUPVAR => {
             op_getupvar(vm, operand)?;
         }
@@ -715,6 +715,78 @@ pub(crate) fn op_setiv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     Ok(())
 }
 
+// Class variables are stored in the canonical class object's ivar table
+// (mirroring mruby, which keeps cvars in RClass.iv). Resolution walks the
+// superclass chain of the class of self, never the metaclass: mruby resolves
+// class(self) which for a class body self is the singleton, but the observable
+// result is the same for normal use.
+pub(crate) fn op_getcv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bb()?;
+    let name = vm.current_irep.syms[b as usize].name.clone();
+    let value = cvar_lookup(vm, &name)?;
+    vm.current_regs()[a as usize].replace(value);
+    Ok(())
+}
+
+// Assignment walks the chain and overwrites the cvar at its definition site
+// when an ancestor defines it, so subclasses and parent share one value;
+// otherwise it is stored on the class of self.
+pub(crate) fn op_setcv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bb()?;
+    let name = vm.current_irep.syms[b as usize].name.clone();
+    let value = vm.get_current_regs_cloned(a as usize)?;
+    cvar_set(vm, &name, value);
+    Ok(())
+}
+
+/// Class context for cvar resolution: the class whose body runs (self is a
+/// Class) or the runtime class of self inside an instance method.
+fn class_context(vm: &mut VM) -> Result<Rc<RClass>, Error> {
+    let obj = vm.current_regs()[0]
+        .clone()
+        .ok_or_else(|| Error::internal("self is not assigned"))?;
+    match &obj.value {
+        RValue::Class(klass) => Ok(klass.clone()),
+        // Quirk (documented): module-level cvars are unsupported — the module
+        // wrapper is recreated on each RObject::module() call, so there is no
+        // stable table to persist into.
+        RValue::Module(_) => Err(Error::TypeMismatch),
+        _ => Ok(obj.get_class(vm)),
+    }
+}
+
+fn cvar_lookup(vm: &mut VM, name: &str) -> Result<Rc<RObject>, Error> {
+    let mut current: Option<Rc<RClass>> = Some(class_context(vm)?);
+    while let Some(klass) = current.clone() {
+        let wrapper = RObject::class(klass.clone(), vm);
+        if let Some(val) = wrapper.ivar.borrow().get(name).cloned() {
+            return Ok(val);
+        }
+        current = klass.super_class.clone();
+    }
+    Err(Error::NameError(format!(
+        "uninitialized class variable {name}"
+    )))
+}
+
+fn cvar_set(vm: &mut VM, name: &str, value: Rc<RObject>) {
+    let cls = match class_context(vm) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let mut current = Some(cls.clone());
+    while let Some(klass) = current.clone() {
+        let wrapper = RObject::class(klass.clone(), vm);
+        if wrapper.ivar.borrow().contains_key(name) {
+            wrapper.ivar.borrow_mut().insert(name.to_string(), value);
+            return;
+        }
+        current = klass.super_class.clone();
+    }
+    let wrapper = RObject::class(cls, vm);
+    wrapper.ivar.borrow_mut().insert(name.to_string(), value);
+}
+
 pub(crate) fn op_getconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let name = vm.current_irep.syms[b as usize].name.clone();
@@ -764,6 +836,29 @@ pub(crate) fn op_getmcnst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     }
 
     Err(Error::NameError(name.clone()))
+}
+
+// Operand layout is value in R[a], module in R[a+1]
+// (mruby: mrb_const_set(R[a+1], Syms[b], R[a])). The top-level `::B = v` case
+// resolves the module to Object's class, whose module consts are read by bare
+// GETCONST through the class-of-self fallback.
+pub(crate) fn op_setmcnst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bb()?;
+    let name = vm.current_irep.syms[b as usize].name.clone();
+    let module = vm.get_current_regs_cloned(a as usize + 1)?;
+    let value = vm.get_current_regs_cloned(a as usize)?;
+    match &module.value {
+        RValue::Class(klass) => {
+            klass.module.consts.borrow_mut().insert(name, value);
+        }
+        RValue::Module(module) => {
+            module.consts.borrow_mut().insert(name, value);
+        }
+        _ => {
+            return Err(Error::TypeMismatch);
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn op_getupvar(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {

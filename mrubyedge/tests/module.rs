@@ -246,3 +246,90 @@ MyClass.new.greet
         .expect("greet should return string");
     assert_eq!(value, "hello from Inner");
 }
+
+#[test]
+fn setmcnst_module_const_test() {
+    let code = r#"
+    module M
+    end
+    M::X = 42
+    def setmcnst_module_const
+      M::X
+    end
+    "#;
+    let binary = mrbc_compile("setmcnst_module_const", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "setmcnst_module_const", &args).unwrap();
+    let result: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(result, 42);
+}
+
+#[test]
+fn setmcnst_overwrite_test() {
+    let code = r#"
+    module N
+    end
+    N::X = 1
+    N::X = 2
+    def setmcnst_overwrite
+      N::X
+    end
+    "#;
+    let binary = mrbc_compile("setmcnst_overwrite", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "setmcnst_overwrite", &args).unwrap();
+    let result: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(result, 2);
+}
+
+#[test]
+fn setmcnst_nested_path_test() {
+    let code = r#"
+    module X
+      module Y
+      end
+    end
+    X::Y::Z = 9
+    def setmcnst_nested_path
+      X::Y::Z
+    end
+    "#;
+    let binary = mrbc_compile("setmcnst_nested_path", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "setmcnst_nested_path", &args).unwrap();
+    let result: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(result, 9);
+}
+
+#[test]
+fn setmcnst_class_const_test() {
+    let code = r#"
+    class C
+    end
+    C::K = 5
+    def setmcnst_class_const
+      C::K
+    end
+    "#;
+    let binary = mrbc_compile("setmcnst_class_const", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "setmcnst_class_const", &args).unwrap();
+    let result: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(result, 5);
+}
