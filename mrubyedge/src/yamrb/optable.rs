@@ -392,9 +392,9 @@ pub(crate) fn consume_expr(
         ARYCAT => {
             op_arycat(vm, operand)?;
         }
-        // ARYPUSH => {
-        //     // op_arypush(vm, &operand)?;
-        // }
+        ARYPUSH => {
+            op_arypush(vm, operand)?;
+        }
         // ARYSPLAT => {
         //     // op_arysplat(vm, &operand)?;
         // }
@@ -1943,6 +1943,32 @@ pub(crate) fn op_arycat(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             unreachable!("arycat supports only array")
         }
     };
+    Ok(())
+}
+
+pub(crate) fn op_arypush(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bb()?;
+    let a = a as usize;
+    let b = b as usize;
+
+    let items: Vec<Rc<RObject>> = (0..b)
+        .map(|i| vm.take_current_regs(a + 1 + i))
+        .collect::<Result<_, _>>()?;
+
+    let ary = vm.get_current_regs_cloned(a)?;
+    match &ary.value {
+        RValue::Array(_) => {
+            let mut inner = ary.array_borrow_mut()?;
+            inner.extend(items);
+        }
+        RValue::Nil => {
+            let val = RObject::array(items);
+            vm.current_regs()[a].replace(val.to_refcount_assigned());
+        }
+        _ => {
+            unreachable!("arypush supports only array")
+        }
+    }
     Ok(())
 }
 
