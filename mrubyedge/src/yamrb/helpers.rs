@@ -40,6 +40,11 @@ fn call_block(
         .as_ref()
         .ok_or_else(|| Error::RuntimeError("No IREP".to_string()))?
         .clone();
+    // The callee's environ becomes the active upper env, but the caller's must
+    // be restored on return. Deriving the restore from the callee's environ
+    // chain used to clobber `vm.upper` to `None` after native->Ruby calls,
+    // corrupting the upvar chain of enclosing blocks.
+    let prev_upper = vm.upper.take();
     vm.upper = block.environ;
 
     let res = vm.run_internal();
@@ -66,11 +71,7 @@ fn call_block(
         vm.current_regs_offset = ci.current_regs_offset;
         vm.target_class = ci.target_class.clone();
     }
-    if let Some(upper) = vm.upper.take()
-        && let Some(upper) = &upper.as_ref().upper
-    {
-        vm.upper.replace(upper.clone());
-    }
+    vm.upper = prev_upper;
 
     match &res {
         Ok(res) => Ok(res.clone()),
