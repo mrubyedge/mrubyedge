@@ -790,7 +790,13 @@ fn cvar_set(vm: &mut VM, name: &str, value: Rc<RObject>) {
 pub(crate) fn op_getconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let name = vm.current_irep.syms[b as usize].name.clone();
-    let mut current = current_namespace(vm);
+    // In an instance method there is no lexical namespace, so fall back to the
+    // runtime class of self.
+    let mut current = current_namespace(vm).or_else(|| {
+        vm.current_regs()[0]
+            .clone()
+            .map(|o| o.get_class(vm).module.clone())
+    });
 
     // Walk namespace chain upwards until found or reach top-level
     while let Some(ns) = current.clone() {
@@ -813,7 +819,18 @@ pub(crate) fn op_setconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let name = vm.current_irep.syms[b as usize].name.clone();
     let val = vm.get_current_regs_cloned(a as usize)?;
-    vm.consts.insert(name, val);
+    match current_namespace(vm) {
+        Some(ns) => {
+            ns.consts.borrow_mut().insert(name, val);
+        }
+        None => {
+            // Top-level constants also live in Object's table (define_class/
+            // define_module mirror there); keep both in sync so reads through
+            // the class of self agree.
+            vm.consts.insert(name.clone(), val.clone());
+            vm.object_class.module.consts.borrow_mut().insert(name, val);
+        }
+    }
     Ok(())
 }
 

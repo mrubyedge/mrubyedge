@@ -379,6 +379,11 @@ impl VM {
         self.pc.set(0);
         self.current_irep = Rc::new(irep);
 
+        // Each script evaluates against a fresh top-level self; a stale
+        // Class/Module in regs[0] would make top-level constant assignments
+        // land in the previous script's namespace.
+        self.current_regs()[0] = None;
+
         let upper = self.current_breadcrumb.take();
         let new_breadcrumb = Rc::new(Breadcrumb {
             upper,

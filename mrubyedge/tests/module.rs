@@ -333,3 +333,109 @@ fn setmcnst_class_const_test() {
     let result: i64 = result.as_ref().try_into().unwrap();
     assert_eq!(result, 5);
 }
+
+#[test]
+fn setmcnst_top_level_const_test() {
+    let code = r#"
+    ::G = 7
+    def setmcnst_top_level
+      G
+    end
+    "#;
+    let binary = mrbc_compile("setmcnst_top_level", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "setmcnst_top_level", &args).unwrap();
+    let result: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(result, 7);
+}
+
+#[test]
+fn constants_inside_module_are_scoped_to_the_module() {
+    let script = r#"
+module CptnTiles
+  Grass = 0
+  Earth = 1
+end
+CptnTiles::Earth
+"#;
+    let binary = mrbc_compile("module_const_scoped", script);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let value: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(value, 1);
+}
+
+#[test]
+fn nested_module_constants_resolve_through_the_path() {
+    let script = r#"
+module Outer
+  module Inner
+    V = 7
+  end
+end
+Outer::Inner::V
+"#;
+    let binary = mrbc_compile("module_const_nested", script);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let value: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(value, 7);
+}
+
+#[test]
+fn class_constants_resolve_qualified() {
+    let script = r#"
+class C
+  W = 10
+end
+C::W
+"#;
+    let binary = mrbc_compile("class_const_qualified", script);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let value: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(value, 10);
+}
+
+#[test]
+fn class_constants_stay_readable_from_instance_methods() {
+    let script = r#"
+class C
+  W = 10
+  def read
+    W
+  end
+end
+C.new.read
+"#;
+    let binary = mrbc_compile("class_const_from_method", script);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let value: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(value, 10);
+}
+
+#[test]
+fn class_constants_do_not_leak_to_top_level_bare_reads() {
+    let script = r#"
+class C
+  X = 1
+end
+X
+"#;
+    let binary = mrbc_compile("class_const_no_leak", script);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    assert!(
+        vm.run().is_err(),
+        "bare top-level X should not resolve C::X"
+    );
+}
