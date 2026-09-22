@@ -628,3 +628,63 @@ fn array_literal_over_stack_flush_test() {
     let last: i64 = outer[3].as_ref().try_into().unwrap();
     assert_eq!((size, first, middle, last), (144, 1, 73, 144));
 }
+
+#[test]
+fn array_return_splat_array_test() {
+    let code = r#"
+    def test_return_splat
+      a = [1, 2, 3]
+      return *a
+    end
+    "#;
+    let binary = mrbc_compile("return_splat_array", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_return_splat", &args).unwrap();
+    let arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+    let vals: Vec<i64> = arr.iter().map(|r| r.as_ref().try_into().unwrap()).collect();
+    assert_eq!(vals, vec![1, 2, 3]);
+}
+
+#[test]
+fn array_return_splat_nil_test() {
+    let code = r#"
+    def test_return_splat_nil
+      return *nil
+    end
+    "#;
+    let binary = mrbc_compile("return_splat_nil", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_return_splat_nil", &args).unwrap();
+    let arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+    assert_eq!(arr.len(), 0);
+}
+
+#[test]
+fn array_return_splat_scalar_test() {
+    let code = r#"
+    def test_return_splat_scalar
+      return *5
+    end
+    "#;
+    let binary = mrbc_compile("return_splat_scalar", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(&mut vm, None, "test_return_splat_scalar", &args).unwrap();
+    let arr: Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>> =
+        result.as_ref().try_into().unwrap();
+    let vals: Vec<i64> = arr.iter().map(|r| r.as_ref().try_into().unwrap()).collect();
+    assert_eq!(vals, vec![5]);
+}
