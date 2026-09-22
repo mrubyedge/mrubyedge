@@ -222,3 +222,31 @@ fn no_matching_pattern_error_is_a_standard_error_test() {
     let is_standard_error: bool = result.as_ref().try_into().unwrap();
     assert!(is_standard_error);
 }
+
+#[test]
+fn raise_user_defined_class_test() {
+    let code = "
+    class MyError < StandardError
+    end
+
+    def test_raise_class
+      begin
+        raise MyError, \"custom boom\"
+      rescue MyError => e
+        e.message
+      end
+    end
+    ";
+    let binary = mrbc_compile("raise_class", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result: String = mrb_funcall(&mut vm, None, "test_raise_class", &args)
+        .unwrap()
+        .as_ref()
+        .try_into()
+        .unwrap();
+    assert!(result.contains("custom boom"));
+}
