@@ -953,7 +953,7 @@ pub(crate) fn op_matcherr(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         return Ok(());
     }
     Err(Error::TaggedError(
-        "NoMatchingPatternError",
+        "NoMatchingPatternError".to_string(),
         "pattern not matched".to_string(),
     ))
 }
@@ -1099,7 +1099,7 @@ pub(crate) fn op_rescue(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let exc_klass = vm.take_current_regs(b as usize)?;
     let RValue::Class(klass) = exc_klass.value.clone() else {
         return Err(Error::TaggedError(
-            "TypeError",
+            "TypeError".to_string(),
             "class or module required for rescue clause".to_string(),
         ));
     };
@@ -1175,7 +1175,7 @@ pub(crate) fn op_blkcall(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let block = vm.get_current_regs_cloned(a as usize)?;
     if !matches!(block.value, RValue::Proc(_)) {
         return Err(Error::TaggedError(
-            "TypeError",
+            "TypeError".to_string(),
             "wrong type (expected Proc)".to_string(),
         ));
     }

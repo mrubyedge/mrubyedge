@@ -337,10 +337,20 @@ pub fn mrb_object_to_s(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>
 }
 
 pub fn mrb_object_raise(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    // TODO: accept exception class
-    let msg = args[0].as_ref().try_into()?;
-    let err = Error::RuntimeError(msg);
-    Err(err)
+    // raise SomeClass, "message" (or raise SomeClass)
+    if let Some(RValue::Class(klass)) = args.first().map(|a| &a.value) {
+        let class_name = klass.full_name();
+        let msg = match args.get(1) {
+            Some(arg) => String::try_from(arg.as_ref())?,
+            None => class_name.clone(),
+        };
+        return Err(Error::TaggedError(class_name, msg));
+    }
+    let msg = match args.first() {
+        Some(arg) => String::try_from(arg.as_ref())?,
+        None => String::new(),
+    };
+    Err(Error::RuntimeError(msg))
 }
 
 fn mrb_object_nil_p(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

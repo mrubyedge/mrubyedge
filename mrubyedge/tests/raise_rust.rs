@@ -28,7 +28,7 @@ fn prelude_custom_error_func(vm: &mut VM) {
 
 fn mrb_test_custom_raise(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     Err(Error::TaggedError(
-        "CustomError",
+        "CustomError".to_string(),
         "Intentional Custom Error".to_string(),
     ))
 }

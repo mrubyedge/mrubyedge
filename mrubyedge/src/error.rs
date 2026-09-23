@@ -19,7 +19,7 @@ pub enum Error {
     NameError(String),
     ZeroDivisionError,
 
-    TaggedError(&'static str, String),
+    TaggedError(String, String),
 
     Break(Rc<RObject>),
     BlockReturn(usize, Rc<RObject>),

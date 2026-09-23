@@ -37,7 +37,7 @@ end
 
     // Assert
     assert!(
-        matches!(err, Error::TaggedError("NoMatchingPatternError", msg) if msg == "pattern not matched"),
+        matches!(err, Error::TaggedError(tag, msg) if tag == "NoMatchingPatternError" && msg == "pattern not matched"),
         "{:?}",
         err
     );
