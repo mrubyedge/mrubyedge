@@ -395,9 +395,9 @@ pub(crate) fn consume_expr(
         ARYPUSH => {
             op_arypush(vm, operand)?;
         }
-        // ARYSPLAT => {
-        //     // op_arysplat(vm, &operand)?;
-        // }
+        ARYSPLAT => {
+            op_arysplat(vm, operand)?;
+        }
         AREF => {
             op_aref(vm, operand)?;
         }
@@ -422,12 +422,12 @@ pub(crate) fn consume_expr(
         HASH => {
             op_hash(vm, operand)?;
         }
-        // HASHADD => {
-        //     // op_hashadd(vm, &operand)?;
-        // }
-        // HASHCAT => {
-        //     // op_hashcat(vm, &operand)?;
-        // }
+        HASHADD => {
+            op_hashadd(vm, operand)?;
+        }
+        HASHCAT => {
+            op_hashcat(vm, operand)?;
+        }
         LAMBDA => {
             op_lambda(vm, operand)?;
         }
@@ -2067,6 +2067,23 @@ pub(crate) fn op_arypush(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     Ok(())
 }
 
+pub(crate) fn op_arysplat(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let a = operand.as_b()? as usize;
+    let val = vm.get_current_regs_cloned(a)?;
+    match &val.value {
+        RValue::Array(_) => {}
+        RValue::Nil => {
+            let ary = RObject::array(Vec::new());
+            vm.current_regs()[a].replace(ary.to_refcount_assigned());
+        }
+        _ => {
+            let ary = RObject::array(vec![val]);
+            vm.current_regs()[a].replace(ary.to_refcount_assigned());
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn op_aref(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b, c) = operand.as_bbb()?;
     let array = vm.get_current_regs_cloned(b as usize)?;
@@ -2180,6 +2197,55 @@ pub(crate) fn op_hash(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     }
     let val = RObject::hash(hash);
     vm.current_regs()[a].replace(Rc::new(val));
+    Ok(())
+}
+
+pub(crate) fn op_hashadd(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bb()?;
+    let a = a as usize;
+    let b = b as usize;
+
+    let pairs: Vec<(Rc<RObject>, Rc<RObject>)> = (0..b)
+        .map(|i| {
+            let key = vm.take_current_regs(a + i * 2 + 1)?;
+            let val = vm.take_current_regs(a + i * 2 + 2)?;
+            Ok((key, val))
+        })
+        .collect::<Result<_, Error>>()?;
+
+    let hash = vm.get_current_regs_cloned(a)?;
+    let mut inner = hash.hash_borrow_mut()?;
+    for (key, val) in pairs {
+        let hashed = key.as_hash_key()?;
+        inner.insert(hashed, (key, val));
+    }
+    Ok(())
+}
+
+pub(crate) fn op_hashcat(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let a = operand.as_b()? as usize;
+    let other = vm.take_current_regs(a + 1)?;
+
+    let hash = vm.get_current_regs_cloned(a)?;
+    match (&hash.value, &other.value) {
+        (RValue::Hash(_), RValue::Hash(other_hash)) => {
+            let mut inner = hash.hash_borrow_mut()?;
+            for (hashed, (key, val)) in other_hash.borrow().iter() {
+                inner.insert(hashed.clone(), (key.clone(), val.clone()));
+            }
+        }
+        (RValue::Nil, RValue::Hash(other_hash)) => {
+            let mut fresh = RHashMap::default();
+            for (hashed, (key, val)) in other_hash.borrow().iter() {
+                fresh.insert(hashed.clone(), (key.clone(), val.clone()));
+            }
+            let val = RObject::hash(fresh);
+            vm.current_regs()[a].replace(val.to_refcount_assigned());
+        }
+        _ => {
+            return Err(Error::TypeMismatch);
+        }
+    }
     Ok(())
 }
 
