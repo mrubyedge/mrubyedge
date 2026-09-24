@@ -1676,7 +1676,25 @@ fn do_return(vm: &mut VM, value: Option<Rc<RObject>>) -> Result<(), Error> {
 
     let regs0_cloned: Vec<_> = vm.current_regs()[0..nregs].to_vec();
     if let Some(environ) = vm.cur_env.get(&vm.current_irep.__id) {
+        // A captured slot may hold the block proc whose environ is this env,
+        // forming an env -> proc -> env cycle that keeps both alive. Drop
+        // those slots so the proc alone owns the env.
         environ.capture_no_clone(regs0_cloned);
+        let mut captured = environ.captured.borrow_mut();
+        if let Some(captured) = captured.as_mut() {
+            for slot in captured.iter_mut() {
+                let self_ref = matches!(
+                    slot.as_ref().map(|o| &o.value),
+                    Some(RValue::Proc(p))
+                        if p.environ
+                            .as_ref()
+                            .is_some_and(|pe| Rc::ptr_eq(environ, pe))
+                );
+                if self_ref {
+                    *slot = None;
+                }
+            }
+        }
         environ.as_ref().expire();
         vm.has_env_ref.remove(&vm.current_irep.__id);
     }
