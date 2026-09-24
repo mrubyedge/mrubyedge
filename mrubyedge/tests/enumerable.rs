@@ -431,3 +431,45 @@ fn enumerable_sum_empty_with_init_test() {
     let result: String = result.as_ref().try_into().unwrap();
     assert_eq!(result, "abcd");
 }
+
+#[test]
+fn enumerable_hash_each_with_index_destructure_test() {
+    let code = r##"
+    def test_hash_each_with_index_destructure
+      h = { a: 1, b: 2 }
+      result = []
+      h.each_with_index do |(k, v), i|
+        result << "#{k}#{v}@#{i}"
+      end
+      result
+    end
+    "##;
+    let binary = mrbc_compile("hash_each_with_index_destructure", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    vm.run().unwrap();
+
+    let args = vec![];
+    let result = mrb_funcall(
+        &mut vm,
+        None,
+        "test_hash_each_with_index_destructure",
+        &args,
+    )
+    .unwrap();
+    let result_array: Vec<Rc<RObject>> = result.as_ref().try_into().unwrap();
+    assert_eq!(result_array.len(), 2);
+    let entries: Vec<String> = result_array
+        .iter()
+        .map(|r| r.as_ref().try_into().unwrap())
+        .collect();
+    let mut kvs: Vec<&str> = entries.iter().map(|e| &e[..2]).collect();
+    kvs.sort();
+    assert_eq!(kvs, vec!["a1", "b2"]);
+    let mut idxs: Vec<i64> = entries
+        .iter()
+        .map(|e| e[3..].parse::<i64>().unwrap())
+        .collect();
+    idxs.sort();
+    assert_eq!(idxs, vec![0, 1]);
+}
