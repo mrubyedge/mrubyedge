@@ -542,6 +542,7 @@ pub(crate) fn push_callinfo(
     method_owner: Option<Rc<RModule>>,
     return_reg: usize,
 ) {
+    vm.current_n_args.set(n_args);
     let callinfo = CALLINFO {
         prev: vm.current_callinfo.clone(),
         method_id,
@@ -1526,7 +1527,10 @@ impl From<u32> for EnterArgInfo {
 
 pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_w()?;
-    let argc = vm.current_callinfo.as_ref().map_or(0, |ci| ci.n_args);
+    // Read from the VM: `call_block` hides the callinfo while the callee runs,
+    // which made optional arguments fall back to their defaults for
+    // funcall-invoked methods.
+    let argc = vm.current_n_args.get();
     let arg_info = EnterArgInfo::from(a);
     // proc.h MRB_ASPEC_NOBLOCK: n1 (bit 23) refuses a block argument.
     let has_block = vm

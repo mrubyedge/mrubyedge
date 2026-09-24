@@ -129,3 +129,29 @@ format_message("Test")
     let result_str: String = result.as_ref().try_into().unwrap();
     assert_eq!(result_str, "[Info:1] Test");
 }
+
+#[test]
+fn optional_args_survive_native_funcall() {
+    // Class#new invokes initialize through mrb_funcall, which hides the
+    // callinfo; before the fix op_enter saw argc 0 and used the defaults.
+    let code = r#"
+class OptArgs
+  def initialize(a = 1, b = 2)
+    @a = a
+    @b = b
+  end
+
+  def total
+    @a + @b
+  end
+end
+
+OptArgs.new(10).total
+    "#;
+    let binary = mrbc_compile("optional_args_funcall", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let value: i64 = result.as_ref().try_into().unwrap();
+    assert_eq!(value, 12);
+}

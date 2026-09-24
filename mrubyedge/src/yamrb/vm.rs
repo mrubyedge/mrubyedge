@@ -85,6 +85,10 @@ pub struct VM {
     pub regs: [Option<Rc<RObject>>; MAX_REGS_SIZE],
     pub current_regs_offset: usize,
     pub current_callinfo: Option<Rc<CALLINFO>>,
+    /// Argument count of the running frame. `call_block` hides the callinfo
+    /// while the callee runs, so `op_enter` cannot read it from there for
+    /// funcall-invoked methods.
+    pub current_n_args: Cell<usize>,
     pub current_breadcrumb: Option<Rc<Breadcrumb>>,
     pub kargs: RefCell<Option<RHashMap<RSym, Rc<RObject>>>>,
     pub current_kargs: RefCell<Option<Rc<KArgs>>>,
@@ -262,6 +266,7 @@ impl VM {
         let regs: [Option<Rc<RObject>>; MAX_REGS_SIZE] = [const { None }; MAX_REGS_SIZE];
         let current_regs_offset = 0;
         let current_callinfo = None;
+        let current_n_args = Cell::new(0);
         let current_breadcrumb = Some(Rc::new(Breadcrumb {
             upper: None,
             event: "root",
@@ -301,6 +306,7 @@ impl VM {
             regs,
             current_regs_offset,
             current_callinfo,
+            current_n_args,
             current_breadcrumb,
             kargs,
             current_kargs,
