@@ -144,6 +144,27 @@ pub fn mrb_call_block(
     res
 }
 
+/// Runs one iteration of a block for a native iterator. A `break` inside the
+/// block stops the iteration and its value becomes the method's result (Ruby
+/// semantics); the pending exception is consumed so it does not re-fire as a
+/// phantom error in the enclosing loop. Returns `Ok(Some(value))` when the
+/// block broke.
+pub fn mrb_call_block_breakable(
+    vm: &mut VM,
+    block: Rc<RObject>,
+    recv: Option<Rc<RObject>>,
+    args: &[Rc<RObject>],
+) -> Result<Option<Rc<RObject>>, Error> {
+    match mrb_call_block(vm, block, recv, args, 0) {
+        Ok(_) => Ok(None),
+        Err(Error::Break(v)) => {
+            vm.exception.take();
+            Ok(Some(v))
+        }
+        Err(e) => Err(e),
+    }
+}
+
 /// Calls a method on an object by name with the given arguments.
 ///
 /// This is the main function call interface for invoking Ruby methods from Rust code.

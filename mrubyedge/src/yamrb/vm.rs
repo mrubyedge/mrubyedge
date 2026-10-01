@@ -90,6 +90,11 @@ pub struct VM {
     /// funcall-invoked methods.
     pub current_n_args: Cell<usize>,
     pub current_breadcrumb: Option<Rc<Breadcrumb>>,
+    /// Landing pad captured by `OP_BREAK`: the nearest `do_op_send` breadcrumb
+    /// and its return register. Held by `Rc` so breadcrumbs popped during
+    /// unwinding cannot invalidate it; the unwinder delivers the break value
+    /// when the frame owning that crumb returns.
+    pub break_landing: RefCell<Option<(Rc<Breadcrumb>, usize)>>,
     pub kargs: RefCell<Option<RHashMap<RSym, Rc<RObject>>>>,
     pub current_kargs: RefCell<Option<Rc<KArgs>>>,
     pub target_class: TargetContext,
@@ -273,6 +278,7 @@ impl VM {
             caller: None,
             return_reg: None,
         }));
+        let break_landing = RefCell::new(None);
         let kargs = RefCell::new(None);
         let current_kargs = RefCell::new(None);
         let target_class = TargetContext::Class(object_class.clone());
@@ -308,6 +314,7 @@ impl VM {
             current_callinfo,
             current_n_args,
             current_breadcrumb,
+            break_landing,
             kargs,
             current_kargs,
             target_class,
@@ -423,7 +430,16 @@ impl VM {
         loop {
             if unwinding && let Some(e) = self.exception.clone() {
                 let operand = insn::Fetched::B(0);
-                let mut retreg = None;
+                // A break lands on the send recorded by OP_BREAK (see
+                // `break_landing`): unwind until the frame owning that crumb
+                // returns, then deliver the value into its return register.
+                // Without a landing pad it unwinds like any other error.
+                let break_landing: Option<(Rc<Breadcrumb>, usize)> =
+                    if matches!(e.error_type.borrow().clone(), Error::Break(_)) {
+                        self.break_landing.borrow().clone()
+                    } else {
+                        None
+                    };
                 if let Some(pos) = self.find_handler_pos(None) {
                     // The handler runs as ordinary code; EXCEPT picks the
                     // exception up from here.
@@ -443,27 +459,31 @@ impl VM {
                     continue;
                 }
 
-                if matches!(e.error_type.borrow().clone(), Error::Break(_)) {
-                    retreg = match self.current_breadcrumb.as_ref() {
-                        Some(bc) if bc.event == "do_op_send" => {
-                            let retreg = bc.as_ref().return_reg.unwrap_or(0);
-                            Some(retreg)
-                        }
-                        _ => None,
-                    };
-                }
+                // Deliver when this return pops the anchored send crumb: its
+                // frame is the one the break must exit, and the register
+                // window already belongs to its caller. The pop may come from
+                // a normal frame return (Ok) or from the funcall boundary
+                // (Err), because native calls like Proc#call unpair crumbs
+                // from callinfos.
+                let crumb_before = self.current_breadcrumb.clone();
+                let landed_on_anchor = break_landing.as_ref().is_some_and(|(target, _)| {
+                    crumb_before.as_ref().is_some_and(|b| Rc::ptr_eq(b, target))
+                });
                 match op_return(self, &operand) {
                     Ok(_) => {}
                     Err(_) => {
-                        if let Some(retreg) = retreg
-                            && let Error::Break(brkval) = e.error_type.borrow().clone()
-                        {
-                            self.current_regs()[retreg].replace(brkval);
-                            self.exception.take();
-                        } else {
+                        if !landed_on_anchor {
                             break;
                         }
                     }
+                }
+                if landed_on_anchor
+                    && let Some((_, treg)) = break_landing.as_ref()
+                    && let Error::Break(brkval) = e.error_type.borrow().clone()
+                {
+                    self.current_regs()[*treg].replace(brkval);
+                    self.exception.take();
+                    self.break_landing.take();
                 }
                 if self.flag_preemption.get() {
                     break;

@@ -4,7 +4,8 @@ use crate::{
     Error,
     yamrb::{
         helpers::{
-            self, mrb_call_block, mrb_define_class_cmethod, mrb_define_cmethod, mrb_funcall,
+            self, mrb_call_block, mrb_call_block_breakable, mrb_define_class_cmethod,
+            mrb_define_cmethod, mrb_funcall,
         },
         prelude::module::mrb_include_module,
         value::{RObject, RValue},
@@ -276,7 +277,9 @@ fn mrb_array_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
             let a = a.borrow();
             for elem in a.iter() {
                 let args = vec![elem.clone()];
-                mrb_call_block(vm, block.clone(), None, &args, 0)?;
+                if let Some(v) = mrb_call_block_breakable(vm, block.clone(), None, &args)? {
+                    return Ok(v);
+                }
             }
         }
         _ => {

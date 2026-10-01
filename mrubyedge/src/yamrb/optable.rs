@@ -1782,7 +1782,18 @@ pub(crate) fn op_return_blk(vm: &mut VM, operand: &Fetched) -> Result<(), Error>
 pub(crate) fn op_break(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
     let val = vm.get_current_regs_cloned(a)?;
-
+    // Record where this break must land: the nearest do_op_send breadcrumb in
+    // the chain, captured before any unwinding can pop crumbs.
+    let mut cursor = vm.current_breadcrumb.clone();
+    let mut landing = None;
+    while let Some(bc) = cursor {
+        if bc.event == "do_op_send" && bc.return_reg.is_some() {
+            landing = Some((bc.clone(), bc.return_reg.unwrap_or(0)));
+            break;
+        }
+        cursor = bc.upper.clone();
+    }
+    vm.break_landing.replace(landing);
     Err(Error::Break(val))
 }
 

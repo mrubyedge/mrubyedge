@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     Error,
     yamrb::{
-        helpers::{mrb_call_block, mrb_define_cmethod},
+        helpers::{mrb_call_block_breakable, mrb_define_cmethod},
         prelude::module::mrb_include_module,
         value::{RObject, RValue},
         vm::VM,
@@ -68,7 +68,9 @@ pub fn mrb_range_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
                 }
                 for i in start..=end {
                     let args = vec![Rc::new(RObject::integer(i))];
-                    mrb_call_block(vm, block.clone(), None, &args, 0)?;
+                    if let Some(v) = mrb_call_block_breakable(vm, block.clone(), None, &args)? {
+                        return Ok(v);
+                    }
                 }
             }
             _ => {

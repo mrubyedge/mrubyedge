@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     Error,
     yamrb::{
-        helpers::{mrb_call_block, mrb_define_cmethod, mrb_funcall},
+        helpers::{mrb_call_block_breakable, mrb_define_cmethod, mrb_funcall},
         value::*,
         vm::VM,
     },
@@ -415,7 +415,9 @@ fn mrb_object_loop(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
 
     let this = vm.getself()?;
     loop {
-        mrb_call_block(vm, block.clone(), Some(this.clone()), &[], 0)?;
+        if let Some(v) = mrb_call_block_breakable(vm, block.clone(), Some(this.clone()), &[])? {
+            return Ok(v);
+        }
     }
 }
 

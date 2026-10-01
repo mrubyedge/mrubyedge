@@ -4,7 +4,7 @@ use crate::Error;
 use crate::yamrb::helpers::mrb_define_cmethod;
 
 use crate::yamrb::value::RValue;
-use crate::yamrb::{helpers::mrb_call_block, value::RObject, vm::VM};
+use crate::yamrb::{helpers::mrb_call_block_breakable, value::RObject, vm::VM};
 
 pub(crate) fn initialize_integer(vm: &mut VM) {
     let integer_class = vm.define_standard_class("Integer");
@@ -91,7 +91,9 @@ fn mrb_integer_times(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
     for i in 0..this {
         let block = args[0].clone();
         let args = vec![Rc::new(RObject::integer(i))];
-        mrb_call_block(vm, block, None, &args, 0)?;
+        if let Some(v) = mrb_call_block_breakable(vm, block, None, &args)? {
+            return Ok(v);
+        }
     }
     vm.getself()
 }

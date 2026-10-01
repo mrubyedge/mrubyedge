@@ -3,7 +3,10 @@ use std::rc::Rc;
 use crate::{
     Error,
     yamrb::{
-        helpers::{mrb_call_block, mrb_call_inspect, mrb_define_class_cmethod, mrb_define_cmethod},
+        helpers::{
+            mrb_call_block_breakable, mrb_call_inspect, mrb_define_class_cmethod,
+            mrb_define_cmethod,
+        },
         prelude::module::mrb_include_module,
         value::{RHashMap, RObject, RValue},
         vm::VM,
@@ -164,7 +167,9 @@ fn mrb_hash_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
             let hash = hash.borrow();
             for (_, (key, value)) in hash.iter() {
                 let args = vec![key.clone(), value.clone()];
-                mrb_call_block(vm, block.clone(), None, &args, 0)?;
+                if let Some(v) = mrb_call_block_breakable(vm, block.clone(), None, &args)? {
+                    return Ok(v);
+                }
             }
         }
         _ => {
