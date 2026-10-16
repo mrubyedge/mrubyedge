@@ -112,7 +112,7 @@ pub struct RObject {
 
     pub singleton_class: RefCell<Option<Rc<RClass>>>,
 
-    pub ivar: RefCell<RHashMap<String, Rc<RObject>>>,
+    pub ivar: RefCell<RHashMap<Rc<str>, Rc<RObject>>>,
 }
 
 const UNSET_OBJECT_ID: u64 = u64::MAX;
@@ -340,7 +340,13 @@ impl RObject {
     }
 
     pub fn set_ivar(&self, key: &str, value: Rc<RObject>) {
-        self.ivar.borrow_mut().insert(key.to_string(), value);
+        self.set_ivar_shared(Rc::from(key), value);
+    }
+
+    /// Like [`Self::set_ivar`], but takes an already shared key so repeated
+    /// writes (e.g. attr setters) never copy the key bytes.
+    pub fn set_ivar_shared(&self, key: Rc<str>, value: Rc<RObject>) {
+        self.ivar.borrow_mut().insert(key, value);
     }
 
     pub fn get_ivar(&self, key: &str) -> Rc<RObject> {

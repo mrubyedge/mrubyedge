@@ -780,13 +780,13 @@ fn cvar_set(vm: &mut VM, name: &str, value: Rc<RObject>) {
     while let Some(klass) = current.clone() {
         let wrapper = RObject::class(klass.clone(), vm);
         if wrapper.ivar.borrow().contains_key(name) {
-            wrapper.ivar.borrow_mut().insert(name.to_string(), value);
+            wrapper.ivar.borrow_mut().insert(Rc::from(name), value);
             return;
         }
         current = klass.super_class.clone();
     }
     let wrapper = RObject::class(cls, vm);
-    wrapper.ivar.borrow_mut().insert(name.to_string(), value);
+    wrapper.ivar.borrow_mut().insert(Rc::from(name), value);
 }
 
 pub(crate) fn op_getconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
