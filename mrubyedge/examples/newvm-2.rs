@@ -62,6 +62,7 @@ fn main() {
         reps: Vec::new(),
         lv: None,
         debug_info: None,
+        const_cache: std::cell::RefCell::new(Vec::new()),
         catch_handlers: Vec::new(),
     };
 
@@ -153,6 +154,7 @@ fn main() {
         reps: vec![Rc::new(irep1)],
         lv: None,
         debug_info: None,
+        const_cache: std::cell::RefCell::new(Vec::new()),
         catch_handlers: Vec::new(),
     };
     let mut vm = vm::VM::new_by_raw_irep(irep0);

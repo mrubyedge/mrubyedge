@@ -117,6 +117,9 @@ pub struct VM {
     pub current_kargs: RefCell<Option<Rc<KArgs>>>,
     pub target_class: TargetContext,
     pub exception: Option<Rc<RException>>,
+    /// Bumped on every constant assignment; per-site constant caches are
+    /// valid only while their recorded version matches.
+    pub(crate) const_version: Cell<u64>,
     // call_block temporarily detaches callinfos to establish an execution
     // boundary. Keep them visible to debug stack traversal.
     pub(crate) suspended_callinfos: Vec<Rc<CALLINFO>>,
@@ -270,6 +273,7 @@ impl VM {
             reps: Vec::new(),
             lv: None,
             debug_info: None,
+            const_cache: RefCell::new(Vec::new()),
             catch_handlers: Vec::new(),
         };
         Self::new_by_raw_irep(irep)
@@ -307,6 +311,7 @@ impl VM {
         let current_kargs = RefCell::new(None);
         let target_class = TargetContext::Class(object_class.clone());
         let exception = None;
+        let const_version = Cell::new(0u64);
         let flag_preemption = Cell::new(false);
         let fn_table = RFnTable::new();
         let fn_block_stack = RFnStack::new();
@@ -345,6 +350,7 @@ impl VM {
             current_kargs,
             target_class,
             exception,
+            const_version,
             suspended_callinfos: Vec::new(),
             pending_exception: None,
             flag_preemption,
@@ -404,6 +410,12 @@ impl VM {
             location.push_str(method);
         }
         Some(location)
+    }
+
+    /// Invalidates every per-site constant cache in the VM.
+    pub(crate) fn bump_const_version(&self) {
+        self.const_version
+            .set(self.const_version.get().wrapping_add(1));
     }
 
     pub(crate) fn prepare_exception(&mut self, error: &Error, native_method: Option<&str>) {
@@ -1027,6 +1039,7 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
         reps: Vec::new(),
         lv: None,
         debug_info: None,
+        const_cache: RefCell::new(Vec::new()),
         catch_handlers: Vec::new(),
     };
     for sym in irep.syms.iter() {
@@ -1120,6 +1133,19 @@ pub struct IREP {
     pub lv: Option<RHashMap<usize, String>>,
     pub debug_info: Option<DebugInfo>,
     pub catch_handlers: Vec<CatchTarget>,
+    /// Per-call-site cache for OP_GETCONST, indexed by instruction byte
+    /// offset. A slot is valid while `version` matches the VM's
+    /// `const_version` and the resolving namespace identity holds.
+    pub const_cache: RefCell<Vec<Option<ConstCacheEntry>>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstCacheEntry {
+    pub version: u64,
+    /// Namespace the constant was resolved through, by identity; guards the
+    /// same site against seeing a different lexical scope.
+    pub ns: Option<Rc<RModule>>,
+    pub value: Rc<RObject>,
 }
 
 /// Debug locations use byte offsets in the original instruction sequence.

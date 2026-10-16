@@ -794,33 +794,71 @@ pub(crate) fn op_getconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let name = vm.current_irep.syms[b as usize].name.clone();
     // In an instance method there is no lexical namespace, so fall back to the
     // runtime class of self.
-    let mut current = current_namespace(vm).or_else(|| {
+    let ns = current_namespace(vm).or_else(|| {
         vm.current_regs()[0]
             .clone()
             .map(|o| o.get_class(vm).module.clone())
     });
 
-    // Walk namespace chain upwards until found or reach top-level
-    while let Some(ns) = current.clone() {
-        if let Some(val) = ns.consts.borrow().get(&name).cloned() {
-            vm.current_regs()[a as usize].replace(val);
-            return Ok(());
-        }
-        current = ns.parent.borrow().clone();
-    }
-
-    if let Some(val) = vm.consts.get(&name).cloned() {
-        vm.current_regs()[a as usize].replace(val);
+    // Inline constant cache: the site is the previous instruction's offset
+    // (the dispatch loop already advanced the pc). A hit needs both the
+    // constant-table version (guards redefinition) and the resolving
+    // namespace identity (guards the same site seeing a different scope).
+    let site = vm.pc.get() - 1;
+    let version = vm.const_version.get();
+    let cached = {
+        let caches = vm.current_irep.const_cache.borrow();
+        caches
+            .get(site)
+            .and_then(|slot| slot.as_ref())
+            .filter(|entry| {
+                entry.version == version
+                    && entry.ns.as_ref().map(Rc::as_ptr) == ns.as_ref().map(Rc::as_ptr)
+            })
+            .map(|entry| entry.value.clone())
+    };
+    if let Some(value) = cached {
+        vm.current_regs()[a as usize].replace(value);
         return Ok(());
     }
 
-    Err(Error::NameError(name))
+    // Miss: walk the namespace chain upwards, then the global table.
+    let mut resolved: Option<Rc<RObject>> = None;
+    let mut current = ns.clone();
+    while let Some(cur) = current.clone() {
+        if let Some(val) = cur.consts.borrow().get(&name).cloned() {
+            resolved = Some(val);
+            break;
+        }
+        current = cur.parent.borrow().clone();
+    }
+    if resolved.is_none()
+        && let Some(val) = vm.consts.get(&name).cloned()
+    {
+        resolved = Some(val);
+    }
+    let value = resolved.ok_or_else(|| Error::NameError(name))?;
+
+    let mut caches = vm.current_irep.const_cache.borrow_mut();
+    if caches.len() <= site {
+        caches.resize(site + 1, None);
+    }
+    caches[site] = Some(ConstCacheEntry {
+        version,
+        ns,
+        value: value.clone(),
+    });
+    drop(caches);
+
+    vm.current_regs()[a as usize].replace(value);
+    Ok(())
 }
 
 pub(crate) fn op_setconst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let name = vm.current_irep.syms[b as usize].name.clone();
     let val = vm.get_current_regs_cloned(a as usize)?;
+    vm.bump_const_version();
     match current_namespace(vm) {
         Some(ns) => {
             ns.consts.borrow_mut().insert(name, val);
@@ -866,6 +904,7 @@ pub(crate) fn op_setmcnst(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let name = vm.current_irep.syms[b as usize].name.clone();
     let module = vm.get_current_regs_cloned(a as usize + 1)?;
     let value = vm.get_current_regs_cloned(a as usize)?;
+    vm.bump_const_version();
     match &module.value {
         RValue::Class(klass) => {
             klass.module.consts.borrow_mut().insert(name, value);
@@ -2448,6 +2487,7 @@ pub(crate) fn op_class(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     // register constant under parent namespace (if any) or top-level
     let class_value = RObject::class(klass.clone(), vm);
     class_value.initialize_or_get_singleton_class_for_class(vm);
+    vm.bump_const_version();
     if let Some(parent) = parent_module {
         parent
             .consts
@@ -2472,6 +2512,7 @@ pub(crate) fn op_module(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     // One canonical wrapper shared by the constant and the body's self
     // register; two wrappers made body-self singletons invisible to
     // constant lookups.
+    vm.bump_const_version();
     if let Some(parent) = parent_module {
         parent
             .consts

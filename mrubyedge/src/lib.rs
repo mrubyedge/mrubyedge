@@ -38,6 +38,7 @@
 //!         reps: Vec::new(),
 //!         lv: None,
 //!         debug_info: None,
+//!         const_cache: Default::default(),
 //!         catch_handlers: Vec::new(),
 //!     };
 //!
