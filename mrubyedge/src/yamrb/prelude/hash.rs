@@ -106,7 +106,7 @@ pub fn mrb_hash_get_index(this: Rc<RObject>, key: Rc<RObject>) -> Result<Rc<RObj
     let key = key.as_ref().as_hash_key()?;
     match hash.get(&key) {
         Some((_, value)) => Ok(value.clone()),
-        None => Ok(Rc::new(RObject::nil())),
+        None => Ok(RObject::nil_rc()),
     }
 }
 
@@ -149,7 +149,7 @@ pub fn mrb_hash_delete(this: Rc<RObject>, key: Rc<RObject>) -> Result<Rc<RObject
     let hashed = key.as_hash_key()?;
     match hash.remove(&hashed) {
         Some((_, value)) => Ok(value.clone()),
-        None => Ok(Rc::new(RObject::nil())),
+        None => Ok(RObject::nil_rc()),
     }
 }
 
@@ -272,7 +272,7 @@ fn mrb_hash_size(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
         }
     };
     let hash = hash.borrow();
-    Ok(Rc::new(RObject::integer(hash.len() as i64)))
+    Ok(RObject::integer_rc(hash.len() as i64))
 }
 
 // Hash#clear: Removes all key-value pairs from the hash (destructive)
@@ -307,7 +307,7 @@ fn mrb_hash_empty(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
             ));
         }
     };
-    Ok(Rc::new(RObject::boolean(hash.borrow().is_empty())))
+    Ok(RObject::boolean_rc(hash.borrow().is_empty()))
 }
 
 // Hash#has_key?: Returns true if the given key is present in the hash
@@ -322,7 +322,7 @@ fn mrb_hash_has_key(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
             ));
         }
     };
-    Ok(Rc::new(RObject::boolean(hash.borrow().contains_key(&key))))
+    Ok(RObject::boolean_rc(hash.borrow().contains_key(&key)))
 }
 
 // Hash#has_value?: Returns true if the given value is present for some key in the hash
@@ -341,10 +341,10 @@ fn mrb_hash_has_value(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     let search_eq = search_value.as_eq_value();
     for (_, (_, value)) in hash.borrow().iter() {
         if value.as_eq_value() == search_eq {
-            return Ok(Rc::new(RObject::boolean(true)));
+            return Ok(RObject::boolean_rc(true));
         }
     }
-    Ok(Rc::new(RObject::boolean(false)))
+    Ok(RObject::boolean_rc(false))
 }
 
 // Hash#key: Returns the key of an occurrence of a given value
@@ -366,7 +366,7 @@ fn mrb_hash_key(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error>
             return Ok(key.clone());
         }
     }
-    Ok(Rc::new(RObject::nil()))
+    Ok(RObject::nil_rc())
 }
 
 // Hash#keys: Returns a new array populated with the keys from this hash

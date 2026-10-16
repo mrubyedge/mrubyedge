@@ -171,7 +171,7 @@ pub fn mrb_kernel_puts(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>,
             println!("{}", inspect);
         }
     }
-    Ok(Rc::new(RObject::nil()))
+    Ok(RObject::nil_rc())
 }
 
 #[cfg(feature = "wasi")]
@@ -180,7 +180,7 @@ pub fn mrb_kernel_p(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
     let inspect = mrb_funcall(vm, Some(msg), "inspect", &[])?;
     let inspect: String = inspect.as_ref().try_into()?;
     println!("{}", inspect);
-    Ok(Rc::new(RObject::nil()))
+    Ok(RObject::nil_rc())
 }
 
 #[cfg(feature = "wasi")]
@@ -188,15 +188,14 @@ pub fn mrb_kernel_debug(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
     for (i, obj) in args.iter().enumerate() {
         dbg!(i, obj.clone());
     }
-    Ok(Rc::new(RObject::nil()))
+    Ok(RObject::nil_rc())
 }
 
 // Honor user-defined #== overrides. Primitive pairs keep the structural fast
 // path; anything else dispatches unless only the Object default (which would
 // recurse back into this function) resolves.
 pub fn mrb_object_is_equal(vm: &mut VM, lhs: Rc<RObject>, rhs: Rc<RObject>) -> Rc<RObject> {
-    let structural =
-        || RObject::boolean(lhs.as_eq_value() == rhs.as_eq_value()).to_refcount_assigned();
+    let structural = || RObject::boolean_rc(lhs.as_eq_value() == rhs.as_eq_value());
     let primitive = |o: &Rc<RObject>| {
         matches!(
             o.value,
@@ -221,7 +220,7 @@ pub fn mrb_object_is_equal(vm: &mut VM, lhs: Rc<RObject>, rhs: Rc<RObject>) -> R
 }
 
 pub fn mrb_object_is_not_equal(_vm: &mut VM, lhs: Rc<RObject>, rhs: Rc<RObject>) -> Rc<RObject> {
-    RObject::boolean(lhs.as_eq_value() != rhs.as_eq_value()).to_refcount_assigned()
+    RObject::boolean_rc(lhs.as_eq_value() != rhs.as_eq_value())
 }
 
 pub fn mrb_object_double_eq(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -241,15 +240,15 @@ pub fn mrb_object_triple_eq(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
     let rhs = args[0].clone();
 
     match (&lhs.value, &rhs.value) {
-        (RValue::Integer(i1), RValue::Integer(i2)) => Ok(Rc::new(RObject::boolean(*i1 == *i2))),
-        (RValue::Float(f1), RValue::Float(f2)) => Ok(Rc::new(RObject::boolean(*f1 == *f2))),
-        (RValue::Symbol(sym1), RValue::Symbol(sym2)) => Ok(Rc::new(RObject::boolean(sym1 == sym2))),
-        (RValue::String(s1, _), RValue::String(s2, _)) => Ok(Rc::new(RObject::boolean(s1 == s2))),
+        (RValue::Integer(i1), RValue::Integer(i2)) => Ok(RObject::boolean_rc(*i1 == *i2)),
+        (RValue::Float(f1), RValue::Float(f2)) => Ok(RObject::boolean_rc(*f1 == *f2)),
+        (RValue::Symbol(sym1), RValue::Symbol(sym2)) => Ok(RObject::boolean_rc(sym1 == sym2)),
+        (RValue::String(s1, _), RValue::String(s2, _)) => Ok(RObject::boolean_rc(s1 == s2)),
         (RValue::Class(c1), _) => match &lhs.value {
-            RValue::Class(c2) => Ok(Rc::new(RObject::boolean(c1.sym_id == c2.sym_id))),
+            RValue::Class(c2) => Ok(RObject::boolean_rc(c1.sym_id == c2.sym_id)),
             _ => {
                 let c2 = lhs.get_class(vm);
-                Ok(Rc::new(RObject::boolean(c1.sym_id == c2.sym_id)))
+                Ok(RObject::boolean_rc(c1.sym_id == c2.sym_id))
             }
         },
         (RValue::Range(_s, _e, _v), _) => {
@@ -257,7 +256,7 @@ pub fn mrb_object_triple_eq(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
             mrb_funcall(vm, Some(lhs), "include?", &arg)
         }
         // TODO: Implement object id for generic instance
-        _ => Ok(Rc::new(RObject::boolean(false))),
+        _ => Ok(RObject::boolean_rc(false)),
     }
 }
 
@@ -335,7 +334,7 @@ pub fn mrb_object_compare(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObjec
         }
     };
 
-    Ok(Rc::new(RObject::integer(result)))
+    Ok(RObject::integer_rc(result))
 }
 
 pub fn mrb_object_object_id(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -343,7 +342,7 @@ pub fn mrb_object_object_id(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<ROb
     let x = vm.getself()?.object_id.get();
     // ref: https://stackoverflow.com/questions/74491204/how-do-i-represent-an-i64-in-the-u64-domain
     let to_i64 = ((x as i64) ^ (1 << 63)) & (1 << 63) | (x & (u64::MAX >> 1)) as i64;
-    Ok(Rc::new(RObject::integer(to_i64)))
+    Ok(RObject::integer_rc(to_i64))
 }
 
 pub fn mrb_object_to_s(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -378,7 +377,7 @@ pub fn mrb_object_raise(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>
 }
 
 fn mrb_object_nil_p(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    Ok(Rc::new(RObject::boolean(false)))
+    Ok(RObject::boolean_rc(false))
 }
 
 fn mrb_object_block_given(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -393,12 +392,12 @@ fn mrb_object_block_given(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObje
         false
     };
 
-    Ok(Rc::new(RObject::boolean(has_block)))
+    Ok(RObject::boolean_rc(has_block))
 }
 
 pub fn mrb_object_initialize(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     // Abstract method; do nothing
-    Ok(Rc::new(RObject::nil()))
+    Ok(RObject::nil_rc())
 }
 
 pub fn mrb_object_lambda(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -437,7 +436,7 @@ fn mrb_object_is_a(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
             ));
         }
     };
-    Ok(Rc::new(RObject::boolean(is_a)))
+    Ok(RObject::boolean_rc(is_a))
 }
 
 fn mrb_object_class(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -467,7 +466,7 @@ fn mrb_object_respond_to(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
     let obj = vm.getself()?;
     let klass = obj.singleton_or_this_class(vm);
     let has_method = resolve_method(&klass, &method_name).is_some();
-    Ok(Rc::new(RObject::boolean(has_method)))
+    Ok(RObject::boolean_rc(has_method))
 }
 
 fn mrb_object_public_send(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -510,7 +509,7 @@ pub fn mrb_is_a(vm: &mut VM, obj: Rc<RObject>, class: impl AsModule) -> bool {
 
 fn mrb_is_wasm(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let is_wasm = cfg!(target_arch = "wasm32");
-    Ok(Rc::new(RObject::boolean(is_wasm)))
+    Ok(RObject::boolean_rc(is_wasm))
 }
 
 #[test]

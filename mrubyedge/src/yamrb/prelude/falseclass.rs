@@ -34,15 +34,15 @@ fn mrb_falseclass_inspect(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObj
 }
 
 fn mrb_falseclass_and(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    Ok(Rc::new(RObject::boolean(false)))
+    Ok(RObject::boolean_rc(false))
 }
 
 fn mrb_falseclass_or(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let rhs = args[0].clone();
-    Ok(Rc::new(RObject::boolean(rhs.is_truthy())))
+    Ok(RObject::boolean_rc(rhs.is_truthy()))
 }
 
 fn mrb_falseclass_xor(_vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let rhs = args[0].clone();
-    Ok(Rc::new(RObject::boolean(rhs.is_truthy())))
+    Ok(RObject::boolean_rc(rhs.is_truthy()))
 }

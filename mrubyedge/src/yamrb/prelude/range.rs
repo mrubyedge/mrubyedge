@@ -33,20 +33,20 @@ pub fn mrb_range_is_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObj
             match (&start.value, &end.value, &obj.value) {
                 (RValue::Integer(start), RValue::Integer(end), RValue::Integer(obj)) => {
                     if *exclusive {
-                        Ok(Rc::new(RObject::boolean(*start <= *obj && *obj < *end)))
+                        Ok(RObject::boolean_rc(*start <= *obj && *obj < *end))
                     } else {
-                        Ok(Rc::new(RObject::boolean(*start <= *obj && *obj <= *end)))
+                        Ok(RObject::boolean_rc(*start <= *obj && *obj <= *end))
                     }
                 }
                 (RValue::Integer(start), RValue::Integer(end), RValue::Float(obj)) => {
                     let obj = *obj as i64;
                     if *exclusive {
-                        Ok(Rc::new(RObject::boolean(*start <= obj && obj < *end)))
+                        Ok(RObject::boolean_rc(*start <= obj && obj < *end))
                     } else {
-                        Ok(Rc::new(RObject::boolean(*start <= obj && obj <= *end)))
+                        Ok(RObject::boolean_rc(*start <= obj && obj <= *end))
                     }
                 }
-                _ => Ok(Rc::new(RObject::boolean(false))),
+                _ => Ok(RObject::boolean_rc(false)),
             }
         }
         _ => Err(Error::RuntimeError(
@@ -67,7 +67,7 @@ pub fn mrb_range_each(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
                     end -= 1;
                 }
                 for i in start..=end {
-                    let args = vec![Rc::new(RObject::integer(i))];
+                    let args = vec![RObject::integer_rc(i)];
                     if let Some(v) = mrb_call_block_breakable(vm, block.clone(), None, &args)? {
                         return Ok(v);
                     }

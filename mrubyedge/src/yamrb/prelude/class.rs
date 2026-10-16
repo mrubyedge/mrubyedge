@@ -100,7 +100,7 @@ fn mrb_class_attr_reader(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
             }
         }
     }
-    Ok(Rc::new(RObject::nil()))
+    Ok(RObject::nil_rc())
 }
 
 fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -137,7 +137,7 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
             }
         }
     }
-    Ok(Rc::new(RObject::nil()))
+    Ok(RObject::nil_rc())
 }
 
 fn mrb_class_attr_acceccor(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

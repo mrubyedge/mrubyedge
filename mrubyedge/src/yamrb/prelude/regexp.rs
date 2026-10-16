@@ -158,14 +158,14 @@ fn mrb_regexp_match_tilda(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObjec
 
     match regexp.find(&haystack) {
         Some(matched) => Ok(RObject::integer(matched.start() as i64).to_refcount_assigned()),
-        None => Ok(RObject::nil().to_refcount_assigned()),
+        None => Ok(RObject::nil_rc()),
     }
 }
 
 fn mrb_regexp_not_match_tilda(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     match mrb_regexp_match_tilda(vm, args)? {
-        res if res.is_nil() => Ok(RObject::boolean(true).to_refcount_assigned()),
-        _ => Ok(RObject::boolean(false).to_refcount_assigned()),
+        res if res.is_nil() => Ok(RObject::boolean_rc(true)),
+        _ => Ok(RObject::boolean_rc(false)),
     }
 }
 
@@ -216,7 +216,7 @@ fn mrb_regexp_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
             }
             .to_refcount_assigned())
         }
-        None => Ok(RObject::nil().to_refcount_assigned()),
+        None => Ok(RObject::nil_rc()),
     }
 }
 
@@ -281,11 +281,11 @@ fn mrb_matchdata_index(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>,
     };
 
     if cap_index >= matchdata.captures.len() {
-        return Ok(RObject::nil().to_refcount_assigned());
+        return Ok(RObject::nil_rc());
     }
     let (start, end) = matchdata.captures[cap_index];
     if start == usize::MAX && end == usize::MAX {
-        return Ok(RObject::nil().to_refcount_assigned());
+        return Ok(RObject::nil_rc());
     }
     let matched_str = &matchdata.haystack[start..end];
     Ok(RObject::string(matched_str.to_string()).to_refcount_assigned())

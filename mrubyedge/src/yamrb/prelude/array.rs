@@ -177,13 +177,10 @@ pub fn mrb_array_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
         for i in 0..n {
             let elem = match &block {
                 Some(b) => {
-                    let idx = Rc::new(RObject::integer(i));
+                    let idx = RObject::integer_rc(i);
                     mrb_call_block(vm, b.clone(), None, std::slice::from_ref(&idx), 0)?
                 }
-                None => positional
-                    .get(1)
-                    .cloned()
-                    .unwrap_or_else(|| Rc::new(RObject::nil())),
+                None => positional.get(1).cloned().unwrap_or_else(RObject::nil_rc),
             };
             array.push(elem);
         }
@@ -233,7 +230,7 @@ pub fn mrb_array_get_index(this: Rc<RObject>, args: &[Rc<RObject>]) -> Result<Rc
     // the Vec index.
     let value = match elems.get(idx as usize) {
         Some(v) => v.clone(),
-        None => Rc::new(RObject::nil()),
+        None => RObject::nil_rc(),
     };
     Ok(value)
 }
@@ -397,8 +394,8 @@ fn test_mrb_array_set_and_index() {
 
     let array = Rc::new(RObject::array(vec![]));
     let args = vec![
-        Rc::new(RObject::nil()),
-        Rc::new(RObject::nil()),
+        RObject::nil_rc(),
+        RObject::nil_rc(),
         Rc::new(RObject::integer(0)),
     ];
     mrb_array_push(array.clone(), &args).expect("push failed");
@@ -443,7 +440,7 @@ fn test_mrb_array_pack() {
 fn mrb_array_size(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
     let value: Vec<Rc<RObject>> = this.as_ref().try_into()?;
-    Ok(Rc::new(RObject::integer(value.len() as i64)))
+    Ok(RObject::integer_rc(value.len() as i64))
 }
 
 // Array#+: Returns a new array containing elements from both arrays
@@ -471,7 +468,7 @@ fn mrb_array_delete_at(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>,
     let idx = if index < 0 { len + index } else { index };
 
     if idx < 0 || idx >= len {
-        return Ok(Rc::new(RObject::nil()));
+        return Ok(RObject::nil_rc());
     }
 
     let removed = arr.remove(idx as usize);
@@ -481,7 +478,7 @@ fn mrb_array_delete_at(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>,
 // Array#empty?: Returns true if the array contains no elements
 fn mrb_array_empty(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
-    Ok(Rc::new(RObject::boolean(this.is_empty())))
+    Ok(RObject::boolean_rc(this.is_empty()))
 }
 
 // Array#include?: Returns true if the array contains the given object
@@ -491,10 +488,10 @@ fn mrb_array_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
 
     for elem in this.iter() {
         if elem.as_eq_value() == search.as_eq_value() {
-            return Ok(Rc::new(RObject::boolean(true)));
+            return Ok(RObject::boolean_rc(true));
         }
     }
-    Ok(Rc::new(RObject::boolean(false)))
+    Ok(RObject::boolean_rc(false))
 }
 
 // Array#&: Set intersection - returns a new array containing elements common to both arrays
@@ -539,10 +536,7 @@ fn mrb_array_first(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
     let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
 
     if args.is_empty() {
-        Ok(this
-            .first()
-            .cloned()
-            .unwrap_or_else(|| Rc::new(RObject::nil())))
+        Ok(this.first().cloned().unwrap_or_else(RObject::nil_rc))
     } else {
         let n: i64 = args[0].as_ref().try_into()?;
         if n < 0 {
@@ -558,10 +552,7 @@ fn mrb_array_last(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
     let this: Vec<Rc<RObject>> = vm.getself()?.as_ref().try_into()?;
 
     if args.is_empty() {
-        Ok(this
-            .last()
-            .cloned()
-            .unwrap_or_else(|| Rc::new(RObject::nil())))
+        Ok(this.last().cloned().unwrap_or_else(RObject::nil_rc))
     } else {
         let n: i64 = args[0].as_ref().try_into()?;
         if n < 0 {
@@ -577,7 +568,7 @@ fn mrb_array_last(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Erro
 fn mrb_array_pop(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
     let removed = this.array_borrow_mut()?.pop();
-    Ok(removed.unwrap_or_else(|| Rc::new(RObject::nil())))
+    Ok(removed.unwrap_or_else(RObject::nil_rc))
 }
 
 // Array#shift: Removes and returns the first element (destructive)
@@ -585,7 +576,7 @@ fn mrb_array_shift(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
     let this = vm.getself()?;
     let mut arr = this.array_borrow_mut()?;
     if arr.is_empty() {
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     } else {
         Ok(arr.remove(0))
     }
@@ -618,7 +609,7 @@ fn mrb_array_uniq_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>
         .try_into()?;
 
     if unique.len() == arr.len() {
-        return Ok(Rc::new(RObject::nil()));
+        return Ok(RObject::nil_rc());
     }
 
     *this.array_borrow_mut()? = unique;
@@ -646,7 +637,7 @@ fn mrb_array_select_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
         .try_into()?;
 
     if selected.len() == arr.len() {
-        return Ok(Rc::new(RObject::nil()));
+        return Ok(RObject::nil_rc());
     }
 
     *this.array_borrow_mut()? = selected;
@@ -663,7 +654,7 @@ fn mrb_array_reject_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
         .try_into()?;
 
     if rejected.len() == arr.len() {
-        return Ok(Rc::new(RObject::nil()));
+        return Ok(RObject::nil_rc());
     }
 
     *this.array_borrow_mut()? = rejected;
@@ -758,7 +749,7 @@ fn mrb_array_flatten_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObje
             }
         }
         if !changed {
-            return Ok(Rc::new(RObject::nil()));
+            return Ok(RObject::nil_rc());
         }
     }
 
