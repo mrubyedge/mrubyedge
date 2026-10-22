@@ -713,7 +713,7 @@ pub(crate) fn op_setiv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let this = vm.getself()?;
     let val = vm.get_current_regs_cloned(a as usize)?;
     let key = vm.current_irep.syms[b as usize].name.clone();
-    this.set_ivar(&key, val.clone());
+    this.set_ivar(key.as_str(), val.clone());
     Ok(())
 }
 
@@ -2372,7 +2372,7 @@ pub(crate) fn op_lambda(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
-        ivar: RefCell::new(RHashMap::default()),
+        ivar: RefCell::new(IvarMap::new()),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -2399,7 +2399,7 @@ pub(crate) fn op_block(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
-        ivar: RefCell::new(RHashMap::default()),
+        ivar: RefCell::new(IvarMap::new()),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())
@@ -2424,7 +2424,7 @@ pub(crate) fn op_method(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
-        ivar: RefCell::new(RHashMap::default()),
+        ivar: RefCell::new(IvarMap::new()),
     };
     vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
     Ok(())

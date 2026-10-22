@@ -592,7 +592,7 @@ impl VM {
             }),
             object_id: 0.into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
         .to_refcount_assigned();
         if self.current_regs()[0].is_none() {

@@ -2,12 +2,12 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use crate::yamrb::helpers::mrb_funcall;
-use crate::yamrb::value::{RClass, RHashMap};
+use crate::yamrb::value::RClass;
 use crate::{
     Error,
     yamrb::{
         helpers::{mrb_define_class_cmethod, mrb_define_cmethod},
-        value::{RData, RObject, RType, RValue},
+        value::{IvarMap, RData, RObject, RType, RValue},
         vm::VM,
     },
 };
@@ -129,7 +129,7 @@ pub(crate) fn mrb_random_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<ROb
         value: RValue::Data(Rc::new(random_data)),
         object_id: Cell::new(u64::MAX),
         singleton_class: RefCell::new(None),
-        ivar: RefCell::new(RHashMap::default()),
+        ivar: RefCell::new(IvarMap::new()),
     });
 
     Ok(random_instance)

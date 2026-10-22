@@ -103,6 +103,110 @@ impl PartialEq for ValueEqualityForKeyValue {
     }
 }
 
+type IvarSlot = Option<(Rc<str>, u64, Rc<RObject>)>;
+
+/// Open-addressing ivar table with stored FNV hashes. Ivar sets are tiny and
+/// never delete entries, so linear probing with load-factor growth is fast
+/// and simple, and reads can skip re-hashing by passing a precomputed hash
+/// (the attr accessors compute each key's hash once).
+#[derive(Debug, Clone)]
+pub struct IvarMap {
+    slots: Vec<IvarSlot>,
+    len: usize,
+}
+
+impl IvarMap {
+    pub fn new() -> Self {
+        Self {
+            slots: Vec::new(),
+            len: 0,
+        }
+    }
+
+    pub fn get(&self, key: &str) -> Option<&Rc<RObject>> {
+        self.get_hashed(key, crate::yamrb::vm::fnv_hash(key))
+    }
+
+    pub fn get_hashed(&self, key: &str, hash: u64) -> Option<&Rc<RObject>> {
+        let cap = self.slots.len();
+        if cap == 0 {
+            return None;
+        }
+        let mut i = (hash as usize) % cap;
+        loop {
+            match &self.slots[i] {
+                Some((k, h, v)) if *h == hash && **k == *key => return Some(v),
+                None => return None,
+                Some(_) => {
+                    i = (i + 1) % cap;
+                    if i == (hash as usize) % cap {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.get(key).is_some()
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &Rc<str>> {
+        self.slots
+            .iter()
+            .filter_map(|s| s.as_ref().map(|(k, _, _)| k))
+    }
+
+    pub fn insert(&mut self, key: Rc<str>, value: Rc<RObject>) {
+        let hash = crate::yamrb::vm::fnv_hash(&key);
+        self.insert_hashed(key, hash, value);
+    }
+
+    pub fn insert_hashed(&mut self, key: Rc<str>, hash: u64, value: Rc<RObject>) {
+        if self.slots.is_empty() || (self.len + 1) * 10 >= self.slots.len() * 7 {
+            self.grow();
+        }
+        let cap = self.slots.len();
+        let mut i = (hash as usize) % cap;
+        loop {
+            match &self.slots[i] {
+                Some((k, h, _)) if *h == hash && *k == key => {
+                    self.slots[i] = Some((key, hash, value));
+                    return;
+                }
+                None => {
+                    self.slots[i] = Some((key, hash, value));
+                    self.len += 1;
+                    return;
+                }
+                Some(_) => {
+                    i = (i + 1) % cap;
+                }
+            }
+        }
+    }
+
+    fn grow(&mut self) {
+        let new_cap = if self.slots.is_empty() {
+            4
+        } else {
+            self.slots.len() * 2
+        };
+        let old = std::mem::replace(&mut self.slots, (0..new_cap).map(|_| None).collect());
+        self.len = 0;
+        for slot in old.into_iter().flatten() {
+            let (k, h, v) = slot;
+            self.insert_hashed(k, h, v);
+        }
+    }
+}
+
+impl Default for IvarMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Heap-allocated Ruby object wrapper containing type tag, value, and object id.
 #[derive(Debug, Clone)]
 pub struct RObject {
@@ -112,7 +216,7 @@ pub struct RObject {
 
     pub singleton_class: RefCell<Option<Rc<RClass>>>,
 
-    pub ivar: RefCell<RHashMap<Rc<str>, Rc<RObject>>>,
+    pub ivar: RefCell<IvarMap>,
 }
 
 const UNSET_OBJECT_ID: u64 = u64::MAX;
@@ -124,7 +228,7 @@ impl RObject {
             value: RValue::Nil,
             object_id: 4.into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -134,7 +238,7 @@ impl RObject {
             value: RValue::Bool(b),
             object_id: (if b { 20 } else { 0 }).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -144,7 +248,7 @@ impl RObject {
             value: RValue::Symbol(sym),
             object_id: 2.into(), // TODO: calc the same id for the same symbol
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -160,7 +264,7 @@ impl RObject {
             value: RValue::Integer(n),
             object_id: object_id.into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -170,7 +274,7 @@ impl RObject {
             value: RValue::Float(f),
             object_id: f.to_bits().into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -180,7 +284,7 @@ impl RObject {
             value: RValue::String(RefCell::new(s.into_bytes()), Cell::new(true)),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -190,7 +294,7 @@ impl RObject {
             value: RValue::String(RefCell::new(v), Cell::new(false)),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -200,7 +304,7 @@ impl RObject {
             value: RValue::Array(RefCell::new(v)),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -210,7 +314,7 @@ impl RObject {
             value: RValue::Hash(RefCell::new(h)),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -220,7 +324,7 @@ impl RObject {
             value: RValue::Range(start, end, exclusive),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -241,7 +345,7 @@ impl RObject {
             value: RValue::Class(c),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
         .to_refcount_assigned()
     }
@@ -257,7 +361,7 @@ impl RObject {
             value: RValue::Module(m),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -283,7 +387,7 @@ impl RObject {
             }),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -293,7 +397,7 @@ impl RObject {
             value: RValue::Proc(p),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -303,7 +407,7 @@ impl RObject {
             value: RValue::Exception(e),
             object_id: (UNSET_OBJECT_ID).into(),
             singleton_class: RefCell::new(None),
-            ivar: RefCell::new(RHashMap::default()),
+            ivar: RefCell::new(IvarMap::new()),
         }
     }
 
@@ -339,14 +443,10 @@ impl RObject {
         self.object_id.get() == 0
     }
 
-    pub fn set_ivar(&self, key: &str, value: Rc<RObject>) {
-        self.set_ivar_shared(Rc::from(key), value);
-    }
-
-    /// Like [`Self::set_ivar`], but takes an already shared key so repeated
-    /// writes (e.g. attr setters) never copy the key bytes.
-    pub fn set_ivar_shared(&self, key: Rc<str>, value: Rc<RObject>) {
-        self.ivar.borrow_mut().insert(key, value);
+    /// Stores an ivar. `key` may be an already-shared `Rc<str>` (zero copy,
+    /// used by the attr_accessor hot path) or a plain `&str` (copied once).
+    pub fn set_ivar(&self, key: impl Into<Rc<str>>, value: Rc<RObject>) {
+        self.ivar.borrow_mut().insert(key.into(), value);
     }
 
     pub fn get_ivar(&self, key: &str) -> Rc<RObject> {
@@ -354,8 +454,23 @@ impl RObject {
             .borrow()
             .get(key)
             .cloned()
-            .or_else(|| Some(RObject::nil().to_refcount_assigned()))
-            .unwrap()
+            .unwrap_or(RObject::nil().to_refcount_assigned())
+    }
+
+    /// Ivar read with a caller-supplied FNV-1a hash of `key`, so the attr
+    /// accessors hash once per definition instead of once per read.
+    pub fn get_ivar_hashed(&self, key: &str, hash: u64) -> Rc<RObject> {
+        self.ivar
+            .borrow()
+            .get_hashed(key, hash)
+            .cloned()
+            .unwrap_or(RObject::nil().to_refcount_assigned())
+    }
+
+    /// Ivar write with a caller-supplied FNV-1a hash of `key`; see
+    /// [`Self::get_ivar_hashed`].
+    pub fn set_ivar_hashed(&self, key: Rc<str>, hash: u64, value: Rc<RObject>) {
+        self.ivar.borrow_mut().insert_hashed(key, hash, value);
     }
 
     // TODO: implment Object#hash

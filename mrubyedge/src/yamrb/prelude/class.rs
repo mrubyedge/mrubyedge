@@ -83,11 +83,13 @@ fn mrb_class_attr_reader(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
         match arg.value {
             RValue::Symbol(ref sym) => {
                 let sym_id: &'static str = sym.name.clone().leak();
-                // The ivar key is built once per attribute, not per call.
-                let key: Rc<str> = format!("@{}", sym_id).into();
+                // Build the ivar key and its FNV hash once; property reads
+                // reuse the hash so they never re-hash the key.
+                let key = format!("@{}", sym_id);
+                let hash = crate::yamrb::vm::fnv_hash(&key);
                 let method = move |vm: &mut VM, _args: &[Rc<RObject>]| {
                     let this = vm.getself()?;
-                    Ok(this.get_ivar(&key))
+                    Ok(this.get_ivar_hashed(&key, hash))
                 };
                 mrb_define_cmethod(vm, class.clone(), sym_id, Box::new(method));
             }
@@ -118,12 +120,14 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
         match arg.value {
             RValue::Symbol(ref sym) => {
                 let sym_id: &'static str = sym.name.clone().leak();
-                // Shared key built once; writes never copy the key bytes.
+                // Shared Rc<str> key and its FNV hash built once; writes use
+                // the precomputed hash so they never re-hash the key.
                 let key: Rc<str> = format!("@{}", sym_id).into();
+                let hash = crate::yamrb::vm::fnv_hash(&key);
                 let method = move |vm: &mut VM, args: &[Rc<RObject>]| {
                     let this = vm.getself()?;
                     let value = args[0].clone();
-                    this.set_ivar_shared(key.clone(), value.clone());
+                    this.set_ivar_hashed(key.clone(), hash, value.clone());
                     Ok(value)
                 };
                 let sym_id = format!("{}=", sym_id);

@@ -7,7 +7,7 @@ use crate::{
     Error,
     yamrb::{
         helpers::{mrb_define_class_cmethod, mrb_define_cmethod, mrb_funcall},
-        value::{RData, RHashMap, RObject, RValue},
+        value::{IvarMap, RData, RObject, RValue},
         vm::VM,
     },
 };
@@ -127,7 +127,7 @@ pub fn mrb_regexp_new(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
                 value: RValue::Data(regexp_data),
                 object_id: Cell::new(0),
                 singleton_class: RefCell::new(None),
-                ivar: RefCell::new(RHashMap::default()),
+                ivar: RefCell::new(IvarMap::new()),
             }
             .to_refcount_assigned())
         }
@@ -212,7 +212,7 @@ fn mrb_regexp_match(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
                 value: RValue::Data(matchdata_data),
                 object_id: Cell::new(0),
                 singleton_class: RefCell::new(None),
-                ivar: RefCell::new(RHashMap::default()),
+                ivar: RefCell::new(IvarMap::new()),
             }
             .to_refcount_assigned())
         }
