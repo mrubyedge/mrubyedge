@@ -117,6 +117,34 @@ pub struct RObject {
 
 const UNSET_OBJECT_ID: u64 = u64::MAX;
 
+// Shared instances for MRI immediates: nil, true, false and small integers.
+// Their object_id is value-derived (4, 20, 0, n*2+1), so sharing never
+// changes identity semantics. Per-thread because Rc<RObject> is !Sync, and
+// replaced with fresh instances on every VM construction so mutable state
+// written on a cached object can never carry into a later VM on the same
+// thread.
+struct Flyweights {
+    nil: Rc<RObject>,
+    true_: Rc<RObject>,
+    false_: Rc<RObject>,
+    small_ints: Vec<Rc<RObject>>,
+}
+
+impl Flyweights {
+    fn fresh() -> Self {
+        Self {
+            nil: Rc::new(RObject::nil()),
+            true_: Rc::new(RObject::boolean(true)),
+            false_: Rc::new(RObject::boolean(false)),
+            small_ints: (0..=255).map(|n| Rc::new(RObject::integer(n))).collect(),
+        }
+    }
+}
+
+thread_local! {
+    static FLYWEIGHTS: RefCell<Flyweights> = RefCell::new(Flyweights::fresh());
+}
+
 impl RObject {
     pub fn nil() -> Self {
         RObject {
@@ -316,6 +344,37 @@ impl RObject {
         rc
     }
 
+    /// Shared instance for nil (object_id 4).
+    pub fn nil_rc() -> Rc<Self> {
+        FLYWEIGHTS.with(|f| f.borrow().nil.clone())
+    }
+
+    /// Shared instance for true (object_id 20) or false (object_id 0).
+    pub fn boolean_rc(b: bool) -> Rc<Self> {
+        FLYWEIGHTS.with(|f| {
+            let f = f.borrow();
+            if b { f.true_.clone() } else { f.false_.clone() }
+        })
+    }
+
+    /// Shared instance for small integers 0..=255 (object_id n*2+1); larger
+    /// values allocate a fresh instance as before.
+    pub fn integer_rc(n: i64) -> Rc<Self> {
+        if (0..=255).contains(&n) {
+            FLYWEIGHTS.with(|f| f.borrow().small_ints[n as usize].clone())
+        } else {
+            Rc::new(RObject::integer(n))
+        }
+    }
+
+    /// Replaces the shared immediate instances with fresh ones. Called on
+    /// every VM construction: anything mutable written on a cached object
+    /// (ivars are the one path that can reach them) stays with the old
+    /// instance and cannot carry into the new VM.
+    pub fn reset_flyweights() {
+        FLYWEIGHTS.with(|f| *f.borrow_mut() = Flyweights::fresh());
+    }
+
     pub fn is_falsy(&self) -> bool {
         match self.tt {
             RType::Nil => true,
@@ -333,6 +392,12 @@ impl RObject {
 
     pub fn is_nil(&self) -> bool {
         matches!(self.tt, RType::Nil)
+    }
+
+    /// MRI immediates share one instance per value, so they must never
+    /// carry per-instance state (singleton class).
+    pub fn is_immediate(&self) -> bool {
+        matches!(self.tt, RType::Nil | RType::Bool | RType::Integer)
     }
 
     pub fn is_main(&self) -> bool {
@@ -354,7 +419,7 @@ impl RObject {
             .borrow()
             .get(key)
             .cloned()
-            .or_else(|| Some(RObject::nil().to_refcount_assigned()))
+            .or_else(|| Some(RObject::nil_rc()))
             .unwrap()
     }
 
@@ -454,10 +519,21 @@ impl RObject {
     }
 
     pub(crate) fn initialize_or_get_singleton_class(self: &Rc<Self>, vm: &mut VM) -> Rc<RClass> {
+        // immediates are shared flyweights; caching a singleton class on one
+        // would leak to every instance of that value. Build a throwaway class
+        // instead.
+        if self.is_immediate() {
+            return self.build_singleton_class(vm);
+        }
         if let Some(sclass) = self.get_singleton_class() {
             return sclass;
         }
+        let sclass = self.build_singleton_class(vm);
+        self.set_singleton_class(Some(sclass.clone()));
+        sclass
+    }
 
+    fn build_singleton_class(self: &Rc<Self>, vm: &mut VM) -> Rc<RClass> {
         let class_name = {
             let inspect = mrb_call_inspect(vm, self.clone());
             match inspect {
@@ -476,8 +552,6 @@ impl RObject {
             parent_module.clone(),
         ));
         sclass.update_module_weakref();
-
-        self.set_singleton_class(Some(sclass.clone()));
         sclass
     }
 

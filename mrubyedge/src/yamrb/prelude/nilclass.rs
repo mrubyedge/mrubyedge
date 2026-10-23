@@ -27,5 +27,5 @@ fn mrb_nilclass_inspect(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObjec
 }
 
 fn mrb_nilclass_nil_p(_vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    Ok(Rc::new(RObject::boolean(true)))
+    Ok(RObject::boolean_rc(true))
 }

@@ -90,7 +90,7 @@ fn mrb_integer_times(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
     let this: i64 = vm.getself()?.as_ref().try_into()?;
     for i in 0..this {
         let block = args[0].clone();
-        let args = vec![Rc::new(RObject::integer(i))];
+        let args = vec![RObject::integer_rc(i)];
         if let Some(v) = mrb_call_block_breakable(vm, block, None, &args)? {
             return Ok(v);
         }
@@ -102,7 +102,7 @@ fn mrb_integer_mod(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
     let lhs: i64 = vm.getself()?.as_ref().try_into()?;
     let rhs: i64 = args[0].as_ref().try_into()?;
 
-    Ok(Rc::new(RObject::integer(lhs % rhs)))
+    Ok(RObject::integer_rc(lhs % rhs))
 }
 
 fn mrb_integer_bitref(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -110,16 +110,16 @@ fn mrb_integer_bitref(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     let index: i64 = args[0].as_ref().try_into()?;
 
     if index < 0 {
-        return Ok(Rc::new(RObject::integer(0)));
+        return Ok(RObject::integer_rc(0));
     }
 
     let bit = (this >> index) & 1;
-    Ok(Rc::new(RObject::integer(bit)))
+    Ok(RObject::integer_rc(bit))
 }
 
 fn mrb_integer_negative(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: i64 = vm.getself()?.as_ref().try_into()?;
-    Ok(Rc::new(RObject::integer(-this)))
+    Ok(RObject::integer_rc(-this))
 }
 
 fn mrb_integer_add(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -127,7 +127,7 @@ fn mrb_integer_add(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
     let rhs_obj = &args[0];
 
     match &rhs_obj.as_ref().value {
-        RValue::Integer(rhs) => Ok(Rc::new(RObject::integer(lhs + rhs))),
+        RValue::Integer(rhs) => Ok(RObject::integer_rc(lhs + rhs)),
         RValue::Float(rhs) => Ok(Rc::new(RObject::float(lhs as f64 + rhs))),
         _ => Err(Error::TypeMismatch),
     }
@@ -138,7 +138,7 @@ fn mrb_integer_sub(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
     let rhs_obj = &args[0];
 
     match &rhs_obj.as_ref().value {
-        RValue::Integer(rhs) => Ok(Rc::new(RObject::integer(lhs - rhs))),
+        RValue::Integer(rhs) => Ok(RObject::integer_rc(lhs - rhs)),
         RValue::Float(rhs) => Ok(Rc::new(RObject::float(lhs as f64 - rhs))),
         _ => Err(Error::TypeMismatch),
     }
@@ -153,7 +153,7 @@ fn mrb_integer_power(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
             if *exp >= 0 {
                 // Positive integer exponent
                 let result = base.pow(*exp as u32);
-                Ok(Rc::new(RObject::integer(result)))
+                Ok(RObject::integer_rc(result))
             } else {
                 // Negative integer exponent - return float
                 let result = (base as f64).powf(*exp as f64);
@@ -172,24 +172,24 @@ fn mrb_integer_power(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
 fn mrb_integer_and(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let lhs: i64 = vm.getself()?.as_ref().try_into()?;
     let rhs: i64 = args[0].as_ref().try_into()?;
-    Ok(Rc::new(RObject::integer(lhs & rhs)))
+    Ok(RObject::integer_rc(lhs & rhs))
 }
 
 fn mrb_integer_or(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let lhs: i64 = vm.getself()?.as_ref().try_into()?;
     let rhs: i64 = args[0].as_ref().try_into()?;
-    Ok(Rc::new(RObject::integer(lhs | rhs)))
+    Ok(RObject::integer_rc(lhs | rhs))
 }
 
 fn mrb_integer_xor(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let lhs: i64 = vm.getself()?.as_ref().try_into()?;
     let rhs: i64 = args[0].as_ref().try_into()?;
-    Ok(Rc::new(RObject::integer(lhs ^ rhs)))
+    Ok(RObject::integer_rc(lhs ^ rhs))
 }
 
 fn mrb_integer_not(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: i64 = vm.getself()?.as_ref().try_into()?;
-    Ok(Rc::new(RObject::integer(!this)))
+    Ok(RObject::integer_rc(!this))
 }
 
 fn mrb_integer_lshift(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -200,7 +200,7 @@ fn mrb_integer_lshift(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
         return Err(Error::ArgumentError("negative shift count".to_string()));
     }
 
-    Ok(Rc::new(RObject::integer(lhs << rhs)))
+    Ok(RObject::integer_rc(lhs << rhs))
 }
 
 fn mrb_integer_rshift(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -211,12 +211,12 @@ fn mrb_integer_rshift(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
         return Err(Error::ArgumentError("negative shift count".to_string()));
     }
 
-    Ok(Rc::new(RObject::integer(lhs >> rhs)))
+    Ok(RObject::integer_rc(lhs >> rhs))
 }
 
 fn mrb_integer_abs(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: i64 = vm.getself()?.as_ref().try_into()?;
-    Ok(Rc::new(RObject::integer(this.abs())))
+    Ok(RObject::integer_rc(this.abs()))
 }
 
 fn mrb_integer_to_i(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -267,5 +267,5 @@ fn mrb_integer_clamp(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
         this
     };
 
-    Ok(Rc::new(RObject::integer(result)))
+    Ok(RObject::integer_rc(result))
 }

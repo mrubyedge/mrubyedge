@@ -595,8 +595,7 @@ pub(crate) fn op_nop(_vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_loadi_n(vm: &mut VM, n: i32, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let val = RObject::integer(n as i64);
-    vm.current_regs()[a].replace(Rc::new(val));
+    vm.current_regs()[a].replace(RObject::integer_rc(n as i64));
     Ok(())
 }
 
@@ -605,7 +604,7 @@ pub(crate) fn op_loadl(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let pool_val = vm.current_irep.pool[b as usize].clone();
     let val = match pool_val {
         RPool::Str(s) => Rc::new(RObject::string(s)),
-        RPool::Int(i) => Rc::new(RObject::integer(i)),
+        RPool::Int(i) => RObject::integer_rc(i),
         RPool::Float(f) => Rc::new(RObject::float(f)),
         RPool::Data(_) => {
             return Err(Error::Internal(
@@ -619,29 +618,25 @@ pub(crate) fn op_loadl(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_loadi16(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bs()?;
-    let val = RObject::integer(b as i64);
-    vm.current_regs()[a as usize].replace(Rc::new(val));
+    vm.current_regs()[a as usize].replace(RObject::integer_rc(b as i64));
     Ok(())
 }
 
 pub(crate) fn op_loadi32(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b, c) = operand.as_bss()?;
-    let val = RObject::integer((b as i64) << 16 | c as i64);
-    vm.current_regs()[a as usize].replace(Rc::new(val));
+    vm.current_regs()[a as usize].replace(RObject::integer_rc((b as i64) << 16 | c as i64));
     Ok(())
 }
 
 pub(crate) fn op_loadi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let val = RObject::integer(b as i64);
-    vm.current_regs()[a as usize].replace(Rc::new(val));
+    vm.current_regs()[a as usize].replace(RObject::integer_rc(b as i64));
     Ok(())
 }
 
 pub(crate) fn op_loadineg(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let val = RObject::integer(-(b as i64));
-    vm.current_regs()[a as usize].replace(Rc::new(val));
+    vm.current_regs()[a as usize].replace(RObject::integer_rc(-(b as i64)));
     Ok(())
 }
 
@@ -654,8 +649,7 @@ pub(crate) fn op_loadsym(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_loadnil(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let val = RObject::nil();
-    vm.current_regs()[a].replace(Rc::new(val));
+    vm.current_regs()[a].replace(RObject::nil_rc());
     Ok(())
 }
 
@@ -668,15 +662,13 @@ pub(crate) fn op_loadself(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_loadt(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let val = RObject::boolean(true);
-    vm.current_regs()[a].replace(Rc::new(val));
+    vm.current_regs()[a].replace(RObject::boolean_rc(true));
     Ok(())
 }
 
 pub(crate) fn op_loadf(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
-    let val = RObject::boolean(false);
-    vm.current_regs()[a].replace(Rc::new(val));
+    vm.current_regs()[a].replace(RObject::boolean_rc(false));
     Ok(())
 }
 
@@ -686,7 +678,7 @@ pub(crate) fn op_getgv(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     // Ruby reads a global that was never assigned as nil.
     let val = match vm.globals.get(&val.name) {
         Some(val) => val.clone(),
-        None => RObject::nil().to_refcount_assigned(),
+        None => RObject::nil_rc(),
     };
     vm.current_regs()[a as usize].replace(val);
     Ok(())
@@ -998,7 +990,7 @@ pub(crate) fn op_getidx(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 pub(crate) fn op_getidx0(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
     let recv = vm.get_current_regs_cloned(b as usize)?;
-    let zero = RObject::integer(0).to_refcount_assigned();
+    let zero = RObject::integer_rc(0);
     vm.current_regs()[a as usize].replace(recv);
     vm.current_regs()[a as usize + 1].replace(zero);
     do_op_send_with_id(vm, a as usize, None, a, RSym::new("[]".to_string()), 1)
@@ -1099,7 +1091,7 @@ pub(crate) fn op_except(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         .exception
         .take()
         .map(|e| RObject::exception(e).to_refcount_assigned())
-        .unwrap_or_else(|| RObject::nil().to_refcount_assigned());
+        .unwrap_or_else(RObject::nil_rc);
     vm.current_regs()[a as usize].replace(val);
     Ok(())
 }
@@ -1123,8 +1115,8 @@ pub(crate) fn op_rescue(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         }
         _ => false,
     };
-    let val = RObject::boolean(is_rescued);
-    vm.current_regs()[b as usize].replace(val.to_refcount_assigned());
+    let val = RObject::boolean_rc(is_rescued);
+    vm.current_regs()[b as usize].replace(val);
     Ok(())
 }
 
@@ -1221,7 +1213,7 @@ pub(crate) fn do_op_send_with_id(
     if &method_id.name == "__debug__vm_info" {
         // Special debug method to dump VM info
         vm.debug_dump_to_stdout(32);
-        vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
+        vm.current_regs()[a as usize].replace(RObject::nil_rc());
         return Ok(());
     }
 
@@ -1268,7 +1260,7 @@ pub(crate) fn do_op_send_with_id(
         };
         block
     } else {
-        Rc::new(RObject::nil())
+        RObject::nil_rc()
     };
     vm.current_regs()[block_index].replace(block.clone());
 
@@ -1367,7 +1359,7 @@ pub(crate) fn do_op_send_with_id(
                     }
                     vm.break_landing.replace(landing);
                 }
-                vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
+                vm.current_regs()[a as usize].replace(RObject::nil_rc());
                 return Err(e);
             }
         }
@@ -1397,7 +1389,7 @@ fn unshift_method_name(vm: &mut VM, method_id: &RSym, a: usize, total_args: usiz
     for i in (a + 1..=a + total_args).rev() {
         let val = vm.current_regs().get(i).and_then(|r| r.as_ref().cloned());
         val.as_ref().cloned().map(|v| mrb_call_inspect(vm, v));
-        vm.current_regs()[i + 1].replace(val.unwrap_or_else(|| Rc::new(RObject::nil())));
+        vm.current_regs()[i + 1].replace(val.unwrap_or_else(RObject::nil_rc));
     }
     vm.current_regs()[a + 1].replace(method_name);
 }
@@ -1497,7 +1489,7 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
                 vm.current_regs()[a as usize].replace(val);
             }
             Err(e) => {
-                vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
+                vm.current_regs()[a as usize].replace(RObject::nil_rc());
                 return Err(e);
             }
         }
@@ -1582,7 +1574,7 @@ pub(crate) fn op_enter(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let post = arg_info.m2 as usize;
     let keyword_slot = usize::from(arg_info.k > 0 || arg_info.d > 0);
     let positional_slots = required + optional + rest + post;
-    let nil = Rc::new(RObject::nil());
+    let nil = RObject::nil_rc();
 
     // Ruby methods have strict arity. Iterator blocks may omit parameters;
     // those slots are initialized to nil below.
@@ -1655,7 +1647,7 @@ pub(crate) fn op_key_p(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         let kwrest_pos = kargs.kwrest_reg.get();
 
         (
-            RObject::boolean(kargs.args.borrow().contains_key(&key)),
+            RObject::boolean_rc(kargs.args.borrow().contains_key(&key)),
             kwrest_pos,
         )
     };
@@ -1665,7 +1657,7 @@ pub(crate) fn op_key_p(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         mrb_hash_delete(kwrest, key_robj)?;
     }
 
-    vm.current_regs()[a as usize].replace(val.to_refcount_assigned());
+    vm.current_regs()[a as usize].replace(val);
     Ok(())
 }
 
@@ -1715,15 +1707,15 @@ pub(crate) fn op_retself(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
 }
 
 pub(crate) fn op_retnil(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
-    do_return(vm, Some(RObject::nil().to_refcount_assigned()))
+    do_return(vm, Some(RObject::nil_rc()))
 }
 
 pub(crate) fn op_rettrue(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
-    do_return(vm, Some(RObject::boolean(true).to_refcount_assigned()))
+    do_return(vm, Some(RObject::boolean_rc(true)))
 }
 
 pub(crate) fn op_retfalse(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
-    do_return(vm, Some(RObject::boolean(false).to_refcount_assigned()))
+    do_return(vm, Some(RObject::boolean_rc(false)))
 }
 
 pub(crate) fn do_return(vm: &mut VM, value: Option<Rc<RObject>>) -> Result<(), Error> {
@@ -1847,7 +1839,7 @@ pub(crate) fn op_add(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.take_current_regs(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => Rc::new(RObject::integer(n1 + n2)),
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::integer_rc(n1 + n2),
         (RValue::Float(n1), RValue::Float(n2)) => Rc::new(RObject::float(n1 + n2)),
         (RValue::Integer(n1), RValue::Float(n2)) => Rc::new(RObject::float(*n1 as f64 + n2)),
         (RValue::Float(n1), RValue::Integer(n2)) => Rc::new(RObject::float(n1 + *n2 as f64)),
@@ -1929,7 +1921,7 @@ fn math_immediate_to_local(vm: &mut VM, operand: &Fetched, add: bool) -> Result<
         RValue::Float(n) => RObject::float(n + amount as f64).to_refcount_assigned(),
         _ => {
             // Other receivers are sent the method; the call runs in the window ops.h reserves at R[b].
-            let arg = RObject::integer(c as i64).to_refcount_assigned();
+            let arg = RObject::integer_rc(c as i64);
             vm.current_regs_offset += b as usize;
             let res = mrb_funcall(vm, Some(value), if add { "+" } else { "-" }, &[arg]);
             vm.current_regs_offset -= b as usize;
@@ -1999,7 +1991,7 @@ fn compare_via_spaceship(
     val1: Rc<RObject>,
     val2: Rc<RObject>,
     op: &str,
-) -> Result<RObject, Error> {
+) -> Result<Rc<RObject>, Error> {
     let r = mrb_funcall(vm, Some(val1), "<=>", std::slice::from_ref(&val2))?;
     match r.value {
         RValue::Nil => Err(Error::ArgumentError("comparison failed".into())),
@@ -2012,7 +2004,7 @@ fn compare_via_spaceship(
                 ">" => ord > 0,
                 _ => ord >= 0,
             };
-            Ok(RObject::boolean(hit))
+            Ok(RObject::boolean_rc(hit))
         }
     }
 }
@@ -2023,13 +2015,13 @@ pub(crate) fn op_lt(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.get_current_regs_cloned(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 < n2),
-        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean(n1 < n2),
-        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean((*n1 as f64) < *n2),
-        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean(*n1 < (*n2 as f64)),
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean_rc(n1 < n2),
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean_rc(n1 < n2),
+        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean_rc((*n1 as f64) < *n2),
+        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean_rc(*n1 < (*n2 as f64)),
         _ => compare_via_spaceship(vm, val1.clone(), val2.clone(), "<")?,
     };
-    vm.current_regs()[a].replace(Rc::new(result));
+    vm.current_regs()[a].replace(result);
     Ok(())
 }
 
@@ -2039,13 +2031,13 @@ pub(crate) fn op_le(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.get_current_regs_cloned(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 <= n2),
-        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean(n1 <= n2),
-        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean((*n1 as f64) <= *n2),
-        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean(*n1 <= (*n2 as f64)),
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean_rc(n1 <= n2),
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean_rc(n1 <= n2),
+        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean_rc((*n1 as f64) <= *n2),
+        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean_rc(*n1 <= (*n2 as f64)),
         _ => compare_via_spaceship(vm, val1.clone(), val2.clone(), "<=")?,
     };
-    vm.current_regs()[a].replace(Rc::new(result));
+    vm.current_regs()[a].replace(result);
     Ok(())
 }
 
@@ -2065,13 +2057,13 @@ pub(crate) fn op_gt(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.get_current_regs_cloned(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 > n2),
-        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean(n1 > n2),
-        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean((*n1 as f64) > *n2),
-        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean(*n1 > (*n2 as f64)),
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean_rc(n1 > n2),
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean_rc(n1 > n2),
+        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean_rc((*n1 as f64) > *n2),
+        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean_rc(*n1 > (*n2 as f64)),
         _ => compare_via_spaceship(vm, val1.clone(), val2.clone(), ">")?,
     };
-    vm.current_regs()[a].replace(Rc::new(result));
+    vm.current_regs()[a].replace(result);
     Ok(())
 }
 
@@ -2081,13 +2073,13 @@ pub(crate) fn op_ge(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val1 = vm.get_current_regs_cloned(a)?;
     let val2 = vm.get_current_regs_cloned(b)?;
     let result = match (&val1.value, &val2.value) {
-        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean(n1 >= n2),
-        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean(n1 >= n2),
-        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean((*n1 as f64) >= *n2),
-        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean(*n1 >= (*n2 as f64)),
+        (RValue::Integer(n1), RValue::Integer(n2)) => RObject::boolean_rc(n1 >= n2),
+        (RValue::Float(n1), RValue::Float(n2)) => RObject::boolean_rc(n1 >= n2),
+        (RValue::Integer(n1), RValue::Float(n2)) => RObject::boolean_rc((*n1 as f64) >= *n2),
+        (RValue::Float(n1), RValue::Integer(n2)) => RObject::boolean_rc(*n1 >= (*n2 as f64)),
         _ => compare_via_spaceship(vm, val1.clone(), val2.clone(), ">=")?,
     };
-    vm.current_regs()[a].replace(Rc::new(result));
+    vm.current_regs()[a].replace(result);
     Ok(())
 }
 
@@ -2194,10 +2186,7 @@ pub(crate) fn op_aref(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     match &array.value {
         RValue::Array(ary) => {
             let ary = ary.borrow();
-            let val = ary
-                .get(index)
-                .cloned()
-                .unwrap_or_else(|| Rc::new(RObject::nil()));
+            let val = ary.get(index).cloned().unwrap_or_else(RObject::nil_rc);
             vm.current_regs()[a as usize].replace(val);
         }
         _ => {

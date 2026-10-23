@@ -92,7 +92,7 @@ fn mrb_shared_memory_offset_in_memory(
         }
     };
     let offset = sm.borrow().offset_in_memory();
-    Ok(Rc::new(RObject::integer(offset as i64)))
+    Ok(RObject::integer_rc(offset as i64))
 }
 
 fn mrb_shared_memory_set_index_range(
@@ -212,14 +212,14 @@ fn mrb_shared_memory_read_by_size(vm: &mut VM, args: &[Rc<RObject>]) -> Result<R
     match size {
         1 => {
             let value = sm.borrow().memory.as_ref()[offset];
-            Ok(Rc::new(RObject::integer(value as i64)))
+            Ok(RObject::integer_rc(value as i64))
         }
         2 => {
             let value = u16::from_le_bytes([
                 sm.borrow().memory.as_ref()[offset],
                 sm.borrow().memory.as_ref()[offset + 1],
             ]);
-            Ok(Rc::new(RObject::integer(value as i64)))
+            Ok(RObject::integer_rc(value as i64))
         }
         4 => {
             let sm_borrowed = sm.borrow();
@@ -230,7 +230,7 @@ fn mrb_shared_memory_read_by_size(vm: &mut VM, args: &[Rc<RObject>]) -> Result<R
                 memory[offset + 2],
                 memory[offset + 3],
             ]);
-            Ok(Rc::new(RObject::integer(value as i64)))
+            Ok(RObject::integer_rc(value as i64))
         }
         8 => {
             let sm_borrowed = sm.borrow();
@@ -245,7 +245,7 @@ fn mrb_shared_memory_read_by_size(vm: &mut VM, args: &[Rc<RObject>]) -> Result<R
                 memory[offset + 6],
                 memory[offset + 7],
             ]);
-            Ok(Rc::new(RObject::integer(value as i64)))
+            Ok(RObject::integer_rc(value as i64))
         }
         _ => Err(Error::RuntimeError("Invalid size passed".to_string())),
     }

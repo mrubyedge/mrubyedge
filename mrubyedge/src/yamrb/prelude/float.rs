@@ -80,9 +80,7 @@ pub fn mrb_float_to_f(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>,
 pub fn mrb_float_finite(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
     match &this.value {
-        crate::yamrb::value::RValue::Float(f) => {
-            Ok(RObject::boolean(f.is_finite()).to_refcount_assigned())
-        }
+        crate::yamrb::value::RValue::Float(f) => Ok(RObject::boolean_rc(f.is_finite())),
         _ => Err(Error::RuntimeError(
             "Float#finite? must be called on a Float".to_string(),
         )),
@@ -92,9 +90,7 @@ pub fn mrb_float_finite(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject
 pub fn mrb_float_infinite(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
     match &this.value {
-        crate::yamrb::value::RValue::Float(f) => {
-            Ok(RObject::boolean(f.is_infinite()).to_refcount_assigned())
-        }
+        crate::yamrb::value::RValue::Float(f) => Ok(RObject::boolean_rc(f.is_infinite())),
         _ => Err(Error::RuntimeError(
             "Float#infinite? must be called on a Float".to_string(),
         )),
@@ -104,9 +100,7 @@ pub fn mrb_float_infinite(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObje
 pub fn mrb_float_nan(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
     match &this.value {
-        crate::yamrb::value::RValue::Float(f) => {
-            Ok(RObject::boolean(f.is_nan()).to_refcount_assigned())
-        }
+        crate::yamrb::value::RValue::Float(f) => Ok(RObject::boolean_rc(f.is_nan())),
         _ => Err(Error::RuntimeError(
             "Float#nan? must be called on a Float".to_string(),
         )),

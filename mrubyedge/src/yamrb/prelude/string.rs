@@ -313,7 +313,7 @@ fn mrb_string_unpack(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, E
                 return Err(Error::RuntimeError("Unsupported format".to_string()));
             }
         };
-        mrb_array_push(result.clone(), &[Rc::new(RObject::integer(value as i64))])?;
+        mrb_array_push(result.clone(), &[RObject::integer_rc(value as i64)])?;
     }
 
     Ok(result)
@@ -353,7 +353,7 @@ fn test_mrb_string_unpack() {
 fn mrb_string_size(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this = vm.getself()?;
     let value: Vec<u8> = this.as_ref().try_into()?;
-    Ok(Rc::new(RObject::integer(value.len() as i64)))
+    Ok(RObject::integer_rc(value.len() as i64))
 }
 
 fn mrb_string_add(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -394,7 +394,7 @@ fn mrb_string_slice(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
     let idx = if index < 0 { len + index } else { index };
 
     if idx < 0 || idx >= len {
-        return Ok(Rc::new(RObject::nil()));
+        return Ok(RObject::nil_rc());
     }
 
     if args.len() == 1 {
@@ -402,7 +402,7 @@ fn mrb_string_slice(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
     } else {
         let length: i64 = args[1].as_ref().try_into()?;
         if length < 0 {
-            return Ok(Rc::new(RObject::nil()));
+            return Ok(RObject::nil_rc());
         }
         let end = (idx + length).min(len);
         let result: String = chars[idx as usize..end as usize].iter().collect();
@@ -426,7 +426,7 @@ fn mrb_string_slice_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
     let idx = if index < 0 { len + index } else { index };
 
     if idx < 0 || idx >= len {
-        return Ok(Rc::new(RObject::nil()));
+        return Ok(RObject::nil_rc());
     }
 
     let (removed, remaining) = if args.len() == 1 {
@@ -438,7 +438,7 @@ fn mrb_string_slice_self(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
     } else {
         let length: i64 = args[1].as_ref().try_into()?;
         if length < 0 {
-            return Ok(Rc::new(RObject::nil()));
+            return Ok(RObject::nil_rc());
         }
         let end = (idx + length).min(len);
         let removed: String = chars[idx as usize..end as usize].iter().collect();
@@ -492,7 +492,7 @@ fn mrb_string_chomp_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObjec
         *this.string_borrow_mut()? = result.as_bytes().to_vec();
         Ok(this)
     } else {
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     }
 }
 
@@ -503,7 +503,7 @@ fn mrb_string_dup(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Err
 
 fn mrb_string_empty(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: String = vm.getself()?.as_ref().try_into()?;
-    Ok(Rc::new(RObject::boolean(this.is_empty())))
+    Ok(RObject::boolean_rc(this.is_empty()))
 }
 
 fn mrb_string_getbyte(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -513,9 +513,9 @@ fn mrb_string_getbyte(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     let idx = if index < 0 { len + index } else { index };
 
     if idx < 0 || idx >= len {
-        return Ok(Rc::new(RObject::nil()));
+        return Ok(RObject::nil_rc());
     }
-    Ok(Rc::new(RObject::integer(this[idx as usize] as i64)))
+    Ok(RObject::integer_rc(this[idx as usize] as i64))
 }
 
 fn mrb_string_setbyte(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -541,7 +541,7 @@ fn mrb_string_setbyte(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     bytes[idx as usize] = value as u8;
     *this.string_borrow_mut()? = bytes;
 
-    Ok(Rc::new(RObject::integer(value)))
+    Ok(RObject::integer_rc(value))
 }
 
 fn mrb_string_index(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
@@ -549,15 +549,15 @@ fn mrb_string_index(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
     let search: String = args[0].as_ref().try_into()?;
 
     match this.find(&search) {
-        Some(pos) => Ok(Rc::new(RObject::integer(pos as i64))),
-        None => Ok(Rc::new(RObject::nil())),
+        Some(pos) => Ok(RObject::integer_rc(pos as i64)),
+        None => Ok(RObject::nil_rc()),
     }
 }
 
 fn mrb_string_ord(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: String = vm.getself()?.as_ref().try_into()?;
     if let Some(ch) = this.chars().next() {
-        Ok(Rc::new(RObject::integer(ch as i64)))
+        Ok(RObject::integer_rc(ch as i64))
     } else {
         Err(Error::ArgumentError("empty string".to_string()))
     }
@@ -595,7 +595,7 @@ fn mrb_string_lstrip_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObje
         *this.string_borrow_mut()? = result.as_bytes().to_vec();
         Ok(this)
     } else {
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     }
 }
 
@@ -613,7 +613,7 @@ fn mrb_string_rstrip_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObje
         *this.string_borrow_mut()? = result.as_bytes().to_vec();
         Ok(this)
     } else {
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     }
 }
 
@@ -631,7 +631,7 @@ fn mrb_string_strip_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObjec
         *this.string_borrow_mut()? = result.as_bytes().to_vec();
         Ok(this)
     } else {
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     }
 }
 
@@ -643,26 +643,26 @@ fn mrb_string_to_sym(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
 fn mrb_string_start_with(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: String = vm.getself()?.as_ref().try_into()?;
     let prefix: String = args[0].as_ref().try_into()?;
-    Ok(Rc::new(RObject::boolean(this.starts_with(&prefix))))
+    Ok(RObject::boolean_rc(this.starts_with(&prefix)))
 }
 
 fn mrb_string_end_with(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: String = vm.getself()?.as_ref().try_into()?;
     let suffix: String = args[0].as_ref().try_into()?;
-    Ok(Rc::new(RObject::boolean(this.ends_with(&suffix))))
+    Ok(RObject::boolean_rc(this.ends_with(&suffix)))
 }
 
 fn mrb_string_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: String = vm.getself()?.as_ref().try_into()?;
     let search: String = args[0].as_ref().try_into()?;
-    Ok(Rc::new(RObject::boolean(this.contains(&search))))
+    Ok(RObject::boolean_rc(this.contains(&search)))
 }
 
 fn mrb_string_bytes(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
     let this: Vec<u8> = vm.getself()?.as_ref().try_into()?;
     let result: Vec<Rc<RObject>> = this
         .into_iter()
-        .map(|b| Rc::new(RObject::integer(b as i64)))
+        .map(|b| RObject::integer_rc(b as i64))
         .collect();
     Ok(Rc::new(RObject::array(result)))
 }
@@ -708,7 +708,7 @@ fn mrb_string_upcase_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObje
         *this.string_borrow_mut()? = result.as_bytes().to_vec();
         Ok(this)
     } else {
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     }
 }
 
@@ -726,7 +726,7 @@ fn mrb_string_downcase_self(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<ROb
         *this.string_borrow_mut()? = result.as_bytes().to_vec();
         Ok(this)
     } else {
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     }
 }
 
@@ -734,7 +734,7 @@ fn mrb_string_to_i(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Er
     let this: String = vm.getself()?.as_ref().try_into()?;
     let trimmed = this.trim();
     let result = trimmed.parse::<i64>().unwrap_or(0);
-    Ok(Rc::new(RObject::integer(result)))
+    Ok(RObject::integer_rc(result))
 }
 
 fn mrb_string_to_f(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {

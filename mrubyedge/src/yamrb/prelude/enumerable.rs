@@ -174,7 +174,7 @@ fn mrb_enumerable_to_a(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>
             "push",
             std::slice::from_ref(&args[0]),
         )?;
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     });
 
     let this = vm.getself()?;
@@ -231,7 +231,7 @@ fn mrb_enumerable_find(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>,
     let broken_ref = broken.clone();
     let wrapping_block: RFn = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
         if found.get() {
-            return Ok(Rc::new(RObject::nil()));
+            return Ok(RObject::nil_rc());
         }
 
         let block = original_block.clone();
@@ -306,7 +306,7 @@ fn mrb_enumerable_all(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     let broken_ref = broken.clone();
     let wrapping_block: RFn = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
         if !all_true_ref.get() {
-            return Ok(Rc::new(RObject::nil()));
+            return Ok(RObject::nil_rc());
         }
 
         let block = original_block.clone();
@@ -325,7 +325,7 @@ fn mrb_enumerable_all(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     if let Some(v) = broken.borrow_mut().take() {
         return Ok(v);
     }
-    Ok(Rc::new(RObject::boolean(all_true.get())))
+    Ok(RObject::boolean_rc(all_true.get()))
 }
 
 // Enumerable#any?: Returns true if any element matches the condition
@@ -340,7 +340,7 @@ fn mrb_enumerable_any(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     let broken_ref = broken.clone();
     let wrapping_block: RFn = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
         if found_true_ref.get() {
-            return Ok(Rc::new(RObject::nil()));
+            return Ok(RObject::nil_rc());
         }
 
         let block = original_block.clone();
@@ -359,7 +359,7 @@ fn mrb_enumerable_any(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     if let Some(v) = broken.borrow_mut().take() {
         return Ok(v);
     }
-    Ok(Rc::new(RObject::boolean(found_true.get())))
+    Ok(RObject::boolean_rc(found_true.get()))
 }
 
 // Enumerable#delete_if: Deletes every element for which block evaluates to true
@@ -410,7 +410,7 @@ fn mrb_enumerable_each_with_index(vm: &mut VM, args: &[Rc<RObject>]) -> Result<R
     let wrapping_block: RFn = Box::new(move |vm: &mut VM, args: &[Rc<RObject>]| {
         let block = original_block.clone();
         let idx = index_ref.get();
-        let index_obj = Rc::new(RObject::integer(idx));
+        let index_obj = RObject::integer_rc(idx);
         // A multi-arg yield (Hash#each -> key, value) reaches the block as a
         // single array element.
         let element = if args.len() == 1 {
@@ -524,7 +524,7 @@ fn mrb_enumerable_max(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>,
     let collected: Vec<Rc<RObject>> = array.as_ref().try_into()?;
 
     if collected.is_empty() {
-        return Ok(Rc::new(RObject::nil()));
+        return Ok(RObject::nil_rc());
     }
 
     let mut max = collected[0].clone();
@@ -547,7 +547,7 @@ fn mrb_enumerable_min(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>,
     let collected: Vec<Rc<RObject>> = array.as_ref().try_into()?;
 
     if collected.is_empty() {
-        return Ok(Rc::new(RObject::nil()));
+        return Ok(RObject::nil_rc());
     }
 
     let mut min = collected[0].clone();
@@ -571,8 +571,7 @@ fn mrb_enumerable_minmax(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObjec
 
     if collected.is_empty() {
         return Ok(
-            RObject::array(vec![Rc::new(RObject::nil()), Rc::new(RObject::nil())])
-                .to_refcount_assigned(),
+            RObject::array(vec![RObject::nil_rc(), RObject::nil_rc()]).to_refcount_assigned()
         );
     }
 
@@ -613,7 +612,7 @@ fn mrb_enumerable_compact(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObje
                 std::slice::from_ref(&args[0]),
             )?;
         }
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     });
 
     let this = vm.getself()?;
@@ -633,7 +632,7 @@ fn mrb_enumerable_count(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>
         let count_ref = count.clone();
         let wrapping_block: RFn = Box::new(move |_vm: &mut VM, _args: &[Rc<RObject>]| {
             count_ref.set(count_ref.get() + 1);
-            Ok(Rc::new(RObject::nil()))
+            Ok(RObject::nil_rc())
         });
 
         let this = vm.getself()?;
@@ -665,7 +664,7 @@ fn mrb_enumerable_count(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>
         }
     }
 
-    Ok(Rc::new(RObject::integer(count.get())))
+    Ok(RObject::integer_rc(count.get()))
 }
 
 // Enumerable#uniq: Returns a new array with duplicate values removed
@@ -739,7 +738,7 @@ fn mrb_enumerable_reduce(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
                 std::slice::from_ref(&result),
             )?;
         }
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     });
 
     let this = vm.getself()?;
@@ -760,7 +759,7 @@ fn mrb_enumerable_sum(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
     // Check if we have an initial value
     let initial_value = if args.is_empty() || args[0].is_nil() {
         // Default initial value is 0
-        Rc::new(RObject::integer(0))
+        RObject::integer_rc(0)
     } else {
         // Initial value provided: sum(init)
         args[0].clone()
@@ -785,7 +784,7 @@ fn mrb_enumerable_sum(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
             "push",
             std::slice::from_ref(&result),
         )?;
-        Ok(Rc::new(RObject::nil()))
+        Ok(RObject::nil_rc())
     });
 
     let this = vm.getself()?;
