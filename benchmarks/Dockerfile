@@ -1,6 +1,6 @@
 # The Rust toolchain and its base filesystem are immutable. Refresh the digest
 # and review OS/toolchain updates together. Only apt's signed Debian repos are used.
-FROM rust:1.97.1-bookworm@sha256:0e2bcaef56d041a486784e54104a81aebe0da44bd03019bd70bc0401e42e4a97
+FROM rust:1.97.1-trixie@sha256:b1b3c9c0d921d7fa0a6d1f9ec7e4eab87f8c8ec97644c3d791450f131dec813f
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 clang libclang-dev ca-certificates \
     && rm -rf /var/lib/apt/lists/*
