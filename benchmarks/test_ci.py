@@ -35,9 +35,9 @@ class WorkflowInputs(unittest.TestCase):
         for requested, resolved in [("1.1.12", "v1.1.12"), ("topic", "origin/topic")]:
             def fake_run(args, **kwargs):
                 success = args[-1] == resolved + "^{commit}"
-                return subprocess.CompletedProcess(args, 0 if success else 128, "abc", "")
+                return subprocess.CompletedProcess(args, 0 if success else 128, "a" * 40 + "\n", "")
             with self.subTest(requested=requested), patch.object(ci.subprocess, "run", side_effect=fake_run):
-                self.assertEqual(ci.resolve_ref(requested), resolved)
+                self.assertEqual(ci.resolve_ref(requested), "a" * 40)
 
     def test_invalid_refs_are_not_silently_replaced_with_head(self):
         with patch.object(ci.subprocess, "run", return_value=subprocess.CompletedProcess([], 128, "", "")):

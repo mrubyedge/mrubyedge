@@ -130,7 +130,7 @@ selecting an old VM ref does not replace the benchmark tools with old files.
 dispatch time. An explicit SHA stays independent of that branch. Version numbers
 such as `1.1.12` also resolve to `v1.1.12`; branch names resolve locally or through
 `origin/`. All Git history and tags are fetched. `working-tree` is not accepted
-in CI. Both revisions use the same runner, workloads, Rust stable toolchain,
+in CI. Both revisions use the same runner, workloads, Rust 1.97.1 toolchain,
 feature settings and Ubuntu 24.04 runner, sequentially in one job.
 
 For example, using GitHub CLI after merging:
@@ -150,7 +150,7 @@ Artifacts are retained for 30 days.
 To make chart images directly viewable in the summary, the publication job
 creates or updates a separate `benchmark-results` branch, storing reports under
 `runs/<run-id>-<attempt>/`. Summaries use image URLs pinned to the publication
-commit. The branch retains reports independently of Artifact expiration. This
+commit; older URLs may expire after snapshot retention and GitHub garbage collection. The branch keeps snapshots of the latest 30 runs independently of Artifact expiration. This
 publication assumes a public GitHub repository, so image URLs are readable by
 GitHub's image proxy. No Pages setup or deployment secret is needed. Only the
 publication job has `contents: write`; the build job has read-only permissions
@@ -231,3 +231,78 @@ Run orchestration checks with:
 ```sh
 python3 -m unittest discover -s benchmarks -p 'test_*.py'
 ```
+
+## Workflow security
+
+Manual CI runs use two restricted Docker containers built from the same
+SHA-256-pinned Rust 1.97.1 image. The first only resolves/fetches dependencies;
+it has network access and never compiles or executes the selected revision.
+The second builds and measures with `--locked --offline` and Docker network
+mode `none`. No host Actions variables, tokens, Docker socket or home directory
+are passed into either container. Both run as the runner's non-root UID, drop
+all capabilities, forbid privilege escalation, and use a read-only root and
+source mount. Only `target/`, a fresh Cargo cache and a private 1 GiB `/tmp`
+are writable. Limits are 2 CPUs, 6 GiB RAM, 256 processes, 128 MiB per file and
+20 minutes per container; builds and individual workloads have shorter limits.
+Docker is an isolation boundary, not a separate kernel. Do not use a persistent
+self-hosted runner for untrusted revisions. Debian packages are installed from
+signed repositories when building the pinned base; rebuilds may include OS
+security updates and are not bit-for-bit reproducible.
+
+The runner checks expected revision SHAs, dependency lock hashes, workload and
+runner hashes, sample counts, ranges and recalculated statistics outside the
+containers. This expectation is recorded before the selected code runs and is
+not writable inside the containers. Sanitized JSON is the only plotting input.
+The producer's Markdown is discarded and regenerated. Publication checks the
+same metadata again, rejects extra files, symlinks, special/oversized files,
+and checks PNG checksums, dimensions and bounded decompression. This prevents
+format/path attacks; a malicious VM can still fabricate plausible timings.
+
+Only the protected `master` workflow can publish, and all selected dependency
+configurations must have [reviewed harness locks](locks/README.md). Other runs
+still produce downloadable reports. The `benchmark-publication` Environment
+must allow only the `master` branch. The publication checkout does not retain
+credentials; the write token is supplied only to the final push step. External
+Actions in that job still inherit job-level token permissions, so SHA pinning
+and review remain necessary. The result branch is never checked out: validated
+blobs are added with Git plumbing in an empty temporary repository.
+
+Publication keeps the newest 30 runs in a parentless snapshot. Updating only
+`benchmark-results` uses an explicit force-with-lease against the fetched SHA,
+so a competing push causes failure rather than data loss. Reachable history
+is bounded; older image URLs may eventually stop working after GitHub garbage
+collection. Reports in the downloadable artifacts expire after 30 days.
+Diagnostic artifacts contain regular files copied to a separate directory,
+with per-file/count/total limits; raw container output is never streamed as
+Actions workflow commands or traversed directly by upload-artifact.
+
+Python direct and transitive versions and distribution hashes are locked in
+`requirements-plot.txt`; CI only accepts wheels. To update the lock in a clean
+Python 3.11+ environment with pip-tools installed:
+
+```sh
+pip-compile --generate-hashes --strip-extras --no-emit-index-url \
+  --no-emit-trusted-host --output-file benchmarks/requirements-plot.txt \
+  benchmarks/requirements-plot.in
+python3 benchmarks/audit_dependencies.py
+```
+
+Review the version and hash changes before merging. Dependabot proposes
+Python, Action and container updates. GitHub Actions are pinned throughout
+this repository so repository-wide enforcement can be enabled safely after
+merging this change. Repository controls are previewed/applied with:
+
+```sh
+python3 scripts/configure_actions_security.py
+python3 scripts/configure_actions_security.py --apply
+# Run only AFTER all pinned workflows have reached master. The script refuses
+# to enable SHA enforcement while any default-branch Action is still unpinned.
+python3 scripts/configure_actions_security.py --apply --enable-sha-pinning
+```
+
+The controls require a reviewed PR and resolved discussions for `master`, block
+force pushes/deletion, protect version tags from updates/deletion, and restrict
+the publication Environment. Repository admins may bypass PR review only via
+a PR (for solo-maintainer operation); Actions have no bypass entry. Admin tag
+bypass remains available for deliberate release repair. CODEOWNERS requests
+review for workflow, benchmark and dependency-manifest changes.
