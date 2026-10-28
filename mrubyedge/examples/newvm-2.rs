@@ -64,6 +64,7 @@ fn main() {
         debug_info: None,
         const_cache: std::cell::RefCell::new(Vec::new()),
         catch_handlers: Vec::new(),
+        send_cache: Default::default(),
     };
 
     // irep 0x600000f20000 nregs=7 nlocals=3 pools=0 syms=1 reps=1 ilen=27
@@ -156,6 +157,7 @@ fn main() {
         debug_info: None,
         const_cache: std::cell::RefCell::new(Vec::new()),
         catch_handlers: Vec::new(),
+        send_cache: Default::default(),
     };
     let mut vm = vm::VM::new_by_raw_irep(irep0);
     let ret = vm.run().unwrap();
