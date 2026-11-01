@@ -4,7 +4,7 @@ use crate::{Error, yamrb::vm::Breadcrumb};
 
 use super::{
     optable::push_callinfo,
-    value::{RClass, RFn, RModule, RObject, RProc, RSym, RValue, resolve_method},
+    value::{InlineAttr, RClass, RFn, RModule, RObject, RProc, RSym, RValue, resolve_method},
     vm::VM,
 };
 
@@ -370,6 +370,35 @@ pub fn mrb_define_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: R
         func: Some(index),
         environ: None,
         block_self: None,
+        inline_attr: None,
+    };
+    let mut procs = klass.procs.borrow_mut();
+    procs.insert(name.to_string(), method);
+    vm.bump_method_version();
+}
+
+/// Like [`mrb_define_cmethod`], but tags the method as an attribute accessor
+/// so send-site cache hits can run the ivar access inline.
+pub fn mrb_define_cmethod_attr(
+    vm: &mut VM,
+    klass: Rc<RClass>,
+    name: &str,
+    attr: InlineAttr,
+    cmethod: RFn,
+) {
+    let index = vm.register_fn(cmethod);
+    let method = RProc {
+        is_lambda: false,
+        return_target: None,
+        is_rb_func: false,
+        is_fnblock: false,
+        sym_id: Some(RSym::new(name.to_string())),
+        next: None,
+        irep: None,
+        func: Some(index),
+        environ: None,
+        block_self: None,
+        inline_attr: Some(Rc::new(attr)),
     };
     let mut procs = klass.procs.borrow_mut();
     procs.insert(name.to_string(), method);
@@ -403,6 +432,7 @@ pub fn mrb_define_class_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmet
         func: Some(index),
         environ: None,
         block_self: None,
+        inline_attr: None,
     };
     let klass_singleton = RObject::class_singleton(klass, vm);
     let mut procs = klass_singleton.procs.borrow_mut();
@@ -433,6 +463,7 @@ pub fn mrb_define_singleton_cmethod(vm: &mut VM, dest: Rc<RObject>, name: &str, 
         func: Some(index),
         environ: None,
         block_self: None,
+        inline_attr: None,
     };
     let klass = dest.initialize_or_get_singleton_class(vm);
     let mut procs = klass.procs.borrow_mut();
@@ -478,6 +509,7 @@ pub fn mrb_define_module_cmethod(vm: &mut VM, module: Rc<RModule>, name: &str, c
         func: Some(index),
         environ: None,
         block_self: None,
+        inline_attr: None,
     };
     let mut procs = module.procs.borrow_mut();
     procs.insert(name.to_string(), method);

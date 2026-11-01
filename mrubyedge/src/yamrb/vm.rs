@@ -156,6 +156,9 @@ pub struct VM {
     /// include bumps it, so dispatch caches stamp entries with it and go cold
     /// when it moves.
     pub method_version: Cell<u64>,
+    /// Inline attribute accesses served from send-site cache hits; tests
+    /// assert it moves to prove the inline path runs.
+    pub attr_inline_hits: Cell<u64>,
     /// Name-keyed dispatch cache for `mrb_funcall` (no bytecode call site).
     pub method_name_cache: RefCell<MethodNameCache>,
 }
@@ -383,6 +386,7 @@ impl VM {
             fn_table,
             fn_block_stack,
             method_version: Cell::new(0),
+            attr_inline_hits: Cell::new(0),
             method_name_cache: RefCell::new(HashMap::new()),
         };
 
