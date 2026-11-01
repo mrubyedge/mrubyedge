@@ -23,11 +23,19 @@ def resolve_ref(value):
             ["git", "rev-parse", "--verify", "--end-of-options", candidate + "^{commit}"],
             cwd=ROOT, capture_output=True, text=True)
         if result.returncode == 0:
-            return candidate
+            commit = result.stdout.strip()
+            if re.fullmatch(r"[0-9a-f]{40}", commit):
+                return commit
     raise ValueError(f"cannot resolve benchmark ref: {value}")
 
 
 def arguments(inputs, output):
+    for name in ("BENCHMARK_REF", "BASELINE_REF", "BENCHMARK_FEATURES", "BENCHMARK_CASES"):
+        if len(inputs.get(name, "")) > 1024:
+            raise ValueError(f"{name} is too long")
+    features = inputs.get("BENCHMARK_FEATURES", "wasi")
+    if features and not re.fullmatch(r"[A-Za-z0-9_, /.-]+", features):
+        raise ValueError("invalid feature names")
     target = resolve_ref(inputs.get("BENCHMARK_REF", "HEAD"))
     baseline = inputs.get("BASELINE_REF", "v1.1.12").strip()
     samples = int(inputs.get("BENCHMARK_SAMPLES", "15"))
