@@ -244,7 +244,7 @@ pub fn mrb_funcall_with_block(
         None => vm.getself()?,
     };
     let binding = recv.singleton_or_this_class(vm);
-    let (owner_module, method) = match resolve_method(&binding, name) {
+    let (owner_module, method) = match vm.resolve_method_cached(&binding, name) {
         Some((owner, method)) => (owner, method),
         None => {
             if name == "method_missing" {
@@ -373,19 +373,21 @@ pub fn mrb_define_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: R
     };
     let mut procs = klass.procs.borrow_mut();
     procs.insert(name.to_string(), method);
+    vm.bump_method_version();
 }
 
 /// Defines a Ruby method (RProc) on a Ruby class.
 ///
 /// # Arguments
 ///
-/// * `_vm` - The virtual machine instance (unused)
+/// * `vm` - The virtual machine instance
 /// * `klass` - The class to define the method on
 /// * `name` - The name of the method
 /// * `method` - The Ruby proc to bind as a method
-pub fn mrb_define_method(_vm: &mut VM, klass: Rc<RClass>, name: &str, method: RProc) {
+pub fn mrb_define_method(vm: &mut VM, klass: Rc<RClass>, name: &str, method: RProc) {
     let mut procs = klass.procs.borrow_mut();
     procs.insert(name.to_string(), method);
+    vm.bump_method_version();
 }
 
 pub fn mrb_define_class_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: RFn) {
@@ -405,6 +407,7 @@ pub fn mrb_define_class_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmet
     let klass_singleton = RObject::class_singleton(klass, vm);
     let mut procs = klass_singleton.procs.borrow_mut();
     procs.insert(name.to_string(), method);
+    vm.bump_method_version();
 }
 
 /// Defines a singleton C method (native Rust function) on a specific Ruby object.
@@ -434,6 +437,7 @@ pub fn mrb_define_singleton_cmethod(vm: &mut VM, dest: Rc<RObject>, name: &str, 
     let klass = dest.initialize_or_get_singleton_class(vm);
     let mut procs = klass.procs.borrow_mut();
     procs.insert(name.to_string(), method);
+    vm.bump_method_version();
 }
 
 /// Defines a singleton Ruby method (RProc) on a specific Ruby object.
@@ -450,6 +454,7 @@ pub fn mrb_define_singleton_method(vm: &mut VM, dest: Rc<RObject>, name: &str, m
     let klass = dest.initialize_or_get_singleton_class(vm);
     let mut procs = klass.procs.borrow_mut();
     procs.insert(name.to_string(), method);
+    vm.bump_method_version();
 }
 
 /// Defines a C method (native Rust function) on a Ruby module.
@@ -476,19 +481,21 @@ pub fn mrb_define_module_cmethod(vm: &mut VM, module: Rc<RModule>, name: &str, c
     };
     let mut procs = module.procs.borrow_mut();
     procs.insert(name.to_string(), method);
+    vm.bump_method_version();
 }
 
 /// Defines a Ruby method (RProc) on a Ruby module.
 ///
 /// # Arguments
 ///
-/// * `_vm` - The virtual machine instance (unused)
+/// * `vm` - The virtual machine instance
 /// * `module` - The module to define the method on
 /// * `name` - The name of the method
 /// * `method` - The Ruby proc to bind as a method
-pub fn mrb_define_module_method(_vm: &mut VM, module: Rc<RModule>, name: &str, method: RProc) {
+pub fn mrb_define_module_method(vm: &mut VM, module: Rc<RModule>, name: &str, method: RProc) {
     let mut procs = module.procs.borrow_mut();
     procs.insert(name.to_string(), method);
+    vm.bump_method_version();
 }
 
 #[test]

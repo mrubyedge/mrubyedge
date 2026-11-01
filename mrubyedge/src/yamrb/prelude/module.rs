@@ -48,6 +48,7 @@ fn mrb_module_include(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject>, 
             ));
         }
     };
+    vm.bump_method_version();
 
     Ok(self_obj)
 }

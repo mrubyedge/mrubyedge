@@ -40,6 +40,7 @@
 //!         debug_info: None,
 //!         const_cache: Default::default(),
 //!         catch_handlers: Vec::new(),
+//!         send_cache: Default::default(),
 //!     };
 //!
 //!     let mut vm = vm::VM::new_by_raw_irep(irep);

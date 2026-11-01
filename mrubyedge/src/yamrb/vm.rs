@@ -1,4 +1,5 @@
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -21,8 +22,6 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const ENGINE: &str = "mruby/edge";
 
 /// FNV-1a 64 of a byte slice, matching `FnvBuildHasher` over the same bytes.
-// Unused until the dispatch and ivar caches land; kept warning-free here.
-#[allow(dead_code)]
 pub(crate) fn fnv_hash(name: &str) -> u64 {
     use std::hash::Hasher;
     let mut h = fnv::FnvHasher::default();
@@ -54,6 +53,10 @@ pub struct Breadcrumb {
     pub return_reg: Option<usize>,
     pub upper: Option<Rc<Breadcrumb>>,
 }
+
+/// Name-keyed dispatch cache for `mrb_funcall`. Key: (method version, class
+/// identity, fnv of the method name).
+type MethodNameCache = HashMap<(u64, usize, u64), (Rc<RModule>, RProc)>;
 
 #[derive(Debug)]
 pub struct KArgs {
@@ -148,6 +151,13 @@ pub struct VM {
 
     pub fn_table: RFnTable,
     pub fn_block_stack: RFnStack,
+
+    /// Global method-definition version. Every definition, alias, undef or
+    /// include bumps it, so dispatch caches stamp entries with it and go cold
+    /// when it moves.
+    pub method_version: Cell<u64>,
+    /// Name-keyed dispatch cache for `mrb_funcall` (no bytecode call site).
+    pub method_name_cache: RefCell<MethodNameCache>,
 }
 
 pub struct RFnTable {
@@ -275,6 +285,7 @@ impl VM {
             debug_info: None,
             const_cache: RefCell::new(Vec::new()),
             catch_handlers: Vec::new(),
+            send_cache: RefCell::new(vec![None; 1]),
         };
         Self::new_by_raw_irep(irep)
     }
@@ -371,11 +382,43 @@ impl VM {
             has_env_ref,
             fn_table,
             fn_block_stack,
+            method_version: Cell::new(0),
+            method_name_cache: RefCell::new(HashMap::new()),
         };
 
         prelude(&mut vm);
 
         vm
+    }
+
+    /// Invalidates every dispatch cache: any method definition, alias, undef
+    /// or include changes what send sites may resolve to.
+    pub fn bump_method_version(&self) {
+        self.method_version
+            .set(self.method_version.get().wrapping_add(1));
+        self.method_name_cache.borrow_mut().clear();
+    }
+
+    /// Resolves a method by (class, name) through the name-keyed cache used
+    /// by `mrb_funcall`. Entries are keyed on the method version and class
+    /// identity, so a stale hit can never outlive a redefinition.
+    pub fn resolve_method_cached(
+        &self,
+        klass: &Rc<RClass>,
+        name: &str,
+    ) -> Option<(Rc<RModule>, RProc)> {
+        let version = self.method_version.get();
+        let key = (version, Rc::as_ptr(klass) as usize, fnv_hash(name));
+        if let Some((owner, method)) = self.method_name_cache.borrow().get(&key) {
+            return Some((owner.clone(), method.clone()));
+        }
+        let resolved = resolve_method(klass, name);
+        if let Some((owner, method)) = &resolved {
+            self.method_name_cache
+                .borrow_mut()
+                .insert(key, (owner.clone(), method.clone()));
+        }
+        resolved
     }
 
     /// Captures Ruby source frames, innermost first, before stack unwinding.
@@ -1044,6 +1087,7 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
         debug_info: None,
         const_cache: RefCell::new(Vec::new()),
         catch_handlers: Vec::new(),
+        send_cache: RefCell::new(Vec::new()),
     };
     for sym in irep.syms.iter() {
         irep1
@@ -1102,6 +1146,7 @@ fn load_irep_1(reps: &mut [Irep], pos: usize) -> (IREP, usize) {
         });
     }
     irep1.code = code;
+    irep1.send_cache = RefCell::new(vec![None; irep1.code.len()]);
     (irep1, pos + 1)
 }
 
@@ -1140,6 +1185,10 @@ pub struct IREP {
     /// offset. A slot is valid while `version` matches the VM's
     /// `const_version` and the resolving namespace identity holds.
     pub const_cache: RefCell<Vec<Option<ConstCacheEntry>>>,
+    /// Inline method dispatch cache, one slot per instruction. `do_op_send`
+    /// reads and fills its slot at the instruction index; entries go stale
+    /// when the global method version moves.
+    pub send_cache: RefCell<Vec<Option<SendCacheEntry>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -1149,6 +1198,16 @@ pub struct ConstCacheEntry {
     /// same site against seeing a different lexical scope.
     pub ns: Option<Rc<RModule>>,
     pub value: Rc<RObject>,
+}
+
+/// One inline cache slot: the last method a bytecode send site resolved to
+/// for a given receiver class, stamped with the method version at fill time.
+#[derive(Debug, Clone)]
+pub struct SendCacheEntry {
+    pub version: u64,
+    pub klass: Rc<RClass>,
+    pub owner: Rc<RModule>,
+    pub method: RProc,
 }
 
 /// Debug locations use byte offsets in the original instruction sequence.

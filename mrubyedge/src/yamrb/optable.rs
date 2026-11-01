@@ -1270,19 +1270,53 @@ pub(crate) fn do_op_send_with_id(
     } else {
         recv.singleton_or_this_class(vm)
     };
-    let (owner_module, method) = resolve_method(&klass, &method_id.name)
-        .or_else(|| {
-            unshift_method_name(vm, &method_id, a as usize, n + k * 2 + 1);
-            n += 1;
-            resolve_method(&klass, "method_missing")
-        })
-        .ok_or_else(|| {
-            Error::Internal(format!(
-                "[BUG] method_missing not defined. {} for {}",
-                method_id.name,
-                klass.full_name()
-            ))
-        })?;
+    let mut via_method_missing = false;
+    // Inline dispatch cache: the send site is the current pc (the loop
+    // advanced past this instruction). A hit needs both the version stamp
+    // and the receiver class identity; any redefinition bumps the version,
+    // so a stale entry can never hit.
+    let site = vm.pc.get() - 1;
+    let version = vm.method_version.get();
+    let cached = {
+        let caches = vm.current_irep.send_cache.borrow();
+        caches
+            .get(site)
+            .and_then(|slot| slot.as_ref())
+            .filter(|entry| entry.version == version && Rc::ptr_eq(&entry.klass, &klass))
+            .map(|entry| (entry.owner.clone(), entry.method.clone()))
+    };
+    let (owner_module, method) = match cached {
+        Some(hit) => hit,
+        None => {
+            let resolved = resolve_method(&klass, &method_id.name)
+                .or_else(|| {
+                    unshift_method_name(vm, &method_id, a as usize, n + k * 2 + 1);
+                    n += 1;
+                    via_method_missing = true;
+                    resolve_method(&klass, "method_missing")
+                })
+                .ok_or_else(|| {
+                    Error::Internal(format!(
+                        "[BUG] method_missing not defined. {} for {}",
+                        method_id.name,
+                        klass.full_name()
+                    ))
+                })?;
+            // Only direct hits are cached; method_missing stays uncached.
+            if !via_method_missing {
+                let mut caches = vm.current_irep.send_cache.borrow_mut();
+                if let Some(slot) = caches.get_mut(site) {
+                    *slot = Some(SendCacheEntry {
+                        version,
+                        klass: klass.clone(),
+                        owner: resolved.0.clone(),
+                        method: resolved.1.clone(),
+                    });
+                }
+            }
+            resolved
+        }
+    };
 
     vm.kargs.borrow_mut().replace(map);
 
@@ -2587,6 +2621,7 @@ pub(crate) fn op_def(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             procs.insert(sym.name.clone(), method);
         }
     }
+    vm.bump_method_version();
     vm.current_regs()[a as usize].replace(RObject::symbol(sym).to_refcount_assigned());
     Ok(())
 }
@@ -2619,6 +2654,7 @@ pub(crate) fn op_alias(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
     let mut procs = owner_module.procs.borrow_mut();
     procs.insert(new_name.name.clone(), new_method);
+    vm.bump_method_version();
 
     Ok(())
 }
@@ -2638,6 +2674,7 @@ pub(crate) fn op_undef(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             procs.remove(&sym.name);
         }
     };
+    vm.bump_method_version();
     Ok(())
 }
 
@@ -2709,6 +2746,7 @@ pub(crate) fn op_sdef(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
         .procs
         .borrow_mut()
         .insert(sym.name.clone(), method);
+    vm.bump_method_version();
     vm.current_regs()[a as usize].replace(RObject::symbol(sym).to_refcount_assigned());
     Ok(())
 }
