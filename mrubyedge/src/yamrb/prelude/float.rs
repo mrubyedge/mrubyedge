@@ -1,9 +1,12 @@
 use std::rc::Rc;
 
 use crate::Error;
-use crate::yamrb::helpers::mrb_define_cmethod;
+use crate::yamrb::helpers::{mrb_define_cmethod, mrb_define_cmethod_fast};
 
-use crate::yamrb::{value::RObject, vm::VM};
+use crate::yamrb::{
+    value::{FastOp, RObject},
+    vm::VM,
+};
 
 pub(crate) fn initialize_float(vm: &mut VM) {
     let float_class = vm.define_standard_class("Float");
@@ -15,7 +18,13 @@ pub(crate) fn initialize_float(vm: &mut VM) {
     mrb_define_cmethod(vm, float_class.clone(), "/", Box::new(mrb_float_div));
     mrb_define_cmethod(vm, float_class.clone(), "+@", Box::new(mrb_float_positive));
     mrb_define_cmethod(vm, float_class.clone(), "-@", Box::new(mrb_float_negative));
-    mrb_define_cmethod(vm, float_class.clone(), "**", Box::new(mrb_float_power));
+    mrb_define_cmethod_fast(
+        vm,
+        float_class.clone(),
+        "**",
+        FastOp::FloatPow,
+        Box::new(mrb_float_power),
+    );
     mrb_define_cmethod(vm, float_class.clone(), "abs", Box::new(mrb_float_abs));
     mrb_define_cmethod(
         vm,

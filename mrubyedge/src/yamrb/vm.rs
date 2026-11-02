@@ -159,6 +159,8 @@ pub struct VM {
     /// Inline attribute accesses served from send-site cache hits; tests
     /// assert it moves to prove the inline path runs.
     pub attr_inline_hits: Cell<u64>,
+    /// Numeric fast-path handlings; tests assert it moves to prove the path runs.
+    pub fast_native_hits: Cell<u64>,
     /// Name-keyed dispatch cache for `mrb_funcall` (no bytecode call site).
     pub method_name_cache: RefCell<MethodNameCache>,
 }
@@ -387,6 +389,7 @@ impl VM {
             fn_block_stack,
             method_version: Cell::new(0),
             attr_inline_hits: Cell::new(0),
+            fast_native_hits: Cell::new(0),
             method_name_cache: RefCell::new(HashMap::new()),
         };
 

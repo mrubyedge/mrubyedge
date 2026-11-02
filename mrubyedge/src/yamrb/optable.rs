@@ -1187,6 +1187,100 @@ pub(crate) fn op_blkcall(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     do_op_send_with_id(vm, a as usize, None, a, RSym::new("call".to_string()), b)
 }
 
+/// Runs a tagged numeric send inline, skipping the native-call machinery
+/// (argument vector, fn-table lookup, frame bookkeeping). Returns `None` on
+/// any non-eligible shape so coercion and errors keep native behavior.
+#[inline(never)]
+fn try_fast_op(
+    vm: &mut VM,
+    op: FastOp,
+    recv: &Rc<RObject>,
+    a: usize,
+    n: usize,
+) -> Option<Result<Rc<RObject>, Error>> {
+    let (recv_i, recv_f) = match &recv.value {
+        RValue::Integer(i) => (Some(*i), None),
+        RValue::Float(f) => (None, Some(*f)),
+        _ => return None,
+    };
+    if n != 1 {
+        return None;
+    }
+    let (arg_i, arg_f) = match &vm.current_regs()[a + 1].as_ref()?.value {
+        RValue::Integer(i) => (Some(*i), None),
+        RValue::Float(f) => (None, Some(*f)),
+        _ => return None,
+    };
+
+    let order = |a: f64, b: f64| -> i64 {
+        if a < b {
+            -1
+        } else if a > b {
+            1
+        } else {
+            0
+        }
+    };
+    let spaceship = || -> Option<i64> {
+        match (recv_i, recv_f, arg_i, arg_f) {
+            (Some(a), None, Some(b), None) => Some(if a < b {
+                -1
+            } else if a > b {
+                1
+            } else {
+                0
+            }),
+            (None, Some(a), None, Some(b)) => Some(order(a, b)),
+            (Some(a), None, None, Some(b)) => Some(order(a as f64, b)),
+            (None, Some(a), Some(b), None) => Some(order(a, b as f64)),
+            _ => None,
+        }
+    };
+
+    let result: Result<Rc<RObject>, Error> = match op {
+        FastOp::IntMod => {
+            let (Some(a), Some(b)) = (recv_i, arg_i) else {
+                return None;
+            };
+            if b == 0 {
+                return None;
+            }
+            Ok(RObject::integer(a % b).to_refcount_assigned())
+        }
+        FastOp::IntPow => {
+            // Overflow panics in debug and wraps in release, same as the native.
+            let base = recv_i?;
+            match (arg_i, arg_f) {
+                (Some(exp), _) if exp >= 0 => {
+                    Ok(RObject::integer(base.pow(exp as u32)).to_refcount_assigned())
+                }
+                (Some(exp), _) => {
+                    Ok(RObject::float((base as f64).powf(exp as f64)).to_refcount_assigned())
+                }
+                (None, Some(exp)) => {
+                    Ok(RObject::float((base as f64).powf(exp)).to_refcount_assigned())
+                }
+                (None, None) => return None,
+            }
+        }
+        FastOp::FloatPow => {
+            let base = recv_f?;
+            let exp = arg_f.or_else(|| arg_i.map(|i| i as f64))?;
+            Ok(RObject::float(base.powf(exp)).to_refcount_assigned())
+        }
+        FastOp::NumCmp => Ok(RObject::integer(spaceship()?).to_refcount_assigned()),
+        // Integer and Float are never equal across kinds; mixed pairs fall back.
+        FastOp::NumNe => match (recv_i, recv_f, arg_i, arg_f) {
+            (Some(a), None, Some(b), None) => Ok(RObject::boolean(a != b).to_refcount_assigned()),
+            (None, Some(a), None, Some(b)) => Ok(RObject::boolean(a != b).to_refcount_assigned()),
+            _ => return None,
+        },
+    };
+    // Counts inline handlings only; fall-throughs returned None above.
+    vm.fast_native_hits.set(vm.fast_native_hits.get() + 1);
+    Some(result)
+}
+
 /// Executes an attribute accessor inline. Returns `false` on shape mismatch
 /// so the send falls through to the closure, which keeps its behavior.
 #[inline(never)]
@@ -1353,20 +1447,38 @@ pub(crate) fn do_op_send_with_id(
 
     vm.kargs.borrow_mut().replace(map);
 
-    // Inline attribute access, cache hits only: the first (cold) call runs the
-    // accessor closure; once the site is warm and the version/class guards
-    // hold, the ivar read/write runs directly — no argument vector, no call
-    // frame, no breadcrumb. Wrong-shape sends keep taking the closure.
-    // Accessors are natives, so Ruby-method sends bail at the first check.
-    if let Some(attr) = &method.inline_attr
-        && !method.is_rb_func
+    // Inline send paths, cache hits only: the first (cold) call runs the real
+    // method; once the site is warm and the version/class guards hold, tagged
+    // methods execute inline — attribute accessors touch the ivar directly,
+    // numeric ops compute without the argument vector or call frame.
+    // Wrong-shape sends keep taking the real method. One combined tag check
+    // so untagged sends pay a single branch.
+    if (method.inline_attr.is_some() || method.fast_op.is_some())
         && was_hit
         && k == 0
         && blk_index.is_none()
-        && try_inline_attr(vm, &recv, attr, a as usize, n, block_index)
     {
-        vm.attr_inline_hits.set(vm.attr_inline_hits.get() + 1);
-        return Ok(());
+        if let Some(attr) = &method.inline_attr {
+            if try_inline_attr(vm, &recv, attr, a as usize, n, block_index) {
+                vm.attr_inline_hits.set(vm.attr_inline_hits.get() + 1);
+                return Ok(());
+            }
+        } else if let Some(op) = method.fast_op {
+            match try_fast_op(vm, op, &recv, a as usize, n) {
+                Some(Ok(val)) => {
+                    for i in (a as usize + 1)..block_index {
+                        vm.current_regs()[i].take();
+                    }
+                    vm.current_regs()[a as usize].replace(val);
+                    return Ok(());
+                }
+                Some(Err(e)) => {
+                    vm.current_regs()[a as usize].replace(Rc::new(RObject::nil()));
+                    return Err(e);
+                }
+                None => {}
+            }
+        }
     }
 
     let upper = vm.current_breadcrumb.take();
@@ -2441,6 +2553,7 @@ pub(crate) fn op_lambda(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             func: None,
             environ: Some(environ),
             block_self: Some(vm.getself()?),
+            fast_op: None,
             inline_attr: None,
         }),
         object_id: u64::MAX.into(),
@@ -2469,6 +2582,7 @@ pub(crate) fn op_block(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             func: None,
             environ: Some(environ),
             block_self: Some(vm.getself()?),
+            fast_op: None,
             inline_attr: None,
         }),
         object_id: u64::MAX.into(),
@@ -2495,6 +2609,7 @@ pub(crate) fn op_method(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             func: None,
             environ: None,
             block_self: None,
+            fast_op: None,
             inline_attr: None,
         }),
         object_id: u64::MAX.into(),
@@ -2766,6 +2881,7 @@ fn method_from_irep(vm: &VM, index: usize, sym: RSym) -> RProc {
         func: None,
         environ: None,
         block_self: None,
+        fast_op: None,
         inline_attr: None,
     }
 }
