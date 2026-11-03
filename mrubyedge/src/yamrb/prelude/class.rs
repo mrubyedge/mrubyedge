@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     Error,
     yamrb::{
-        helpers::{mrb_define_cmethod, mrb_funcall},
+        helpers::{mrb_define_cmethod, mrb_define_cmethod_attr, mrb_funcall},
         value::*,
         vm::VM,
     },
@@ -83,15 +83,20 @@ fn mrb_class_attr_reader(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
         match arg.value {
             RValue::Symbol(ref sym) => {
                 let sym_id: &'static str = sym.name.clone().leak();
-                // Build the ivar key and its FNV hash once; property reads
-                // reuse the hash so they never re-hash the key.
-                let key = format!("@{}", sym_id);
+                // Shared key and FNV hash built once; the closure (cold path)
+                // and the send-site inline path (warm) both reuse them.
+                let key: Rc<str> = format!("@{}", sym_id).into();
                 let hash = crate::yamrb::vm::fnv_hash(&key);
+                let attr = InlineAttr {
+                    key: key.clone(),
+                    hash,
+                    setter: false,
+                };
                 let method = move |vm: &mut VM, _args: &[Rc<RObject>]| {
                     let this = vm.getself()?;
                     Ok(this.get_ivar_hashed(&key, hash))
                 };
-                mrb_define_cmethod(vm, class.clone(), sym_id, Box::new(method));
+                mrb_define_cmethod_attr(vm, class.clone(), sym_id, attr, Box::new(method));
             }
             RValue::Nil => {
                 // skip
@@ -120,10 +125,16 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
         match arg.value {
             RValue::Symbol(ref sym) => {
                 let sym_id: &'static str = sym.name.clone().leak();
-                // Shared Rc<str> key and its FNV hash built once; writes use
-                // the precomputed hash so they never re-hash the key.
+                // Shared Rc<str> key and FNV hash built once; the closure
+                // (cold path) and the send-site inline path (warm) both reuse
+                // them.
                 let key: Rc<str> = format!("@{}", sym_id).into();
                 let hash = crate::yamrb::vm::fnv_hash(&key);
+                let attr = InlineAttr {
+                    key: key.clone(),
+                    hash,
+                    setter: true,
+                };
                 let method = move |vm: &mut VM, args: &[Rc<RObject>]| {
                     let this = vm.getself()?;
                     let value = args[0].clone();
@@ -131,7 +142,7 @@ fn mrb_class_attr_writer(vm: &mut VM, args: &[Rc<RObject>]) -> Result<Rc<RObject
                     Ok(value)
                 };
                 let sym_id = format!("{}=", sym_id);
-                mrb_define_cmethod(vm, class.clone(), &sym_id, Box::new(method));
+                mrb_define_cmethod_attr(vm, class.clone(), &sym_id, attr, Box::new(method));
             }
             RValue::Nil => {
                 // skip

@@ -1388,6 +1388,15 @@ pub struct RData {
     pub ref_count: usize,
 }
 
+/// Attribute access carried by attr_reader/attr_writer methods; a send-site
+/// cache hit whose resolved method carries one runs the ivar access inline.
+#[derive(Debug, Clone)]
+pub struct InlineAttr {
+    pub key: Rc<str>,
+    pub hash: u64,
+    pub setter: bool,
+}
+
 /// Ruby procedure (so-called `Proc`) representation (Ruby-defined or native function pointer).
 #[derive(Debug, Clone)]
 pub struct RProc {
@@ -1403,6 +1412,7 @@ pub struct RProc {
     pub func: Option<usize>,
     pub environ: Option<Rc<ENV>>,
     pub block_self: Option<Rc<RObject>>,
+    pub inline_attr: Option<Rc<InlineAttr>>,
 }
 
 /// Native Rust callable used to implement Ruby methods in the VM.
