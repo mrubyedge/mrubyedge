@@ -1187,6 +1187,38 @@ pub(crate) fn op_blkcall(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     do_op_send_with_id(vm, a as usize, None, a, RSym::new("call".to_string()), b)
 }
 
+/// Executes an attribute accessor inline. Returns `false` on shape mismatch
+/// so the send falls through to the closure, which keeps its behavior.
+#[inline(never)]
+fn try_inline_attr(
+    vm: &mut VM,
+    recv: &Rc<RObject>,
+    attr: &InlineAttr,
+    a: usize,
+    n: usize,
+    block_index: usize,
+) -> bool {
+    if !attr.setter && n == 0 {
+        let val = recv.get_ivar_hashed(&attr.key, attr.hash);
+        vm.current_regs()[a].replace(val);
+        true
+    } else if attr.setter && n == 1 {
+        match vm.get_current_regs_cloned(a + 1) {
+            Ok(value) => {
+                recv.set_ivar_hashed(attr.key.clone(), attr.hash, value.clone());
+                for i in (a + 1)..block_index {
+                    vm.current_regs()[i].take();
+                }
+                vm.current_regs()[a].replace(value);
+                true
+            }
+            Err(_) => false,
+        }
+    } else {
+        false
+    }
+}
+
 pub(crate) fn do_op_send(
     vm: &mut VM,
     recv_index: usize,
@@ -1285,6 +1317,7 @@ pub(crate) fn do_op_send_with_id(
             .filter(|entry| entry.version == version && Rc::ptr_eq(&entry.klass, &klass))
             .map(|entry| (entry.owner.clone(), entry.method.clone()))
     };
+    let was_hit = cached.is_some();
     let (owner_module, method) = match cached {
         Some(hit) => hit,
         None => {
@@ -1319,6 +1352,22 @@ pub(crate) fn do_op_send_with_id(
     };
 
     vm.kargs.borrow_mut().replace(map);
+
+    // Inline attribute access, cache hits only: the first (cold) call runs the
+    // accessor closure; once the site is warm and the version/class guards
+    // hold, the ivar read/write runs directly — no argument vector, no call
+    // frame, no breadcrumb. Wrong-shape sends keep taking the closure.
+    // Accessors are natives, so Ruby-method sends bail at the first check.
+    if let Some(attr) = &method.inline_attr
+        && !method.is_rb_func
+        && was_hit
+        && k == 0
+        && blk_index.is_none()
+        && try_inline_attr(vm, &recv, attr, a as usize, n, block_index)
+    {
+        vm.attr_inline_hits.set(vm.attr_inline_hits.get() + 1);
+        return Ok(());
+    }
 
     let upper = vm.current_breadcrumb.take();
     let new_breadcrumb = Rc::new(Breadcrumb {
@@ -2392,6 +2441,7 @@ pub(crate) fn op_lambda(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             func: None,
             environ: Some(environ),
             block_self: Some(vm.getself()?),
+            inline_attr: None,
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
@@ -2419,6 +2469,7 @@ pub(crate) fn op_block(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             func: None,
             environ: Some(environ),
             block_self: Some(vm.getself()?),
+            inline_attr: None,
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
@@ -2444,6 +2495,7 @@ pub(crate) fn op_method(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             func: None,
             environ: None,
             block_self: None,
+            inline_attr: None,
         }),
         object_id: u64::MAX.into(),
         singleton_class: RefCell::new(None),
@@ -2714,6 +2766,7 @@ fn method_from_irep(vm: &VM, index: usize, sym: RSym) -> RProc {
         func: None,
         environ: None,
         block_self: None,
+        inline_attr: None,
     }
 }
 
