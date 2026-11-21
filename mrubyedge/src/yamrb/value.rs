@@ -1397,6 +1397,24 @@ pub struct InlineAttr {
     pub setter: bool,
 }
 
+/// Numeric operations the send dispatch can execute inline. The tag travels
+/// on the [`RProc`], so a redefinition replaces the method and its tag
+/// together. Only value-pure methods are tagged; the Comparable family is
+/// not, because it dispatches `<=>` dynamically and would bypass overrides.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FastOp {
+    /// `Integer#%`
+    IntMod,
+    /// `Integer#**`
+    IntPow,
+    /// `Float#**`
+    FloatPow,
+    /// `Object#<=>` on numeric operands
+    NumCmp,
+    /// `Object#!=` on same-kind numeric operands
+    NumNe,
+}
+
 /// Ruby procedure (so-called `Proc`) representation (Ruby-defined or native function pointer).
 #[derive(Debug, Clone)]
 pub struct RProc {
@@ -1413,6 +1431,7 @@ pub struct RProc {
     pub environ: Option<Rc<ENV>>,
     pub block_self: Option<Rc<RObject>>,
     pub inline_attr: Option<Rc<InlineAttr>>,
+    pub fast_op: Option<FastOp>,
 }
 
 /// Native Rust callable used to implement Ruby methods in the VM.

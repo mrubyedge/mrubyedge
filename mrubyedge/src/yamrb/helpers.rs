@@ -4,7 +4,9 @@ use crate::{Error, yamrb::vm::Breadcrumb};
 
 use super::{
     optable::push_callinfo,
-    value::{InlineAttr, RClass, RFn, RModule, RObject, RProc, RSym, RValue, resolve_method},
+    value::{
+        FastOp, InlineAttr, RClass, RFn, RModule, RObject, RProc, RSym, RValue, resolve_method,
+    },
     vm::VM,
 };
 
@@ -370,6 +372,7 @@ pub fn mrb_define_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmethod: R
         func: Some(index),
         environ: None,
         block_self: None,
+        fast_op: None,
         inline_attr: None,
     };
     let mut procs = klass.procs.borrow_mut();
@@ -398,7 +401,37 @@ pub fn mrb_define_cmethod_attr(
         func: Some(index),
         environ: None,
         block_self: None,
+        fast_op: None,
         inline_attr: Some(Rc::new(attr)),
+    };
+    let mut procs = klass.procs.borrow_mut();
+    procs.insert(name.to_string(), method);
+    vm.bump_method_version();
+}
+
+/// Like [`mrb_define_cmethod`], but tags the method for the inline numeric
+/// send fast path.
+pub fn mrb_define_cmethod_fast(
+    vm: &mut VM,
+    klass: Rc<RClass>,
+    name: &str,
+    fast_op: FastOp,
+    cmethod: RFn,
+) {
+    let index = vm.register_fn(cmethod);
+    let method = RProc {
+        is_lambda: false,
+        return_target: None,
+        is_rb_func: false,
+        is_fnblock: false,
+        sym_id: Some(RSym::new(name.to_string())),
+        next: None,
+        irep: None,
+        func: Some(index),
+        environ: None,
+        block_self: None,
+        inline_attr: None,
+        fast_op: Some(fast_op),
     };
     let mut procs = klass.procs.borrow_mut();
     procs.insert(name.to_string(), method);
@@ -432,6 +465,7 @@ pub fn mrb_define_class_cmethod(vm: &mut VM, klass: Rc<RClass>, name: &str, cmet
         func: Some(index),
         environ: None,
         block_self: None,
+        fast_op: None,
         inline_attr: None,
     };
     let klass_singleton = RObject::class_singleton(klass, vm);
@@ -463,6 +497,7 @@ pub fn mrb_define_singleton_cmethod(vm: &mut VM, dest: Rc<RObject>, name: &str, 
         func: Some(index),
         environ: None,
         block_self: None,
+        fast_op: None,
         inline_attr: None,
     };
     let klass = dest.initialize_or_get_singleton_class(vm);
@@ -509,6 +544,7 @@ pub fn mrb_define_module_cmethod(vm: &mut VM, module: Rc<RModule>, name: &str, c
         func: Some(index),
         environ: None,
         block_self: None,
+        fast_op: None,
         inline_attr: None,
     };
     let mut procs = module.procs.borrow_mut();

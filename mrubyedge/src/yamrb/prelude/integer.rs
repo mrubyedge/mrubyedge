@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use crate::Error;
-use crate::yamrb::helpers::mrb_define_cmethod;
+use crate::yamrb::helpers::{mrb_define_cmethod, mrb_define_cmethod_fast};
 
-use crate::yamrb::value::RValue;
+use crate::yamrb::value::{FastOp, RValue};
 use crate::yamrb::{helpers::mrb_call_block_breakable, value::RObject, vm::VM};
 
 pub(crate) fn initialize_integer(vm: &mut VM) {
@@ -23,8 +23,20 @@ pub(crate) fn initialize_integer(vm: &mut VM) {
     );
     mrb_define_cmethod(vm, integer_class.clone(), "+", Box::new(mrb_integer_add));
     mrb_define_cmethod(vm, integer_class.clone(), "-", Box::new(mrb_integer_sub));
-    mrb_define_cmethod(vm, integer_class.clone(), "**", Box::new(mrb_integer_power));
-    mrb_define_cmethod(vm, integer_class.clone(), "%", Box::new(mrb_integer_mod));
+    mrb_define_cmethod_fast(
+        vm,
+        integer_class.clone(),
+        "**",
+        FastOp::IntPow,
+        Box::new(mrb_integer_power),
+    );
+    mrb_define_cmethod_fast(
+        vm,
+        integer_class.clone(),
+        "%",
+        FastOp::IntMod,
+        Box::new(mrb_integer_mod),
+    );
     mrb_define_cmethod(vm, integer_class.clone(), "&", Box::new(mrb_integer_and));
     mrb_define_cmethod(vm, integer_class.clone(), "|", Box::new(mrb_integer_or));
     mrb_define_cmethod(vm, integer_class.clone(), "^", Box::new(mrb_integer_xor));

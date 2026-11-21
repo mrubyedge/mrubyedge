@@ -57,6 +57,7 @@ fn mrb_symbol_to_proc(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>,
         func: None,
         environ: None,
         block_self: vm.getself().ok(),
+        fast_op: None,
         inline_attr: None,
     };
     Ok(RObject::proc(block).to_refcount_assigned())
