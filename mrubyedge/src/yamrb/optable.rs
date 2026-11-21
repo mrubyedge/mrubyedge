@@ -2892,6 +2892,7 @@ pub(crate) fn op_tdef(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             module.procs.borrow_mut().insert(sym.name.clone(), method);
         }
     }
+    vm.bump_method_version();
     vm.current_regs()[a as usize].replace(RObject::symbol(sym).to_refcount_assigned());
     Ok(())
 }
