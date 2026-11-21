@@ -976,12 +976,68 @@ pub(crate) fn op_setupvar(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     Ok(())
 }
 
+/// Receiver class identity as send dispatch sees it, singleton classes
+/// included; the index fast paths only apply to the plain Hash class.
+fn hash_index_class(vm: &mut VM, recv: &Rc<RObject>) -> Rc<RClass> {
+    let klass = recv.get_class(vm);
+    if klass.is_singleton {
+        klass
+    } else {
+        recv.clone().singleton_or_this_class(vm)
+    }
+}
+
+/// True when `recv` is a plain Hash and `Hash#[]` is still the pristine
+/// native; the verdict is cached until a method version bump.
+fn hash_index_fast(vm: &mut VM, recv: &Rc<RObject>) -> bool {
+    let klass = hash_index_class(vm, recv);
+    if !Rc::ptr_eq(&klass, &vm.hash_class) {
+        return false;
+    }
+    match vm.hash_index_fast.get() {
+        Some(verdict) => verdict,
+        None => {
+            let pristine = vm
+                .resolve_method_cached(&vm.hash_class, "[]")
+                .and_then(|(_, m)| m.func)
+                == vm.hash_index_func.get();
+            vm.hash_index_fast.set(Some(pristine));
+            pristine
+        }
+    }
+}
+
+/// Same guard for the write side of the index fast path.
+fn hash_aset_fast(vm: &mut VM, recv: &Rc<RObject>) -> bool {
+    let klass = hash_index_class(vm, recv);
+    if !Rc::ptr_eq(&klass, &vm.hash_class) {
+        return false;
+    }
+    match vm.hash_aset_fast.get() {
+        Some(verdict) => verdict,
+        None => {
+            let pristine = vm
+                .resolve_method_cached(&vm.hash_class, "[]=")
+                .and_then(|(_, m)| m.func)
+                == vm.hash_aset_func.get();
+            vm.hash_aset_fast.set(Some(pristine));
+            pristine
+        }
+    }
+}
+
 pub(crate) fn op_getidx(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let a = operand.as_b()? as usize;
     let recv = vm.get_current_regs_cloned(a)?;
     let idx = vm.get_current_regs_cloned(a + 1)?;
+    // Pristine Hash#[] on a plain Hash runs inline, as in mruby's GETIDX.
+    if hash_index_fast(vm, &recv) && matches!(recv.value, RValue::Hash(_)) {
+        let val = crate::yamrb::prelude::hash::mrb_hash_get_index(recv, idx)?;
+        vm.hash_fast_hits.set(vm.hash_fast_hits.get() + 1);
+        vm.current_regs()[a].replace(val);
+        return Ok(());
+    }
     let args = vec![idx];
-    // TODO: direct call of array_index for performance
     let val = mrb_funcall(vm, Some(recv), "[]", &args)?;
     vm.current_regs()[a].replace(val);
     Ok(())
@@ -1013,6 +1069,12 @@ pub(crate) fn op_setidx(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let recv = vm.get_current_regs_cloned(a)?;
     let idx = vm.get_current_regs_cloned(a + 1)?;
     let val = vm.get_current_regs_cloned(a + 2)?;
+    // Same guard as the read side; the native returns the assigned value.
+    if hash_aset_fast(vm, &recv) && matches!(recv.value, RValue::Hash(_)) {
+        let _ = crate::yamrb::prelude::hash::mrb_hash_set_index(recv, idx, val)?;
+        vm.hash_fast_hits.set(vm.hash_fast_hits.get() + 1);
+        return Ok(());
+    }
     let args = vec![idx, val];
     mrb_funcall(vm, Some(recv), "[]=", &args)?;
     Ok(())

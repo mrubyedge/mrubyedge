@@ -161,6 +161,18 @@ pub struct VM {
     pub attr_inline_hits: Cell<u64>,
     /// Numeric fast-path handlings; tests assert it moves to prove the path runs.
     pub fast_native_hits: Cell<u64>,
+    /// Class object of `Hash`; the index fast paths require this exact class.
+    pub hash_class: Rc<RClass>,
+    /// `func` ids of the pristine `Hash#[]` / `Hash#[]=`; a redefinition
+    /// replaces them and disables the index fast paths.
+    pub hash_index_func: Cell<Option<usize>>,
+    pub hash_aset_func: Cell<Option<usize>>,
+    /// Cached "Hash index fast path is safe" verdicts, reset on a version bump.
+    pub hash_index_fast: Cell<Option<bool>>,
+    pub hash_aset_fast: Cell<Option<bool>>,
+    /// Hash index reads/writes served by the inline fast path; tests assert it
+    /// moves to prove the path runs.
+    pub hash_fast_hits: Cell<u64>,
     /// Name-keyed dispatch cache for `mrb_funcall` (no bytecode call site).
     pub method_name_cache: RefCell<MethodNameCache>,
 }
@@ -390,10 +402,22 @@ impl VM {
             method_version: Cell::new(0),
             attr_inline_hits: Cell::new(0),
             fast_native_hits: Cell::new(0),
+            hash_class: Rc::new(RClass::new("Object", None, None)),
+            hash_index_func: Cell::new(None),
+            hash_aset_func: Cell::new(None),
+            hash_index_fast: Cell::new(None),
+            hash_aset_fast: Cell::new(None),
+            hash_fast_hits: Cell::new(0),
             method_name_cache: RefCell::new(HashMap::new()),
         };
 
         prelude(&mut vm);
+
+        vm.hash_class = vm.get_class_by_name("Hash");
+        vm.hash_index_func
+            .set(resolve_method(&vm.hash_class, "[]").and_then(|(_, m)| m.func));
+        vm.hash_aset_func
+            .set(resolve_method(&vm.hash_class, "[]=").and_then(|(_, m)| m.func));
 
         vm
     }
@@ -404,6 +428,8 @@ impl VM {
         self.method_version
             .set(self.method_version.get().wrapping_add(1));
         self.method_name_cache.borrow_mut().clear();
+        self.hash_index_fast.set(None);
+        self.hash_aset_fast.set(None);
     }
 
     /// Resolves a method by (class, name) through the name-keyed cache used
