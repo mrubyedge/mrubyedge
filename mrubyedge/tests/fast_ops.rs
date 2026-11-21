@@ -324,3 +324,29 @@ fn redefinition_kills_fast_tag_ne_test() {
         "redefined method must not fast-path"
     );
 }
+
+#[test]
+fn fast_results_preserve_native_identity() {
+    let code = "
+    def results
+      [10 % 3, 2 ** 3, 2 <=> 1, 1 != 2, 1.0 != 1.0, (2 ** 40).object_id]
+    end
+    [results, results]
+    ";
+    let binary = mrbc_compile("fast_identity", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    type Objects = Vec<std::rc::Rc<mrubyedge::yamrb::value::RObject>>;
+    let rounds: Objects = result.as_ref().try_into().unwrap();
+    let cold: Objects = rounds[0].as_ref().try_into().unwrap();
+    let warm: Objects = rounds[1].as_ref().try_into().unwrap();
+    assert_eq!(vm.fast_native_hits.get(), 6);
+    for i in 0..5 {
+        assert!(
+            std::rc::Rc::ptr_eq(&cold[i], &warm[i]),
+            "result {i} lost its shared instance"
+        );
+    }
+    assert_eq!(cold[5].as_eq_value(), warm[5].as_eq_value());
+}

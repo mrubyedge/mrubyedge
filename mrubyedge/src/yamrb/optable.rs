@@ -1245,21 +1245,15 @@ fn try_fast_op(
             if b == 0 {
                 return None;
             }
-            Ok(RObject::integer(a % b).to_refcount_assigned())
+            Ok(RObject::integer_rc(a % b))
         }
         FastOp::IntPow => {
             // Overflow panics in debug and wraps in release, same as the native.
             let base = recv_i?;
             match (arg_i, arg_f) {
-                (Some(exp), _) if exp >= 0 => {
-                    Ok(RObject::integer(base.pow(exp as u32)).to_refcount_assigned())
-                }
-                (Some(exp), _) => {
-                    Ok(RObject::float((base as f64).powf(exp as f64)).to_refcount_assigned())
-                }
-                (None, Some(exp)) => {
-                    Ok(RObject::float((base as f64).powf(exp)).to_refcount_assigned())
-                }
+                (Some(exp), _) if exp >= 0 => Ok(RObject::integer_rc(base.pow(exp as u32))),
+                (Some(exp), _) => Ok(Rc::new(RObject::float((base as f64).powf(exp as f64)))),
+                (None, Some(exp)) => Ok(Rc::new(RObject::float((base as f64).powf(exp)))),
                 (None, None) => return None,
             }
         }
@@ -1268,11 +1262,11 @@ fn try_fast_op(
             let exp = arg_f.or_else(|| arg_i.map(|i| i as f64))?;
             Ok(RObject::float(base.powf(exp)).to_refcount_assigned())
         }
-        FastOp::NumCmp => Ok(RObject::integer(spaceship()?).to_refcount_assigned()),
+        FastOp::NumCmp => Ok(RObject::integer_rc(spaceship()?)),
         // Integer and Float are never equal across kinds; mixed pairs fall back.
         FastOp::NumNe => match (recv_i, recv_f, arg_i, arg_f) {
-            (Some(a), None, Some(b), None) => Ok(RObject::boolean(a != b).to_refcount_assigned()),
-            (None, Some(a), None, Some(b)) => Ok(RObject::boolean(a != b).to_refcount_assigned()),
+            (Some(a), None, Some(b), None) => Ok(RObject::boolean_rc(a != b)),
+            (None, Some(a), None, Some(b)) => Ok(RObject::boolean_rc(a != b)),
             _ => return None,
         },
     };
