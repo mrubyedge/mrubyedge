@@ -8,3 +8,6 @@ members = [
     "mrubyedge",
     "mrubyedge-cli",
 ]
+
+[patch.crates-io]
+mrubyedge = { path = "mrubyedge" }

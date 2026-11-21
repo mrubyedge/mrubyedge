@@ -6,7 +6,7 @@ use mrubyedge::{
     Error,
     yamrb::{
         helpers::{mrb_define_class_cmethod, mrb_define_cmethod, mrb_funcall},
-        value::{RData, RHashMap, RObject, RType, RValue},
+        value::{RData, RObject, RType, RValue},
         vm::VM,
     },
 };
@@ -136,7 +136,7 @@ fn make_time_object(vm: &mut VM, time_data: RTimeData) -> Rc<RObject> {
         value: RValue::Data(rdata),
         object_id: Cell::new(u64::MAX),
         singleton_class: RefCell::new(None),
-        ivar: RefCell::new(RHashMap::default()),
+        ivar: Default::default(),
     })
 }
 
