@@ -201,6 +201,32 @@ fn test_custom_sub_with_integer() {
     assert!(matches!(result.value, RValue::Integer(9)), "{result:?}");
 }
 
+#[test]
+fn immediate_arithmetic_shares_small_integer_results() {
+    for (code, opcode) in [
+        ("x = 4\nx + 1", OpCode::ADDI),
+        ("x = 6\nx - 1", OpCode::SUBI),
+    ] {
+        let result = run_with_opcode(code, opcode);
+        assert!(Rc::ptr_eq(&result, &RObject::integer_rc(5)), "{opcode:?}");
+    }
+}
+
+#[test]
+fn immediate_arithmetic_assigns_large_integer_result_ids() {
+    for (code, opcode) in [
+        ("x = 2147483647\nx + 1", OpCode::ADDI),
+        ("x = 2147483647\ny = x + 2\ny - 1", OpCode::SUBI),
+    ] {
+        let result = run_with_opcode(code, opcode);
+        assert!(
+            matches!(result.value, RValue::Integer(2_147_483_648)),
+            "{result:?}"
+        );
+        assert_eq!(result.object_id.get(), Rc::as_ptr(&result) as u64);
+    }
+}
+
 fn run_with_opcode(code: &'static str, opcode: OpCode) -> Rc<RObject> {
     let binary = mrbc_compile("immediate_arithmetic", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();

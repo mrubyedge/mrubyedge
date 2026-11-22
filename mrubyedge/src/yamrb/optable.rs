@@ -2052,7 +2052,7 @@ pub(crate) fn op_addi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let receiver = vm.take_current_regs(a)?;
     let immediate = b as i64;
     let result = match &receiver.value {
-        RValue::Integer(n) => RObject::integer(*n + immediate).to_refcount_assigned(),
+        RValue::Integer(n) => RObject::integer_rc(*n + immediate).with_assigned_object_id(),
         RValue::Float(n) => RObject::float(n + immediate as f64).to_refcount_assigned(),
         _ => mrb_funcall(vm, Some(receiver), "+", &[RObject::integer_rc(immediate)])?,
     };
@@ -2091,7 +2091,7 @@ pub(crate) fn op_subi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let receiver = vm.take_current_regs(a)?;
     let immediate = b as i64;
     let result = match &receiver.value {
-        RValue::Integer(n) => RObject::integer(*n - immediate).to_refcount_assigned(),
+        RValue::Integer(n) => RObject::integer_rc(*n - immediate).with_assigned_object_id(),
         RValue::Float(n) => RObject::float(n - immediate as f64).to_refcount_assigned(),
         _ => mrb_funcall(vm, Some(receiver), "-", &[RObject::integer_rc(immediate)])?,
     };
