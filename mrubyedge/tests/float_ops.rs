@@ -1,5 +1,9 @@
 extern crate mrubyedge;
 
+use mrubyedge::rite::insn::OpCode;
+use mrubyedge::yamrb::value::{RObject, RValue};
+use std::rc::Rc;
+
 mod helpers;
 use helpers::*;
 
@@ -144,16 +148,95 @@ fn test_float_sub() {
 }
 
 #[test]
+fn test_float_add_with_integer() {
+    let code = "
+    x = 2.5
+    y = x + 1
+    y
+    ";
+    let result = run_with_opcode(code, OpCode::ADDI);
+    assert!(matches!(result.value, RValue::Float(3.5)), "{result:?}");
+}
+
+#[test]
+fn test_custom_add_with_integer() {
+    let code = "
+    class Counter
+      def +(amount)
+        10 + amount
+      end
+    end
+    counter = Counter.new
+    result = counter + 1
+    result
+    ";
+    let result = run_with_opcode(code, OpCode::ADDI);
+    assert!(matches!(result.value, RValue::Integer(11)), "{result:?}");
+}
+
+#[test]
 fn test_float_sub_with_integer() {
     let code = "
     x = 2.5
     y = x - 1
     y
     ";
-    let binary = mrbc_compile("float_sub_int", code);
+    let result = run_with_opcode(code, OpCode::SUBI);
+    assert!(matches!(result.value, RValue::Float(1.5)), "{result:?}");
+}
+
+#[test]
+fn test_custom_sub_with_integer() {
+    let code = "
+    class Counter
+      def -(amount)
+        10 - amount
+      end
+    end
+    counter = Counter.new
+    result = counter - 1
+    result
+    ";
+    let result = run_with_opcode(code, OpCode::SUBI);
+    assert!(matches!(result.value, RValue::Integer(9)), "{result:?}");
+}
+
+#[test]
+fn immediate_arithmetic_shares_small_integer_results() {
+    for (code, opcode) in [
+        ("x = 4\nx + 1", OpCode::ADDI),
+        ("x = 6\nx - 1", OpCode::SUBI),
+    ] {
+        let result = run_with_opcode(code, opcode);
+        assert!(Rc::ptr_eq(&result, &RObject::integer_rc(5)), "{opcode:?}");
+    }
+}
+
+#[test]
+fn immediate_arithmetic_assigns_large_integer_result_ids() {
+    for (code, opcode) in [
+        ("x = 2147483647\nx + 1", OpCode::ADDI),
+        ("x = 2147483647\ny = x + 2\ny - 1", OpCode::SUBI),
+    ] {
+        let result = run_with_opcode(code, opcode);
+        assert!(
+            matches!(result.value, RValue::Integer(2_147_483_648)),
+            "{result:?}"
+        );
+        assert_eq!(result.object_id.get(), Rc::as_ptr(&result) as u64);
+    }
+}
+
+fn run_with_opcode(code: &'static str, opcode: OpCode) -> Rc<RObject> {
+    let binary = mrbc_compile("immediate_arithmetic", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    let result = vm.run().unwrap();
-    let value: f64 = result.as_ref().try_into().unwrap();
-    assert_eq!(value, 1.5);
+    assert!(
+        vm.current_irep
+            .code
+            .iter()
+            .any(|op| op.code as u8 == opcode as u8),
+        "expected {opcode:?} in the compiled bytecode"
+    );
+    vm.run().unwrap()
 }

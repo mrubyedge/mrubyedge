@@ -440,12 +440,14 @@ impl RObject {
     }
 
     pub fn to_refcount_assigned(self) -> Rc<Self> {
-        let rc = Rc::new(self);
-        let id = Rc::as_ptr(&rc) as u64;
-        if rc.object_id.get() == UNSET_OBJECT_ID {
-            rc.object_id.set(id);
+        Rc::new(self).with_assigned_object_id()
+    }
+
+    pub(crate) fn with_assigned_object_id(self: Rc<Self>) -> Rc<Self> {
+        if self.object_id.get() == UNSET_OBJECT_ID {
+            self.object_id.set(Rc::as_ptr(&self) as u64);
         }
-        rc
+        self
     }
 
     /// Shared instance for nil (object_id 4).

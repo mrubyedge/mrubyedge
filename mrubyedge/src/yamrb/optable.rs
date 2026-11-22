@@ -2048,16 +2048,15 @@ pub(crate) fn op_add(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_addi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let val1 = vm.take_current_regs(a as usize)?;
-    let val2 = b as i64;
-    let result = match &val1.value {
-        RValue::Integer(n1) => RObject::integer(*n1 + val2),
-        RValue::Float(n1) => RObject::float(n1 + val2 as f64),
-        _ => {
-            unreachable!("addi supports only integer and float")
-        }
+    let a = a as usize;
+    let receiver = vm.take_current_regs(a)?;
+    let immediate = b as i64;
+    let result = match &receiver.value {
+        RValue::Integer(n) => RObject::integer_rc(*n + immediate).with_assigned_object_id(),
+        RValue::Float(n) => RObject::float(n + immediate as f64).to_refcount_assigned(),
+        _ => mrb_funcall(vm, Some(receiver), "+", &[RObject::integer_rc(immediate)])?,
     };
-    vm.current_regs()[a as usize].replace(result.to_refcount_assigned());
+    vm.current_regs()[a].replace(result);
     Ok(())
 }
 
@@ -2088,14 +2087,15 @@ pub(crate) fn op_sub(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
 
 pub(crate) fn op_subi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let val1 = vm.take_current_regs(a as usize)?;
-    let val2 = b as i64;
-    let result = match &val1.value {
-        RValue::Integer(n1) => RObject::integer(*n1 - val2),
-        RValue::Float(n1) => RObject::float(n1 - val2 as f64),
-        _ => unreachable!("subi supports only integer and float"),
+    let a = a as usize;
+    let receiver = vm.take_current_regs(a)?;
+    let immediate = b as i64;
+    let result = match &receiver.value {
+        RValue::Integer(n) => RObject::integer_rc(*n - immediate).with_assigned_object_id(),
+        RValue::Float(n) => RObject::float(n - immediate as f64).to_refcount_assigned(),
+        _ => mrb_funcall(vm, Some(receiver), "-", &[RObject::integer_rc(immediate)])?,
     };
-    vm.current_regs()[a as usize].replace(result.to_refcount_assigned());
+    vm.current_regs()[a].replace(result);
     Ok(())
 }
 
