@@ -1,5 +1,9 @@
 extern crate mrubyedge;
 
+use mrubyedge::rite::insn::OpCode;
+use mrubyedge::yamrb::value::{RObject, RValue};
+use std::rc::Rc;
+
 mod helpers;
 use helpers::*;
 
@@ -150,10 +154,35 @@ fn test_float_sub_with_integer() {
     y = x - 1
     y
     ";
-    let binary = mrbc_compile("float_sub_int", code);
+    let result = run_subi(code);
+    assert!(matches!(result.value, RValue::Float(1.5)), "{result:?}");
+}
+
+#[test]
+fn test_custom_sub_with_integer() {
+    let code = "
+    class Counter
+      def -(amount)
+        10 - amount
+      end
+    end
+    counter = Counter.new
+    result = counter - 1
+    result
+    ";
+    let result = run_subi(code);
+    assert!(matches!(result.value, RValue::Integer(9)), "{result:?}");
+}
+
+fn run_subi(code: &'static str) -> Rc<RObject> {
+    let binary = mrbc_compile("subi", code);
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
-    let result = vm.run().unwrap();
-    let value: f64 = result.as_ref().try_into().unwrap();
-    assert_eq!(value, 1.5);
+    assert!(
+        vm.current_irep
+            .code
+            .iter()
+            .any(|op| matches!(op.code, OpCode::SUBI))
+    );
+    vm.run().unwrap()
 }
