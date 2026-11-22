@@ -322,9 +322,9 @@ pub(crate) fn consume_expr(
         SUPER => {
             op_super(vm, operand)?;
         }
-        // ARGARY => {
-        //     // op_argary(vm, &operand)?;
-        // }
+        ARGARY => {
+            op_argary(vm, operand)?;
+        }
         ENTER => {
             op_enter(vm, operand)?;
         }
@@ -1638,24 +1638,119 @@ pub(crate) fn op_call(vm: &mut VM, _operand: &Fetched) -> Result<(), Error> {
     Ok(())
 }
 
+/// Packs the current method's positional arguments into an array for a bare
+/// `super` (ARGARY). The packed layout: required args, the rest array's
+/// elements when `r` is set, then post-required args; the block register and
+/// the keyword dictionary follow the positionals.
+pub(crate) fn op_argary(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
+    let (a, b) = operand.as_bs()?;
+    let a = a as usize;
+    let m1 = ((b >> 11) & 0x3f) as usize;
+    let r = (b >> 10) & 0x1 != 0;
+    let m2 = ((b >> 5) & 0x1f) as usize;
+    let kd = (b >> 4) & 0x1 != 0;
+    let lv = (b & 0xf) as usize;
+
+    // A bare super inside a block forwards the enclosing method's args (lv).
+    fn read(vm: &mut VM, lv: usize, i: usize) -> Result<Rc<RObject>, Error> {
+        if lv == 0 {
+            return vm.get_current_regs_cloned(i + 1);
+        }
+        let mut environ = vm
+            .upper
+            .as_ref()
+            .ok_or_else(|| Error::internal("op_argary expects upper env"))?;
+        for _ in 0..(lv - 1) {
+            environ = environ
+                .upper
+                .as_ref()
+                .ok_or_else(|| Error::internal("op_argary failed to find upvar"))?;
+        }
+        if environ.expired() {
+            let captured = environ.captured.borrow();
+            return captured
+                .as_ref()
+                .and_then(|c| c[i + 1].clone())
+                .ok_or_else(|| Error::internal("captured value not found"));
+        }
+        let reg = environ.current_regs_offset + i + 1;
+        vm.regs[reg]
+            .clone()
+            .ok_or_else(|| Error::internal(format!("register {} is empty", reg)))
+    }
+
+    let mut args = Vec::with_capacity(m1 + m2);
+    for i in 0..m1 {
+        args.push(read(vm, lv, i)?);
+    }
+    if r {
+        // A missing or non-array rest forwards no extra elements.
+        if let Ok(rest) = read(vm, lv, m1)
+            && let RValue::Array(items) = &rest.value
+        {
+            args.extend(items.borrow().iter().cloned());
+        }
+    }
+    let post_base = m1 + usize::from(r);
+    for i in 0..m2 {
+        args.push(read(vm, lv, post_base + i)?);
+    }
+
+    let block = read(vm, lv, post_base + m2).unwrap_or_else(|_| RObject::nil_rc());
+    let kw = if kd {
+        Some(read(vm, lv, post_base + m2 + 1)?)
+    } else {
+        None
+    };
+
+    vm.current_regs()[a].replace(RObject::array(args).to_refcount_assigned());
+    vm.current_regs()[a + 1].replace(block);
+    if let Some(kw) = kw {
+        vm.current_regs()[a + 2].replace(kw);
+    }
+    Ok(())
+}
+
 pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let (a, b) = operand.as_bb()?;
-    let callinfo = vm
-        .current_callinfo
-        .as_ref()
-        .ok_or_else(|| Error::internal("no current callinfo"))?;
+    // `super` in a block binds to the enclosing method: walk up past frames
+    // that carry no method owner (blocks). A method entered from a native
+    // caller runs with its callinfo suspended, like Object#block_given?.
+    let callinfo = {
+        let mut ci = vm
+            .current_callinfo
+            .clone()
+            .or_else(|| vm.suspended_callinfos.last().cloned());
+        while let Some(c) = &ci {
+            if c.method_owner.is_some() {
+                break;
+            }
+            ci = c.prev.clone();
+        }
+        ci.ok_or_else(|| Error::internal("no current callinfo"))?
+    };
     let sym_id = callinfo.method_id.name.clone();
     let owner_module = callinfo
         .method_owner
         .clone()
         .ok_or_else(|| Error::RuntimeError("super called outside of method".to_string()))?;
     let recv = vm.getself()?;
-    let args = (0..b)
-        .map(|i| {
-            vm.get_current_regs_cloned((a + i + 1) as usize)
-                .expect("args too short for super")
-        })
-        .collect::<Vec<_>>();
+    // CALL_MAXARGS (n=*): a bare super forwards the args ARGARY packed.
+    let packed_args = b == 0x0f;
+    let args = if packed_args {
+        let packed = vm.get_current_regs_cloned((a as usize) + 1)?;
+        match &packed.value {
+            RValue::Array(items) => items.borrow().clone(),
+            _ => vec![packed],
+        }
+    } else {
+        (0..b)
+            .map(|i| {
+                vm.get_current_regs_cloned((a + i + 1) as usize)
+                    .expect("args too short for super")
+            })
+            .collect::<Vec<_>>()
+    };
 
     let klass = match &recv.value {
         RValue::Instance(ins) => ins.class.clone(),
@@ -1670,7 +1765,7 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
             Error::internal(format!("functon registerd but no entry found: {}", &sym_id))
         })?;
         let res = func(vm, &args);
-        for i in (a as usize + 1)..(a as usize + b as usize + 1) {
+        for i in (a as usize + 1)..(a as usize + args.len() + 1) {
             vm.current_regs()[i].take();
         }
         match res {
@@ -1695,10 +1790,25 @@ pub(crate) fn op_super(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     vm.current_breadcrumb.replace(new_breadcrumb);
 
     vm.current_regs()[a as usize].replace(recv.clone());
+    // The callee's window starts right after the receiver, so a packed args
+    // array must be unpacked into those slots. ARGARY leaves the block at
+    // a+2; it moves after the positionals, where op_enter reads it.
+    if packed_args {
+        let packed = vm.get_current_regs_cloned((a as usize) + 1)?;
+        let block = vm.current_regs()[a as usize + 2].clone();
+        if let RValue::Array(items) = &packed.value {
+            let items = items.borrow().clone();
+            for (i, arg) in items.iter().enumerate() {
+                vm.current_regs()[a as usize + 1 + i].replace(arg.clone());
+            }
+            vm.current_regs()[a as usize + 1 + items.len()]
+                .replace(block.unwrap_or_else(RObject::nil_rc));
+        }
+    }
     push_callinfo(
         vm,
         method.sym_id.clone().unwrap(),
-        b as usize,
+        args.len(),
         Some(next_owner),
         a as usize,
     );
