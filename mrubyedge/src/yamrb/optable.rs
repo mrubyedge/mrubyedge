@@ -2092,9 +2092,8 @@ pub(crate) fn op_subi(vm: &mut VM, operand: &Fetched) -> Result<(), Error> {
     let val2 = b as i64;
     let result = match &val1.value {
         RValue::Integer(n1) => RObject::integer(*n1 - val2),
-        _ => {
-            unreachable!("subi supports only integer")
-        }
+        RValue::Float(n1) => RObject::float(n1 - val2 as f64),
+        _ => unreachable!("subi supports only integer and float"),
     };
     vm.current_regs()[a as usize].replace(result.to_refcount_assigned());
     Ok(())

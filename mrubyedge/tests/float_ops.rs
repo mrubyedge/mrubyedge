@@ -142,3 +142,18 @@ fn test_float_sub() {
     let value: f64 = result.as_ref().try_into().unwrap();
     assert_eq!(value, 6.5);
 }
+
+#[test]
+fn test_float_sub_with_integer() {
+    let code = "
+    x = 2.5
+    y = x - 1
+    y
+    ";
+    let binary = mrbc_compile("float_sub_int", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    let result = vm.run().unwrap();
+    let value: f64 = result.as_ref().try_into().unwrap();
+    assert_eq!(value, 1.5);
+}
